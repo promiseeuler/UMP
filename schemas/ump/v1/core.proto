@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package ump.v1;
+
+message Envelope {
+  uint32 protocol_major = 1;
+  uint32 protocol_minor = 2;
+  string message_id = 3;
+  string source_machine_id = 4;
+  string source_session_id = 5;
+  uint64 sent_at_ms = 6;
+  optional uint64 expires_at_ms = 7;
+
+  oneof body {
+    Hello hello = 10;
+    Welcome welcome = 11;
+    NegotiationRejected negotiation_rejected = 12;
+    Heartbeat heartbeat = 13;
+  }
+}
+
+message Hello {
+  repeated uint32 supported_major_versions = 1;
+  uint32 minimum_minor_version = 2;
+  uint32 maximum_minor_version = 3;
+  uint64 presence_ttl_ms = 4;
+}
+
+message Welcome {
+  uint32 selected_major_version = 1;
+  uint32 selected_minor_version = 2;
+  uint64 presence_ttl_ms = 3;
+}
+
+message NegotiationRejected {
+  string code = 1;
+  string detail = 2;
+}
+
+message Heartbeat {
+  uint64 sequence = 1;
+  uint64 presence_ttl_ms = 2;
+}
+

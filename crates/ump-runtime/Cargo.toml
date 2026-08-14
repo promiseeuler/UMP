@@ -1,0 +1,12 @@
+[package]
+name = "ump-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+ump-protocol = { path = "../ump-protocol" }
+
