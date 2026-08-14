@@ -9,8 +9,11 @@ Install Rust using `rustup`. A system Protocol Buffers compiler is not required;
 ```sh
 cargo test --workspace
 cargo run -p ump-sim --bin s0
+cargo run --release -p ump-sim --bin s1
+make sim-s4-protocol
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
+PYTHONPATH=sdk/python python3 -m unittest discover -s tests/python
 ```
 
 ## Change process
@@ -24,4 +27,3 @@ cargo clippy --workspace --all-targets -- -D warnings
 ## Compatibility
 
 Never reuse a Protocol Buffers field number. Additive optional fields may be introduced in a minor release. Incompatible wire or semantic changes require a protocol major version.
-

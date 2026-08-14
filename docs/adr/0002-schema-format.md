@@ -2,6 +2,7 @@
 
 **Status:** Accepted for prototype  
 **Date:** 2026-08-14
+**Owner:** UMP protocol editors
 
 ## Decision
 
@@ -14,4 +15,3 @@ The format is compact, language neutral, and has explicit field-number compatibi
 ## Consequences
 
 Field numbers are permanent and may never be reused. Semantics remain specified outside generated code. Transport bindings may not alter message meaning.
-

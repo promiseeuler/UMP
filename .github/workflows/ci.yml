@@ -8,6 +8,12 @@ permissions:
   contents: read
 
 jobs:
+  container:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make container-test
+
   rust:
     strategy:
       matrix:
@@ -22,5 +28,35 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      - run: make native-package-test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ump-debian-${{ matrix.runner }}
+          path: dist/*.deb
+      - run: python3 -m pip install protobuf==6.33.5
+      - run: PYTHONPATH=sdk/python python3 -m unittest discover -s tests/python
+      - run: c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only -I sdk/cpp/include tests/cpp/adapter_smoke.cpp
+      - run: make gateway-test
       - run: cargo run -p ump-sim --bin s0
+      - run: cargo run --release -p ump-sim --bin s1
+      - run: cargo run --release -p ump-sim --bin s2
+      - run: cargo run --release -p ump-sim --bin s3
+      - run: make sim-s4-protocol
+      - run: make sim-s5
 
+  ros2-gazebo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - run: make ros2-test
+      - run: make ros2-s5-package
+      - run: make ros2-smoke
+      - run: make ros2-s4
+      - run: make ros2-s4-model-swap
+      - run: make ros2-s4-faults
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: s4-trace-and-logs
+          path: artifacts

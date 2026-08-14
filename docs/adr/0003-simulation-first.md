@@ -2,6 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-08-14
+**Owner:** UMP core maintainers
 
 ## Decision
 
@@ -14,4 +15,3 @@ Distributed failures must be reproducible. A deterministic kernel makes expiry, 
 ## Consequences
 
 Protocol code may not read wall-clock time directly. The S0 scenario is the first release gate; later network and Gazebo simulations reuse the runtime behavior.
-

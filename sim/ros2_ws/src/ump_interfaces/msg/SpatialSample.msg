@@ -1,0 +1,16 @@
+builtin_interfaces/Time source_time
+uint64 sequence
+string parent_frame
+string child_frame
+float64 translation_x
+float64 translation_y
+float64 translation_z
+float64 rotation_x
+float64 rotation_y
+float64 rotation_z
+float64 rotation_w
+float64 position_uncertainty_m
+float64 orientation_uncertainty_rad
+bool valid
+string invalid_reason
+

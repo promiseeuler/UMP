@@ -37,7 +37,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
     });
 
-    simulation.advance_to(DEFAULT_PRESENCE_TTL_MS);
+    simulation.advance_to(1_000);
+    simulation.send_heartbeat(ARM, BASE)?;
+    simulation.send_heartbeat(BASE, ARM)?;
+    let heartbeat_renewed = [ARM, BASE].iter().all(|machine_id| {
+        simulation.machine(machine_id).is_some_and(|machine| {
+            machine.peers().values().all(|peer| {
+                peer.status == PeerStatus::Present
+                    && peer.expires_at_ms == 1_000 + DEFAULT_PRESENCE_TTL_MS
+            })
+        })
+    });
+
+    simulation.advance_to(1_000 + DEFAULT_PRESENCE_TTL_MS);
     let expired = [ARM, BASE].iter().all(|machine_id| {
         simulation.machine(machine_id).is_some_and(|machine| {
             machine
@@ -51,6 +63,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Check {
             name: "mutual version negotiation",
             passed: negotiated,
+        },
+        Check {
+            name: "mutual heartbeat renewal",
+            passed: heartbeat_renewed,
         },
         Check {
             name: "deterministic presence expiry",

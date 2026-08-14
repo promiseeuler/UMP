@@ -22,6 +22,8 @@ pub enum SimulationError {
         #[source]
         source: ProtocolError,
     },
+    #[error("credential for {machine} expired at {expires_at_ms}")]
+    CredentialExpired { machine: String, expires_at_ms: u64 },
 }
 
 #[derive(Debug, Default)]
@@ -30,12 +32,19 @@ pub struct Simulation {
     machines: BTreeMap<String, Machine>,
     deliveries: VecDeque<Delivery>,
     events: Vec<String>,
+    credential_expiry: BTreeMap<String, u64>,
 }
 
 impl Simulation {
     pub fn add_machine(&mut self, machine: Machine) {
-        self.machines
-            .insert(machine.machine_id().to_owned(), machine);
+        self.add_machine_with_credential(machine, u64::MAX);
+    }
+
+    pub fn add_machine_with_credential(&mut self, machine: Machine, expires_at_ms: u64) {
+        let machine_id = machine.machine_id().to_owned();
+        self.credential_expiry
+            .insert(machine_id.clone(), expires_at_ms);
+        self.machines.insert(machine_id, machine);
     }
 
     pub fn now_ms(&self) -> u64 {
@@ -44,6 +53,10 @@ impl Simulation {
 
     pub fn machine(&self, machine_id: &str) -> Option<&Machine> {
         self.machines.get(machine_id)
+    }
+
+    pub fn machine_mut(&mut self, machine_id: &str) -> Option<&mut Machine> {
+        self.machines.get_mut(machine_id)
     }
 
     pub fn events(&self) -> &[String] {
@@ -76,6 +89,11 @@ impl Simulation {
         self.deliver_all()
     }
 
+    pub fn deliver(&mut self, target: &str, envelope: Envelope) -> Result<(), SimulationError> {
+        self.send(target, envelope);
+        self.deliver_all()
+    }
+
     pub fn advance_to(&mut self, now_ms: u64) {
         assert!(now_ms >= self.now_ms, "simulated time cannot move backward");
         self.now_ms = now_ms;
@@ -103,11 +121,27 @@ impl Simulation {
     fn deliver_all(&mut self) -> Result<(), SimulationError> {
         while let Some(delivery) = self.deliveries.pop_front() {
             let source = delivery.envelope.source_machine_id.clone();
+            let credential_expiry = self
+                .credential_expiry
+                .get(&source)
+                .copied()
+                .ok_or_else(|| SimulationError::UnknownMachine(source.clone()))?;
+            if self.now_ms >= credential_expiry {
+                self.events.push(format!(
+                    "t={} rejected expired credential for {source}",
+                    self.now_ms
+                ));
+                return Err(SimulationError::CredentialExpired {
+                    machine: source,
+                    expires_at_ms: credential_expiry,
+                });
+            }
+            let authenticated = ump_runtime::AuthenticatedPeer::observer(&source);
             let response = self
                 .machines
                 .get_mut(&delivery.target)
                 .ok_or_else(|| SimulationError::UnknownMachine(delivery.target.clone()))?
-                .receive(delivery.envelope, self.now_ms)
+                .receive_authenticated(delivery.envelope, self.now_ms, &authenticated)
                 .map_err(|source| SimulationError::Protocol {
                     machine: delivery.target.clone(),
                     source,

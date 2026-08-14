@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package ump.v1;
+
+enum TransportKind {
+  TRANSPORT_KIND_UNSPECIFIED = 0;
+  TRANSPORT_KIND_QUIC = 1;
+  TRANSPORT_KIND_TLS_TCP = 2;
+  TRANSPORT_KIND_IN_MEMORY = 3;
+}
+
+message Endpoint {
+  string uri = 1;
+  TransportKind transport = 2;
+  uint32 priority = 3;
+}
+
+message Feature {
+  string name = 1;
+  string version = 2;
+  bool required = 3;
+}
+
+enum CapabilityAvailability {
+  CAPABILITY_AVAILABILITY_UNSPECIFIED = 0;
+  CAPABILITY_AVAILABILITY_AVAILABLE = 1;
+  CAPABILITY_AVAILABILITY_RESERVED = 2;
+  CAPABILITY_AVAILABILITY_UNAVAILABLE = 3;
+  CAPABILITY_AVAILABILITY_DEGRADED = 4;
+}
+
+message CapabilityConstraint {
+  string name = 1;
+  double minimum = 2;
+  double maximum = 3;
+  string unit = 4;
+}
+
+message Capability {
+  string type = 1;
+  string version = 2;
+  string label = 3;
+  string input_schema_uri = 4;
+  string output_schema_uri = 5;
+  CapabilityAvailability availability = 6;
+  bool observable = 7;
+  bool invocable = 8;
+  bool reservable = 9;
+  bool interruptible = 10;
+  bool handoff_capable = 11;
+  uint64 revision = 12;
+  repeated CapabilityConstraint constraints = 13;
+}
+
+enum DeploymentMode {
+  DEPLOYMENT_MODE_UNSPECIFIED = 0;
+  DEPLOYMENT_MODE_DIRECT = 1;
+  DEPLOYMENT_MODE_GATEWAY_PROXY = 2;
+}
+
+message ProxyAssociation {
+  string gateway_id = 1;
+  string represented_machine_id = 2;
+  string controller_interface = 3;
+  bool read_only = 4;
+}
+
+message MachineDescriptor {
+  string machine_class = 1;
+  string manufacturer = 2;
+  string model = 3;
+  string software_version = 4;
+  repeated Endpoint endpoints = 5;
+  repeated Feature features = 6;
+  repeated Capability capabilities = 7;
+  uint64 revision = 8;
+  DeploymentMode deployment_mode = 9;
+  ProxyAssociation proxy = 10;
+}
+
+message Advertisement {
+  MachineDescriptor descriptor = 1;
+}
+
+enum OperationalState {
+  OPERATIONAL_STATE_UNSPECIFIED = 0;
+  OPERATIONAL_STATE_STARTING = 1;
+  OPERATIONAL_STATE_IDLE = 2;
+  OPERATIONAL_STATE_BUSY = 3;
+  OPERATIONAL_STATE_PAUSED = 4;
+  OPERATIONAL_STATE_DEGRADED = 5;
+  OPERATIONAL_STATE_STOPPING = 6;
+  OPERATIONAL_STATE_FAULTED = 7;
+}
+
+enum SafetyState {
+  SAFETY_STATE_UNSPECIFIED = 0;
+  SAFETY_STATE_NORMAL = 1;
+  SAFETY_STATE_PROTECTIVE_STOP = 2;
+  SAFETY_STATE_EMERGENCY_STOP = 3;
+  SAFETY_STATE_RECOVERY_REQUIRED = 4;
+  SAFETY_STATE_UNKNOWN = 5;
+}
+
+enum HealthSeverity {
+  HEALTH_SEVERITY_UNSPECIFIED = 0;
+  HEALTH_SEVERITY_INFO = 1;
+  HEALTH_SEVERITY_WARNING = 2;
+  HEALTH_SEVERITY_ERROR = 3;
+  HEALTH_SEVERITY_CRITICAL = 4;
+}
+
+message HealthCondition {
+  string component = 1;
+  HealthSeverity severity = 2;
+  string code = 3;
+  string message = 4;
+  uint64 first_seen_ms = 5;
+  string remediation = 6;
+}
+
+message TelemetrySample {
+  string metric = 1;
+  double value = 2;
+  string unit = 3;
+  uint64 source_time_ms = 4;
+  uint64 sequence = 5;
+}
+
+message StateUpdate {
+  OperationalState operational = 1;
+  SafetyState safety = 2;
+  repeated HealthCondition health = 3;
+  repeated TelemetrySample telemetry = 4;
+  uint64 revision = 5;
+  uint64 source_time_ms = 6;
+}
+
+enum ErrorCategory {
+  ERROR_CATEGORY_UNSPECIFIED = 0;
+  ERROR_CATEGORY_PROTOCOL = 1;
+  ERROR_CATEGORY_AUTHENTICATION = 2;
+  ERROR_CATEGORY_AUTHORIZATION = 3;
+  ERROR_CATEGORY_VALIDATION = 4;
+  ERROR_CATEGORY_RESOURCE = 5;
+  ERROR_CATEGORY_INTERNAL = 6;
+}
+
+message ErrorReport {
+  string code = 1;
+  ErrorCategory category = 2;
+  string detail = 3;
+  bool retryable = 4;
+  string related_message_id = 5;
+  uint64 occurred_at_ms = 6;
+  string remediation = 7;
+}

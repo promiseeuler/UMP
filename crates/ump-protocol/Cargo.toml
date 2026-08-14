@@ -14,3 +14,5 @@ prost.workspace = true
 prost-build.workspace = true
 protoc-bin-vendored.workspace = true
 
+[dev-dependencies]
+protoc-bin-vendored.workspace = true

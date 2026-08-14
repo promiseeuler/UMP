@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package ump.v1;
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_REQUESTED = 1;
+  TASK_STATUS_ACCEPTED = 2;
+  TASK_STATUS_RUNNING = 3;
+  TASK_STATUS_CANCEL_PENDING = 4;
+  TASK_STATUS_SUCCEEDED = 5;
+  TASK_STATUS_FAILED = 6;
+  TASK_STATUS_CANCELLED = 7;
+  TASK_STATUS_REJECTED = 8;
+  TASK_STATUS_UNKNOWN = 9;
+  TASK_STATUS_RETRY_PENDING = 10;
+}
+
+enum IdempotencyPolicy {
+  IDEMPOTENCY_POLICY_UNSPECIFIED = 0;
+  IDEMPOTENCY_POLICY_SAFE_TO_RETRY = 1;
+  IDEMPOTENCY_POLICY_AT_MOST_ONCE = 2;
+  IDEMPOTENCY_POLICY_RECONCILE_REQUIRED = 3;
+}
+
+enum LeaseState {
+  LEASE_STATE_UNSPECIFIED = 0;
+  LEASE_STATE_ACTIVE = 1;
+  LEASE_STATE_REVOKED = 2;
+  LEASE_STATE_EXPIRED = 3;
+}
+
+message AuthorityLease {
+  string lease_id = 1;
+  string grantor_machine_id = 2;
+  string holder_machine_id = 3;
+  repeated string allowed_capabilities = 4;
+  repeated string resource_ids = 5;
+  uint64 issued_at_ms = 6;
+  uint64 expires_at_ms = 7;
+  uint64 maximum_clock_uncertainty_ms = 8;
+  bool renewable = 9;
+  bool exclusive = 10;
+  LeaseState state = 11;
+  uint64 revision = 12;
+}
+
+message LeaseGrant {
+  AuthorityLease lease = 1;
+}
+
+message LeaseRenew {
+  string lease_id = 1;
+  uint64 previous_revision = 2;
+  uint64 expires_at_ms = 3;
+}
+
+message LeaseRevoke {
+  string lease_id = 1;
+  uint64 previous_revision = 2;
+  string reason = 3;
+}
+
+message TaskRequest {
+  string task_id = 1;
+  string capability = 2;
+  bytes input = 3;
+  string input_content_type = 4;
+  string authority_lease_id = 5;
+  string idempotency_key = 6;
+  IdempotencyPolicy idempotency_policy = 7;
+  uint64 deadline_ms = 8;
+  uint32 maximum_attempts = 9;
+}
+
+message TaskAcknowledgement {
+  string task_id = 1;
+  TaskStatus status = 2;
+  string reason_code = 3;
+  string detail = 4;
+}
+
+message TaskProgress {
+  string task_id = 1;
+  TaskStatus status = 2;
+  uint32 progress_per_mille = 3;
+  string stage = 4;
+  uint64 revision = 5;
+}
+
+message TaskTerminal {
+  string task_id = 1;
+  TaskStatus status = 2;
+  bytes output = 3;
+  string output_content_type = 4;
+  string error_code = 5;
+  string detail = 6;
+  uint64 revision = 7;
+  bool inspection_required = 8;
+}
+
+message TaskCancel {
+  string task_id = 1;
+  string reason = 2;
+  uint64 requested_at_ms = 3;
+}
+
+message TaskReconcileRequest {
+  repeated string task_ids = 1;
+  uint64 known_journal_sequence = 2;
+}
+
+message TaskSnapshot {
+  string task_id = 1;
+  string issuer_machine_id = 2;
+  string executor_machine_id = 3;
+  string capability = 4;
+  TaskStatus status = 5;
+  uint64 revision = 6;
+  string idempotency_key = 7;
+  string authority_lease_id = 8;
+  bool inspection_required = 9;
+}
+
+message TaskReconcileResponse {
+  repeated TaskSnapshot tasks = 1;
+  uint64 journal_sequence = 2;
+}

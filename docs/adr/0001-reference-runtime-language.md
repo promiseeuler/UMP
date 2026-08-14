@@ -2,6 +2,7 @@
 
 **Status:** Accepted for prototype  
 **Date:** 2026-08-14
+**Owner:** UMP core maintainers
 
 ## Decision
 
@@ -14,4 +15,3 @@ Rust supports memory-safe network code, deterministic resource ownership, ARM64 
 ## Consequences
 
 The repository uses a Cargo workspace. Unsafe Rust is denied in core crates. Independent implementations are required before v1 interoperability claims.
-
