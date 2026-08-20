@@ -21,6 +21,7 @@ class PublicApiTests(unittest.TestCase):
             "AssignmentStatus",
             "Availability",
             "CommunicationLossHandler",
+            "LanEvidenceValidationError",
             "Coordinator",
             "CoordinatorService",
             "Mode",
@@ -42,9 +43,11 @@ class PublicApiTests(unittest.TestCase):
             "standard_capability",
             "load_adapter",
             "load_planner",
+            "lan_evidence_schema",
             "pilot_schema",
             "read_run_summaries",
             "validate_pilot_bundle",
+            "validate_lan_evidence_bundle",
             "validate_plan",
         ):
             self.assertIn(public_name, ump.__all__)

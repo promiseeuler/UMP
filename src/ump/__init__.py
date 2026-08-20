@@ -14,6 +14,11 @@ from .coordinator_store import (
 )
 from .coordinator_node import CoordinatorService
 from .journal import SqliteAssignmentJournal
+from .lan_evidence import (
+    LanEvidenceValidationError,
+    lan_evidence_schema,
+    validate_lan_evidence_bundle,
+)
 from .models import (
     Assignment,
     AssignmentStatus,
@@ -48,6 +53,7 @@ __all__ = [
     "ConformanceReport",
     "CoordinatorStore",
     "Mode",
+    "LanEvidenceValidationError",
     "Outcome",
     "Plan",
     "Planner",
@@ -72,8 +78,10 @@ __all__ = [
     "standard_capability",
     "load_adapter",
     "load_planner",
+    "lan_evidence_schema",
     "read_run_summaries",
     "pilot_schema",
     "validate_pilot_bundle",
+    "validate_lan_evidence_bundle",
     "validate_plan",
 ]

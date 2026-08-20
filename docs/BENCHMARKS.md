@@ -45,9 +45,27 @@ host models, operating systems, network topology, interface type, and run time.
 A loopback run proves the harness only. The PRD healthy-LAN gate requires these
 commands on separate representative hosts connected through the deployment LAN.
 
-The command emits one JSON document and exits with `0` when every configured
-gate passes, `1` when a measured gate fails, and `2` for invalid arguments. The
-default run uses 5,000 measured state publications and 100 idle participants.
+Save the client's JSON output as `client.json`. The server emits a `ready` JSON
+event first; save only its final JSON line as `server.json`. Create a bundle
+manifest using
+`schemas/ump-lan-evidence-v1.schema.json`, record the SHA-256 digest of each
+report, and validate it with:
+
+```sh
+ump-lan-evidence validate lan-evidence.json
+```
+
+The verifier checks both artifact digests, successful benchmark gates, distinct
+client and server hostnames, non-loopback addressing, reciprocal server identity
+and port, and matching sent/received counts. It emits a machine-readable summary.
+This proves evidence integrity and internal cross-host consistency; operators
+must still verify that the recorded network description and machines represent
+the intended deployment environment.
+
+Each benchmark's final report is one JSON document. The process exits with `0`
+when every configured gate passes, `1` when a measured gate fails, and `2` for
+invalid arguments. The default in-memory run uses 5,000 measured state
+publications and 100 idle participants.
 
 ## Measurements
 

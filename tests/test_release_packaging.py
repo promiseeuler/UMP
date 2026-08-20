@@ -25,6 +25,10 @@ class ReleasePackagingTests(unittest.TestCase):
             metadata["scripts"]["ump-lan-benchmark"],
             "ump.cli:lan_benchmark_main",
         )
+        self.assertEqual(
+            metadata["scripts"]["ump-lan-evidence"],
+            "ump.cli:lan_evidence_main",
+        )
 
     def test_source_manifest_contains_auditable_project_assets(self):
         manifest = (ROOT / "MANIFEST.in").read_text()
@@ -45,8 +49,10 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("python -m twine check dist/*", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-demo", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
+        self.assertIn("/tmp/ump-release/bin/ump-lan-evidence schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-node --help", workflow)
         self.assertIn("schemas/ump-v0.schema.json", workflow)
+        self.assertIn("schemas/ump-lan-evidence-v1.schema.json", workflow)
         self.assertIn("vocabulary_data/v1/catalog.json", workflow)
         self.assertIn("examples/read_only_adapter.py", workflow)
         self.assertIn("actions/upload-artifact@v7", workflow)

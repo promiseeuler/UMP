@@ -44,7 +44,7 @@ transport, and placement steps from one shared goal.
 - `docs/CONFORMANCE.md`: golden vectors and safe adapter validation workflow.
 - `docs/INTEROPERABILITY.md`: SI unit and coordinate-frame schema profile.
 - `docs/VOCABULARY.md`: versioned standard high-level capability contracts.
-- `docs/BENCHMARKS.md`: reproducible reference-runtime quality measurements.
+- `docs/BENCHMARKS.md`: local and two-host benchmarks and evidence validation.
 - `docs/READINESS.md`: executable PRD requirement traceability policy.
 - `docs/VERSIONING.md`: package versioning and release-artifact verification.
 - `docs/INSPECTOR.md`: read-only local protocol inspector setup.

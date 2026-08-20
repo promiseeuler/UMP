@@ -38,6 +38,11 @@ from .coordinator_store import (
 from .credentials import CredentialError, CredentialGeneration, SqliteCredentialStore
 from .inspector import InspectorServer, InspectorStore
 from .journal import SqliteAssignmentJournal
+from .lan_evidence import (
+    LanEvidenceValidationError,
+    lan_evidence_schema,
+    validate_lan_evidence_bundle,
+)
 from .models import AssignmentStatus, AuthorityLease, SharedGoal, payload
 from .network import TlsNetworkBus, load_network_config
 from .node import ParticipantService, load_adapter
@@ -983,6 +988,29 @@ def pilot_main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def lan_evidence_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-lan-evidence",
+        description="Validate integrity-bound two-host LAN benchmark evidence.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    validate = commands.add_parser("validate", help="Validate one evidence manifest")
+    validate.add_argument("manifest")
+    commands.add_parser("schema", help="Print the LAN evidence JSON Schema")
+    arguments = parser.parse_args(argv)
+    try:
+        result = (
+            lan_evidence_schema()
+            if arguments.command == "schema"
+            else validate_lan_evidence_bundle(arguments.manifest)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except LanEvidenceValidationError as error:
+        print(f"ump-lan-evidence: {error}", file=sys.stderr)
+        return 2
+
+
 def readiness_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-readiness",
@@ -1043,6 +1071,7 @@ def main(argv: list[str] | None = None) -> int:
         "credentials": credentials_main,
         "inspector": inspector_main,
         "lan-benchmark": lan_benchmark_main,
+        "lan-evidence": lan_evidence_main,
         "node": node_main,
         "pilot": pilot_main,
         "reconcile": reconcile_main,

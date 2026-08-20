@@ -27,6 +27,7 @@ jobs:
           python -m build
           python -m twine check dist/*
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-v0.schema.json$'
+          tar -tzf dist/*.tar.gz | grep '/schemas/ump-lan-evidence-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/conformance/v0.1/manifest.json$'
           tar -tzf dist/*.tar.gz | grep '/src/ump/vocabulary_data/v1/catalog.json$'
           tar -tzf dist/*.tar.gz | grep '/examples/read_only_adapter.py$'
@@ -40,6 +41,7 @@ jobs:
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --samples 10 --participants 2)
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --profile tls-loopback --samples 10)
           (cd /tmp && /tmp/ump-release/bin/ump-lan-benchmark --help)
+          (cd /tmp && /tmp/ump-release/bin/ump-lan-evidence schema)
           (cd /tmp && /tmp/ump-release/bin/ump-node --help)
       - name: Generate checksums
         run: sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
