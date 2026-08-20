@@ -47,6 +47,7 @@ transport, and placement steps from one shared goal.
 - `docs/BENCHMARKS.md`: local and two-host benchmarks and evidence validation.
 - `docs/READINESS.md`: functional traceability and production qualification policy.
 - `docs/VERSIONING.md`: package versioning and release-artifact verification.
+- `docs/PUBLIC_RELEASE.md`: public-visibility audit and GitHub publication checklist.
 - `docs/INSPECTOR.md`: read-only local protocol inspector setup.
 - `docs/HARDWARE_PILOT.md`: physical-pilot evidence profile and verifier.
 - `docs/INDEPENDENT_REVIEWS.md`: external review evidence and finding policy.

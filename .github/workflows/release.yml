@@ -53,6 +53,7 @@ jobs:
           (cd /tmp && /tmp/ump-release/bin/ump-lan-benchmark --help)
           (cd /tmp && /tmp/ump-release/bin/ump-lan-evidence schema)
           (cd /tmp && /tmp/ump-release/bin/ump-node --help)
+          (cd /tmp && /tmp/ump-release/bin/ump-public-readiness --help)
           (cd /tmp && /tmp/ump-release/bin/ump-network-config schema)
           (cd /tmp && /tmp/ump-release/bin/ump-network-diagnostics --help)
           (cd /tmp && /tmp/ump-release/bin/ump-goal schema)

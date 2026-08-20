@@ -51,6 +51,7 @@ class PublicApiTests(unittest.TestCase):
             "StepStatus",
             "standard_capabilities",
             "adapter_evidence_schema",
+            "audit_public_release",
             "standard_capability",
             "load_adapter",
             "goal_batch_schema",

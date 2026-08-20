@@ -67,6 +67,7 @@ from .network_config import network_config_schema, validate_network_config
 from .network_diagnostics import NetworkDiagnosticsError, inspect_network_databases
 from .planner import Planner, load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
+from .public_release import audit_public_release
 from .runtime import Participant, Registry
 from .ros2_evidence import Ros2EvidenceValidationError, validate_ros2_smoke_report
 from .release_evidence import (
@@ -127,6 +128,7 @@ __all__ = [
     "StepStatus",
     "standard_capabilities",
     "adapter_evidence_schema",
+    "audit_public_release",
     "standard_capability",
     "load_adapter",
     "goal_batch_schema",

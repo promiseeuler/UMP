@@ -51,6 +51,10 @@ class ReleasePackagingTests(unittest.TestCase):
             metadata["scripts"]["ump-lan-evidence"],
             "ump.cli:lan_evidence_main",
         )
+        self.assertEqual(
+            metadata["scripts"]["ump-public-readiness"],
+            "ump.cli:public_readiness_main",
+        )
 
     def test_source_manifest_contains_auditable_project_assets(self):
         manifest = (ROOT / "MANIFEST.in").read_text()
@@ -77,6 +81,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-evidence schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-node --help", workflow)
+        self.assertIn("/tmp/ump-release/bin/ump-public-readiness --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-network-diagnostics --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-ros2-evidence --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-review schema", workflow)

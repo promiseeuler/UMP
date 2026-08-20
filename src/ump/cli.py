@@ -96,6 +96,7 @@ from .network_diagnostics import NetworkDiagnosticsError, inspect_network_databa
 from .node import ParticipantService, load_adapter
 from .planner import load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
+from .public_release import PublicReadinessError, audit_public_release
 from .readiness import load_readiness_report
 from .release_evidence import (
     ReleaseEvidenceValidationError,
@@ -1624,6 +1625,30 @@ def readiness_main(argv: list[str] | None = None) -> int:
     return 0 if report["ready"] else 1
 
 
+def public_readiness_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-public-readiness",
+        description="Audit a Git repository before changing it to public visibility.",
+    )
+    parser.add_argument("project_root", nargs="?", default=".")
+    parser.add_argument(
+        "--accept-historical-tree",
+        action="store_true",
+        help="Record that deleted historical roots were intentionally reviewed",
+    )
+    arguments = parser.parse_args(argv)
+    try:
+        report = audit_public_release(
+            arguments.project_root,
+            accept_historical_tree=arguments.accept_historical_tree,
+        )
+    except PublicReadinessError as error:
+        print(f"ump-public-readiness: {error}", file=sys.stderr)
+        return 2
+    print(json.dumps(report, sort_keys=True))
+    return 0 if report["ready"] else 1
+
+
 def inspector_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-inspector",
@@ -1675,6 +1700,7 @@ def main(argv: list[str] | None = None) -> int:
         "reconcile": reconcile_main,
         "vocabulary": vocabulary_main,
         "readiness": readiness_main,
+        "public-readiness": public_readiness_main,
         "release-evidence": release_evidence_main,
         "ros2-evidence": ros2_evidence_main,
         "review": review_main,
