@@ -34,6 +34,10 @@ class ReleasePackagingTests(unittest.TestCase):
             metadata["scripts"]["ump-network-config"],
             "ump.cli:network_config_main",
         )
+        self.assertEqual(
+            metadata["scripts"]["ump-network-diagnostics"],
+            "ump.cli:network_diagnostics_main",
+        )
         self.assertEqual(metadata["scripts"]["ump-goal"], "ump.cli:goal_main")
         self.assertEqual(
             metadata["scripts"]["ump-release-evidence"],
@@ -71,6 +75,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-evidence schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-node --help", workflow)
+        self.assertIn("/tmp/ump-release/bin/ump-network-diagnostics --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-ros2-evidence --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-review schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-goal schema", workflow)

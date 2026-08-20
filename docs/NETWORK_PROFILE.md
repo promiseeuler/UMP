@@ -177,6 +177,25 @@ bus.stop()
 and acknowledgement errors. Applications must monitor both, plus inbox dead
 letters, and surface degraded connectivity to operators.
 
+For owner-operated nodes and coordinators, inspect the configured durable stores
+without stopping the service:
+
+```sh
+ump-network-diagnostics --network /etc/ump/network.json
+```
+
+The command opens the inbox and outbox in SQLite read-only mode. It reports
+status counts, pending work by peer and stream, retry attempts, oldest pending
+age, the next retry time, and bounded recent retry/dead-letter metadata. Encoded
+envelopes and message payloads are never returned. `--maximum-pending-age-ms`
+sets the backlog-age policy and `--detail-limit` bounds returned diagnostics.
+
+Exit status `0` means all checks pass, `1` means the stores are readable but a
+backlog age, capacity/reserve, clock, or dead-letter check is degraded, and `2`
+means configuration or database evidence cannot be trusted. Dead letters require
+operator investigation; the diagnostics command never retries, deletes, stages,
+or otherwise changes delivery records.
+
 ## Certificate enrollment
 
 UMP deliberately does not invent a certificate authority. Robot owners or

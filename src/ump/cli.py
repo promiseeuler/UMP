@@ -73,6 +73,7 @@ from .network import (
     load_network_config,
 )
 from .network_config import network_config_schema, validate_network_config
+from .network_diagnostics import NetworkDiagnosticsError, inspect_network_databases
 from .node import ParticipantService, load_adapter
 from .planner import load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
@@ -789,6 +790,34 @@ def network_config_main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def network_diagnostics_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-network-diagnostics",
+        description="Inspect durable UMP delivery health without mutating stores.",
+    )
+    parser.add_argument("--network", required=True)
+    parser.add_argument("--maximum-pending-age-ms", type=int, default=60_000)
+    parser.add_argument("--detail-limit", type=int, default=20)
+    arguments = parser.parse_args(argv)
+    try:
+        config = load_network_config(arguments.network)
+        result = inspect_network_databases(
+            config.inbox_database_path,
+            config.outbox_database_path,
+            maximum_pending=config.maximum_pending_deliveries,
+            reserved_safety=config.reserved_safety_deliveries,
+            observed_at_ms=int(time.time() * 1_000),
+            maximum_pending_age_ms=arguments.maximum_pending_age_ms,
+            detail_limit=arguments.detail_limit,
+        )
+        result["robot_id"] = config.robot_id
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result["healthy"] else 1
+    except (NetworkDiagnosticsError, OSError, ValueError) as error:
+        print(f"ump-network-diagnostics: {error}", file=sys.stderr)
+        return 2
+
+
 def goal_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-goal",
@@ -1432,6 +1461,7 @@ def main(argv: list[str] | None = None) -> int:
         "lan-evidence": lan_evidence_main,
         "node": node_main,
         "network-config": network_config_main,
+        "network-diagnostics": network_diagnostics_main,
         "pilot": pilot_main,
         "reconcile": reconcile_main,
         "vocabulary": vocabulary_main,

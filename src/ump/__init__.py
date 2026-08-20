@@ -50,6 +50,7 @@ from .models import (
 )
 from .node import ParticipantService, load_adapter
 from .network_config import network_config_schema, validate_network_config
+from .network_diagnostics import NetworkDiagnosticsError, inspect_network_databases
 from .planner import Planner, load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .runtime import Participant, Registry
@@ -81,6 +82,7 @@ __all__ = [
     "CoordinatorStore",
     "Mode",
     "LanEvidenceValidationError",
+    "NetworkDiagnosticsError",
     "Outcome",
     "Plan",
     "Planner",
@@ -112,6 +114,7 @@ __all__ = [
     "goal_schema",
     "goal_validation_report",
     "inspect_adapter_evidence",
+    "inspect_network_databases",
     "load_planner",
     "network_config_schema",
     "lan_evidence_schema",

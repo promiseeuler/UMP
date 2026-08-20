@@ -54,6 +54,8 @@ qualification matrix remains fail-closed with eight pending external gates.
   retry, backpressure, delivery metrics, and concrete error history.
 - Durable ordered receiver inbox with receipt acknowledgements, idempotent exact
   retries, crash-window staging, concurrent peer processing, and dead letters.
+- Read-only owner diagnostics for queue pressure, pending age, retry metadata,
+  stream/peer backlog, and bounded inbox dead letters without payload disclosure.
 - Protocol-safe safety-state priority stream with independent sequence/replay
   floors, queue heads, sender locks, inbox ordering, and reserved outbox capacity.
 - Expiring UDP local-discovery hint encoding and transport.

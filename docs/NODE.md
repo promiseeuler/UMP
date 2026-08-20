@@ -90,6 +90,11 @@ Do not share one database file between robots or copy a live database between
 identities. Assignment, authority, credential, replay, inbox, and outbox roles
 must each use a distinct resolved path; startup rejects collisions.
 
+Monitor durable delivery health while the node runs with
+`ump-network-diagnostics --network /etc/ump/network.json`. The command is
+read-only and returns a degraded status for stale retry backlogs or inbox dead
+letters; see `NETWORK_PROFILE.md` for fields and exit codes.
+
 `--execution-workers` defaults to zero, preserving synchronous adapter execution.
 A manufacturer may select 1–32 workers only when its native API safely permits
 independent high-level requests. UMP resource declarations and the native robot
