@@ -117,6 +117,31 @@ class CoordinatorService:
             if stop.wait(min(self._poll_interval_s, remaining)):
                 raise InterruptedError("coordinator wait interrupted")
 
+    def wait_for_resolution(
+        self,
+        plan_id: str,
+        timeout_s: float,
+        stop: Event | None = None,
+    ) -> RunSnapshot:
+        """Wait until restart uncertainty is resolved to a known terminal run."""
+        if timeout_s <= 0:
+            raise ValueError("reconciliation timeout must be positive")
+        stop = stop or Event()
+        deadline = time.monotonic() + timeout_s
+        while True:
+            snapshot = self.coordinator.snapshot(plan_id)
+            if snapshot.status in {
+                RunStatus.SUCCEEDED,
+                RunStatus.FAILED,
+                RunStatus.CANCELLED,
+            }:
+                return snapshot
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RunCompletionTimeout(f"plan remains unresolved: {plan_id}")
+            if stop.wait(min(self._poll_interval_s, remaining)):
+                raise InterruptedError("coordinator reconciliation interrupted")
+
     def cancel(
         self,
         plan_id: str,
@@ -130,6 +155,23 @@ class CoordinatorService:
             raise InterruptedError("coordinator cancellation interrupted")
         self._health_check()
         return self.coordinator.cancel(plan_id, reason, self._clock_ms())
+
+    def reconcile(
+        self,
+        plan_id: str,
+        *,
+        participant_timeout_s: float = 30.0,
+        stop: Event | None = None,
+    ) -> tuple[str, ...]:
+        goal = self.coordinator.store.goal(plan_id)
+        self.wait_for_participants(
+            goal.participant_ids, participant_timeout_s, stop
+        )
+        self._health_check()
+        now_ms = self._clock_ms()
+        assignment_ids = self.coordinator.reconcile(plan_id, now_ms)
+        self.coordinator.resume_active(now_ms)
+        return assignment_ids
 
     def close(self) -> None:
         if self._closed:

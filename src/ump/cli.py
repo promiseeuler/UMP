@@ -639,6 +639,13 @@ def coordinator_parser() -> argparse.ArgumentParser:
     cancel.add_argument("--plan-id", required=True)
     cancel.add_argument("--reason", required=True)
     cancel.add_argument("--completion-timeout", type=float, default=30.0)
+    reconcile = commands.add_parser(
+        "reconcile", help="Query robots for durable evidence of uncertain work"
+    )
+    add_network_runtime(reconcile)
+    reconcile.add_argument("--plan-id", required=True)
+    reconcile.add_argument("--participant-timeout", type=float, default=30.0)
+    reconcile.add_argument("--completion-timeout", type=float, default=300.0)
     status = commands.add_parser("status", help="Read one run from the durable journal")
     status.add_argument("--database", required=True)
     status.add_argument("--plan-id", required=True)
@@ -696,9 +703,9 @@ def coordinator_main(argv: list[str] | None = None) -> int:
         registry = Registry(bus)
         store = CoordinatorStore(
             arguments.database,
-            recover_interrupted=arguments.command == "submit",
+            recover_interrupted=arguments.command != "cancel",
         )
-        if arguments.command == "cancel":
+        if arguments.command in {"cancel", "reconcile"}:
             plan = store.plan(arguments.plan_id)
             assigned_robot_ids = {step.assigned_robot_id for step in plan.steps}
             unknown_targets = assigned_robot_ids - {
@@ -774,6 +781,33 @@ def coordinator_main(argv: list[str] | None = None) -> int:
                 flush=True,
             )
             return 0 if snapshot.status is RunStatus.CANCELLED else 1
+        if arguments.command == "reconcile":
+            plan_id = arguments.plan_id
+            assignment_ids = service.reconcile(
+                plan_id,
+                participant_timeout_s=arguments.participant_timeout,
+                stop=stop,
+            )
+            snapshot = coordinator.snapshot(plan_id)
+            print(
+                json.dumps(
+                    {
+                        "event": "reconciliation_requested",
+                        "assignment_ids": assignment_ids,
+                        **_run_snapshot_document(snapshot),
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            snapshot = service.wait_for_resolution(
+                plan_id, arguments.completion_timeout, stop
+            )
+            print(
+                json.dumps(_run_snapshot_document(snapshot), sort_keys=True),
+                flush=True,
+            )
+            return 0
         assert goal is not None and planner is not None
         plan = service.submit(
             goal,

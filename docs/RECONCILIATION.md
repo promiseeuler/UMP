@@ -35,9 +35,28 @@ explicit determination, resolver identity, evidence reference, and occurrence
 time in one transaction. The resulting terminal outcome is immutable and held
 resources are released.
 
-Afterward, run coordinator reconciliation. The participant serves the durable
-outcome through the existing query path, and dependent work resumes only if the
-resolved status permits it.
+Afterward, run coordinator reconciliation with the same authenticated identity
+and journal that submitted the plan:
+
+```sh
+ump-coordinator reconcile \
+  --network /etc/ump/coordinator-network.json \
+  --credential-database /var/lib/ump/coordinator-credentials.sqlite3 \
+  --credential-directory /var/lib/ump/coordinator-credentials \
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --plan-id PLAN_ID
+```
+
+The command first requires fresh manifest and semantic state from every goal
+participant. It conservatively marks interrupted dispatched/accepted work
+unknown, queries each unknown assignment, validates authenticated robot identity
+and assignment fingerprint, and resumes dependent work only after durable
+successful evidence. It waits for a known terminal run by default. Timeout or
+remaining uncertainty exits nonzero and never triggers blind execution.
+
+`ump-reconcile` is the robot-local operator evidence command;
+`ump-coordinator reconcile` is the network query and coordinator recovery
+command. Neither command infers physical state.
 
 Deployments are responsible for restricting command access to authorized local
 operators and for defining acceptable evidence per capability. Evidence should

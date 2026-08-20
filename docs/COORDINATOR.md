@@ -97,6 +97,11 @@ ump-coordinator status \
   --plan-id PLAN_ID
 ```
 
+For restart-uncertain work, use `ump-coordinator reconcile` as documented in
+`RECONCILIATION.md`. Recovery requires fresh context from all declared
+participants and fingerprint-bound terminal evidence; assignments are never
+blindly resent.
+
 Planner proposals remain untrusted and pass the checks in `PLANNER.md`. Each
 participant independently enforces its robot-local authority lease and native
 safety policy before accepting an assignment.

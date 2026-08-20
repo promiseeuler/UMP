@@ -94,6 +94,9 @@
   participant readiness, durable goal submission, completion waiting, and status.
 - Owner cancellation command with permanent coordinator-journal identity binding,
   restart-uncertain cancellation requests, and terminal evidence waiting.
+- Owner coordinator reconciliation command with fresh-context gating,
+  authenticated durable queries, fingerprint validation, dependency resumption,
+  and bounded uncertainty waiting.
 - Four-identity mutual-TLS loopback integration covering authorized awareness,
   three dependency-ordered assignments, outcomes, and terminal run durability.
 - Integrity-bound hardware-pilot bundle verifier enforcing the PRD topology and

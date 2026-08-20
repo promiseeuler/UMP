@@ -12,12 +12,19 @@ from ump.cli import coordinator_main
 from ump.coordinator_node import (
     CoordinatorService,
     ParticipantContextTimeout,
+    RunCompletionTimeout,
     parse_authority_leases,
 )
 from ump.coordinator_store import CoordinatorStore, RunStatus
 from ump.demo import WarehousePlanner
-from ump.models import RobotManifest, SharedGoal
-from ump.models import Assignment, Plan, PlanStep
+from ump.models import (
+    Assignment,
+    AssignmentStatus,
+    Plan,
+    PlanStep,
+    RobotManifest,
+    SharedGoal,
+)
 from ump.network import (
     PeerEndpoint,
     SqliteReplayProtector,
@@ -180,6 +187,65 @@ def participants(bus):
 
 
 class CoordinatorServiceTests(unittest.TestCase):
+    def test_service_queries_unknown_work_and_waits_for_known_resolution(self):
+        bus = ServiceBus()
+        registry = Registry(bus)
+        coordinator = Coordinator(
+            bus.robot_id, bus, registry, require_authority=False
+        )
+        robot_manifest = RobotManifest(
+            "robot-1",
+            "Example Robotics",
+            "R1",
+            "mobile_robot",
+            (standard_capability("ump.navigation.inspect-route/v1"),),
+        )
+        participant = Participant(
+            SimulatedRobot(robot_manifest),
+            bus,
+            authorizer=AllowAllAuthorizer(),
+            clock_ms=lambda: 1_100,
+        )
+        participant.announce(1_000)
+        goal = SharedGoal("goal-reconcile-1", "Inspect the route", ("robot-1",))
+        step = PlanStep(
+            "inspect",
+            "Inspect the route",
+            "robot-1",
+            "ump.navigation.inspect-route/v1",
+            {"from": "intake", "to": "storage"},
+            "A route report is available",
+        )
+        plan = Plan("plan-reconcile-1", goal.goal_id, "planner-1", "Inspect", (step,))
+        assignment = Assignment("assignment-1", goal.goal_id, plan.plan_id, step)
+        coordinator.store.create_run(goal, plan, (assignment,), 1_000)
+        coordinator.store.mark_dispatched(assignment.assignment_id, 1_001)
+        coordinator.store.record_outcome(
+            assignment.assignment_id, AssignmentStatus.UNKNOWN, 1_002
+        )
+        service = CoordinatorService(
+            bus, coordinator, registry, clock_ms=lambda: 1_100, poll_interval_s=0.01
+        )
+        service.start()
+
+        queried = service.reconcile(plan.plan_id, participant_timeout_s=0.1)
+
+        self.assertEqual(queried, (assignment.assignment_id,))
+        self.assertTrue(
+            any(item.message_type == "assignment_query" for item in bus.trace)
+        )
+        with self.assertRaisesRegex(RunCompletionTimeout, "unresolved"):
+            service.wait_for_resolution(plan.plan_id, timeout_s=0.01)
+        coordinator.store.reconcile_outcome(
+            assignment.assignment_id, AssignmentStatus.SUCCEEDED, 1_200
+        )
+        self.assertEqual(
+            service.wait_for_resolution(plan.plan_id, timeout_s=0.1).status,
+            RunStatus.SUCCEEDED,
+        )
+        service.close()
+        participant.close()
+
     def test_service_publishes_owner_cancellation_request(self):
         bus = ServiceBus()
         registry = Registry(bus)
