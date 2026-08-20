@@ -12,6 +12,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+diagnostics() {
+  for log in /tmp/ump-gazebo.log /tmp/robot_*.log; do
+    if [[ -f $log ]]; then
+      printf '%s\n' "--- $log ---" >&2
+      cat "$log" >&2
+    fi
+  done
+}
+
 share=$(ros2 pkg prefix ump_gazebo_demo --share)
 gz sim -s -r -v 2 "$share/worlds/three_robot_world.sdf" > /tmp/ump-gazebo.log 2>&1 &
 pids+=("$!")
@@ -28,9 +37,15 @@ start_server robot_humanoid_1 ump.material.carry/v1 0.3
 start_server robot_mobile_arm_1 ump.manipulation.place/v1 5.0
 
 ready=false
-for _ in $(seq 1 60); do
-  actions=$(timeout 3s ros2 action list 2>/dev/null || true)
-  services=$(timeout 3s gz service -l 2>/dev/null || true)
+for _ in $(seq 1 45); do
+  for pid in "${pids[@]}"; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      diagnostics
+      exit 1
+    fi
+  done
+  actions=$(timeout 1s ros2 action list 2>/dev/null || true)
+  services=$(timeout 1s gz service -l 2>/dev/null || true)
   if [[ $(grep -c execute_capability <<<"$actions" || true) -eq 3 ]] \
     && grep -q /world/ump_conformance/control <<<"$services"; then
     ready=true
@@ -39,7 +54,7 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 if [[ $ready != true ]]; then
-  cat /tmp/ump-gazebo.log >&2
+  diagnostics
   exit 1
 fi
 

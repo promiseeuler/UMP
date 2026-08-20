@@ -41,7 +41,6 @@ jobs:
           ROS_AUTOMATIC_DISCOVERY_RANGE: LOCALHOST
           ROS_DOMAIN_ID: "73"
           ROS2CLI_NO_DAEMON: "1"
-          GZ_IP: 127.0.0.1
         run: |
           source /opt/ros/jazzy/setup.bash
           source ros2_ws/install/setup.bash

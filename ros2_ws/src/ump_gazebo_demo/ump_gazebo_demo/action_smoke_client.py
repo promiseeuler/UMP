@@ -33,10 +33,10 @@ def _spin(node, future, deadline):
 def exercise(arguments) -> dict[str, object]:
     node = Node("ump_action_smoke_client")
     client = ActionClient(node, ExecuteCapability, arguments.action)
-    deadline = time.monotonic() + arguments.timeout
     try:
         if not client.wait_for_server(timeout_sec=arguments.timeout):
             raise TimeoutError("ROS action server was not available")
+        deadline = time.monotonic() + arguments.timeout
         goal = ExecuteCapability.Goal()
         goal.assignment_id = arguments.assignment_id
         goal.capability = arguments.capability
