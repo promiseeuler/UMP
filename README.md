@@ -19,6 +19,8 @@ PYTHONPATH=src python3 -m ump.cli conformance conformance/v0.1
 PYTHONPATH=src python3 -m ump.cli benchmark
 ```
 
+For two-host deployment measurements, see [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+
 The demo connects three simulated robots from different manufacturers through
 an in-memory transport. A replaceable planner assigns route inspection,
 transport, and placement steps from one shared goal.

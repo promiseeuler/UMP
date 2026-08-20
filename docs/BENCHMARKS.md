@@ -19,6 +19,32 @@ Run the authenticated loopback transport profile separately:
 ump-benchmark --profile tls-loopback --samples 1000
 ```
 
+## Two-host LAN measurement
+
+`ump-lan-benchmark` measures the same fresh mutual-TLS delivery path between two
+separate hosts using deployment-issued credentials. On the receiving host:
+
+```sh
+ump-lan-benchmark server --robot-id benchmark-server --host 0.0.0.0 \
+  --port 7443 --certificate server.pem --private-key server.key --ca site-ca.pem \
+  --samples 1000 --warmup-samples 64
+```
+
+After its JSON `ready` event, run on the sending host:
+
+```sh
+ump-lan-benchmark client --robot-id benchmark-client --host 192.0.2.10 \
+  --port 7443 --peer-id benchmark-server --certificate client.pem \
+  --private-key client.key --ca site-ca.pem --samples 1000 --warmup-samples 64
+```
+
+The certificate URI identities must match `--robot-id` and `--peer-id`. Operators
+should also provide `--peer-certificate-sha256` when their deployment pins peer
+certificates. Both roles emit machine-readable JSON; retain both reports with the
+host models, operating systems, network topology, interface type, and run time.
+A loopback run proves the harness only. The PRD healthy-LAN gate requires these
+commands on separate representative hosts connected through the deployment LAN.
+
 The command emits one JSON document and exits with `0` when every configured
 gate passes, `1` when a measured gate fails, and `2` for invalid arguments. The
 default run uses 5,000 measured state publications and 100 idle participants.

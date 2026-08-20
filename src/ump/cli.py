@@ -11,7 +11,12 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from .authority import SqliteAuthorityStore
-from .benchmark import run_reference_benchmark, run_tls_loopback_benchmark
+from .benchmark import (
+    run_reference_benchmark,
+    run_tls_loopback_benchmark,
+    run_tls_network_benchmark,
+    serve_tls_network_benchmark,
+)
 from .conformance import validate_vector_suite
 from .credentials import CredentialError, CredentialGeneration, SqliteCredentialStore
 from .inspector import InspectorServer, InspectorStore
@@ -345,6 +350,86 @@ def benchmark_main(argv: list[str] | None = None) -> int:
     return 0 if report.passed else 1
 
 
+def lan_benchmark_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-lan-benchmark",
+        description="Measure UMP mutual-TLS delivery between two network hosts.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    server = commands.add_parser("server", help="Receive a bounded benchmark run")
+    server.add_argument("--robot-id", required=True)
+    server.add_argument("--host", default="0.0.0.0")
+    server.add_argument("--port", type=int, required=True)
+    server.add_argument("--certificate", required=True)
+    server.add_argument("--private-key", required=True)
+    server.add_argument("--ca", required=True)
+    server.add_argument("--samples", type=int, default=100)
+    server.add_argument("--warmup-samples", type=int, default=10)
+    server.add_argument("--timeout", type=float, default=120.0)
+
+    client = commands.add_parser("client", help="Run and report a benchmark")
+    client.add_argument("--robot-id", required=True)
+    client.add_argument("--host", required=True)
+    client.add_argument("--port", type=int, required=True)
+    client.add_argument("--peer-id", required=True)
+    client.add_argument("--peer-certificate-sha256")
+    client.add_argument("--certificate", required=True)
+    client.add_argument("--private-key", required=True)
+    client.add_argument("--ca", required=True)
+    client.add_argument("--samples", type=int, default=100)
+    client.add_argument("--warmup-samples", type=int, default=10)
+    client.add_argument("--timeout", type=float, default=5.0)
+
+    arguments = parser.parse_args(argv)
+    try:
+        if arguments.command == "server":
+            if arguments.samples < 10:
+                raise ValueError("samples must be at least 10")
+            if not 0 <= arguments.warmup_samples <= 10_000:
+                raise ValueError("warmup samples must be between 0 and 10000")
+
+            def ready(host: str, port: int) -> None:
+                print(
+                    json.dumps(
+                        {"event": "ready", "host": host, "port": port},
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+
+            report = serve_tls_network_benchmark(
+                host=arguments.host,
+                port=arguments.port,
+                robot_id=arguments.robot_id,
+                certificate_path=arguments.certificate,
+                private_key_path=arguments.private_key,
+                ca_path=arguments.ca,
+                expected_messages=arguments.samples + arguments.warmup_samples,
+                timeout=arguments.timeout,
+                ready=ready,
+            )
+        else:
+            report = run_tls_network_benchmark(
+                host=arguments.host,
+                port=arguments.port,
+                local_robot_id=arguments.robot_id,
+                remote_robot_id=arguments.peer_id,
+                certificate_path=arguments.certificate,
+                private_key_path=arguments.private_key,
+                ca_path=arguments.ca,
+                samples=arguments.samples,
+                warmup_samples=arguments.warmup_samples,
+                timeout=arguments.timeout,
+                expected_certificate_sha256=arguments.peer_certificate_sha256,
+            ).as_dict()
+    except (OSError, RuntimeError, ValueError) as error:
+        print(f"ump-lan-benchmark: {error}", file=sys.stderr)
+        return 2
+    print(json.dumps(report, sort_keys=True), flush=True)
+    return 0 if report["passed"] else 1
+
+
 def readiness_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-readiness",
@@ -403,13 +488,14 @@ def main(argv: list[str] | None = None) -> int:
         "conformance": conformance_main,
         "credentials": credentials_main,
         "inspector": inspector_main,
+        "lan-benchmark": lan_benchmark_main,
         "reconcile": reconcile_main,
         "vocabulary": vocabulary_main,
         "readiness": readiness_main,
     }
     if not arguments or arguments[0] not in commands:
         print(
-            "usage: python -m ump.cli {authority,benchmark,conformance,credentials,inspector,readiness,reconcile,vocabulary} ...",
+            "usage: python -m ump.cli {authority,benchmark,conformance,credentials,inspector,lan-benchmark,readiness,reconcile,vocabulary} ...",
             file=sys.stderr,
         )
         return 2

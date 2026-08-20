@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 import sys
+import tempfile
+from threading import Event, Thread
 import unittest
 from unittest.mock import patch
 
@@ -9,9 +11,12 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from ump.benchmark import (
     BenchmarkThresholds,
     TlsBenchmarkThresholds,
+    _benchmark_credentials,
     percentile,
     run_reference_benchmark,
     run_tls_loopback_benchmark,
+    run_tls_network_benchmark,
+    serve_tls_network_benchmark,
 )
 from ump.cli import benchmark_main
 
@@ -85,6 +90,56 @@ class BenchmarkTests(unittest.TestCase):
             json.loads(output.call_args.args[0])["profile"],
             "ump.reference.tls-loopback/v1",
         )
+
+    def test_two_host_harness_exercises_network_tls_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            credentials = _benchmark_credentials(Path(directory))
+            ca, server_certificate, server_key, client_certificate, client_key = (
+                credentials
+            )
+            ready = Event()
+            endpoint = {}
+            server_report = []
+
+            def announce(host, port):
+                endpoint.update(host=host, port=port)
+                ready.set()
+
+            def serve():
+                server_report.append(
+                    serve_tls_network_benchmark(
+                        host="127.0.0.1",
+                        port=0,
+                        robot_id="benchmark-server",
+                        certificate_path=server_certificate,
+                        private_key_path=server_key,
+                        ca_path=ca,
+                        expected_messages=12,
+                        timeout=5.0,
+                        ready=announce,
+                    )
+                )
+
+            thread = Thread(target=serve)
+            thread.start()
+            self.assertTrue(ready.wait(2.0))
+            result = run_tls_network_benchmark(
+                host=endpoint["host"],
+                port=endpoint["port"],
+                local_robot_id="benchmark-client",
+                remote_robot_id="benchmark-server",
+                certificate_path=client_certificate,
+                private_key_path=client_key,
+                ca_path=ca,
+                samples=10,
+                warmup_samples=2,
+            )
+            thread.join(5.0)
+            self.assertFalse(thread.is_alive())
+            self.assertTrue(result.passed)
+            self.assertEqual(result.profile, "ump.reference.tls-network/v1")
+            self.assertEqual(server_report[0]["received_messages"], 12)
+            self.assertTrue(server_report[0]["passed"])
 
 
 if __name__ == "__main__":

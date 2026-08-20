@@ -6,11 +6,13 @@ import gc
 import math
 from pathlib import Path
 import platform
+import socket
 import sys
 import tempfile
+from threading import Event, Lock
 import time
 import tracemalloc
-from typing import Any
+from typing import Any, Callable
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -71,6 +73,35 @@ class TlsBenchmarkThresholds:
 class TlsBenchmarkResult:
     profile: str
     samples: int
+    round_trip_p50_ms: float
+    round_trip_p95_ms: float
+    round_trip_p99_ms: float
+    round_trips_per_second: float
+    message_bytes: int
+    maximum_message_bytes: int
+    thresholds: TlsBenchmarkThresholds
+    checks: dict[str, bool]
+    environment: dict[str, str]
+
+    @property
+    def passed(self) -> bool:
+        return bool(self.checks) and all(self.checks.values())
+
+    def as_dict(self) -> dict[str, Any]:
+        value = asdict(self)
+        value["passed"] = self.passed
+        return value
+
+
+@dataclass(frozen=True)
+class TlsNetworkBenchmarkResult:
+    profile: str
+    samples: int
+    warmup_samples: int
+    local_robot_id: str
+    remote_robot_id: str
+    remote_host: str
+    remote_port: int
     round_trip_p50_ms: float
     round_trip_p95_ms: float
     round_trip_p99_ms: float
@@ -306,15 +337,176 @@ def run_tls_loopback_benchmark(
     )
 
 
-def _benchmark_envelope(sequence: int):
+def run_tls_network_benchmark(
+    *,
+    host: str,
+    port: int,
+    local_robot_id: str,
+    remote_robot_id: str,
+    certificate_path: str | Path,
+    private_key_path: str | Path,
+    ca_path: str | Path,
+    samples: int = 100,
+    warmup_samples: int = 10,
+    timeout: float = 5.0,
+    expected_certificate_sha256: str | None = None,
+    thresholds: TlsBenchmarkThresholds | None = None,
+) -> TlsNetworkBenchmarkResult:
+    if samples < 10:
+        raise ValueError("samples must be at least 10")
+    if not 0 <= warmup_samples <= 10_000:
+        raise ValueError("warmup samples must be between 0 and 10000")
+    if not 1 <= port <= 65_535:
+        raise ValueError("port must be between 1 and 65535")
+    if timeout <= 0:
+        raise ValueError("timeout must be positive")
+    active_thresholds = thresholds or TlsBenchmarkThresholds()
+    client = TlsMessageClient(
+        local_robot_id,
+        create_client_context(certificate_path, private_key_path, ca_path),
+        timeout=timeout,
+    )
+    session_id = f"lan-benchmark-{time.time_ns()}"
+    sequence = 1
+    for _ in range(warmup_samples):
+        client.send(
+            host,
+            port,
+            remote_robot_id,
+            _benchmark_envelope(sequence, local_robot_id, session_id),
+            expected_certificate_sha256,
+        )
+        sequence += 1
+    timings: list[int] = []
+    message_bytes = 0
+    for _ in range(samples):
+        envelope = _benchmark_envelope(sequence, local_robot_id, session_id)
+        message_bytes = max(message_bytes, len(encode_envelope(envelope)))
+        started = time.perf_counter_ns()
+        client.send(
+            host,
+            port,
+            remote_robot_id,
+            envelope,
+            expected_certificate_sha256,
+        )
+        timings.append(time.perf_counter_ns() - started)
+        sequence += 1
+    total_ns = sum(timings)
+    p50_ms = percentile(timings, 0.50) / 1_000_000
+    p95_ms = percentile(timings, 0.95) / 1_000_000
+    p99_ms = percentile(timings, 0.99) / 1_000_000
+    return TlsNetworkBenchmarkResult(
+        profile="ump.reference.tls-network/v1",
+        samples=samples,
+        warmup_samples=warmup_samples,
+        local_robot_id=local_robot_id,
+        remote_robot_id=remote_robot_id,
+        remote_host=host,
+        remote_port=port,
+        round_trip_p50_ms=p50_ms,
+        round_trip_p95_ms=p95_ms,
+        round_trip_p99_ms=p99_ms,
+        round_trips_per_second=samples / (total_ns / 1_000_000_000),
+        message_bytes=message_bytes,
+        maximum_message_bytes=MAX_MESSAGE_BYTES,
+        thresholds=active_thresholds,
+        checks={
+            "round_trip_p95_within_reference_target": (
+                p95_ms <= active_thresholds.round_trip_p95_ms
+            ),
+            "message_within_core_limit": message_bytes <= MAX_MESSAGE_BYTES,
+        },
+        environment={
+            "python": platform.python_version(),
+            "implementation": platform.python_implementation(),
+            "platform": platform.platform(),
+            "executable": sys.executable,
+            "local_hostname": socket.gethostname(),
+            "transport": "TCP network; fresh mutual-TLS connection per message",
+        },
+    )
+
+
+def serve_tls_network_benchmark(
+    *,
+    host: str,
+    port: int,
+    robot_id: str,
+    certificate_path: str | Path,
+    private_key_path: str | Path,
+    ca_path: str | Path,
+    expected_messages: int,
+    timeout: float,
+    ready: Callable[[str, int], None] | None = None,
+) -> dict[str, Any]:
+    if expected_messages < 1:
+        raise ValueError("expected messages must be positive")
+    if timeout <= 0:
+        raise ValueError("timeout must be positive")
+    completed = Event()
+    received_lock = Lock()
+    received = 0
+
+    def receive(_envelope) -> None:
+        nonlocal received
+        with received_lock:
+            received += 1
+            if received >= expected_messages:
+                completed.set()
+
+    server = TlsMessageServer(
+        robot_id,
+        host,
+        port,
+        create_server_context(certificate_path, private_key_path, ca_path),
+        receive,
+        connection_timeout=min(timeout, 10.0),
+    )
+    bound_host, bound_port = server.start()
+    if ready is not None:
+        ready(bound_host, bound_port)
+    started = time.monotonic()
+    complete = completed.wait(timeout)
+    elapsed = time.monotonic() - started
+    server.stop()
+    with received_lock:
+        received_messages = received
+    return {
+        "profile": "ump.reference.tls-network-server/v1",
+        "robot_id": robot_id,
+        "bind_host": bound_host,
+        "bind_port": bound_port,
+        "expected_messages": expected_messages,
+        "received_messages": received_messages,
+        "elapsed_seconds": elapsed,
+        "errors": [str(error) for error in server.errors],
+        "passed": (
+            complete
+            and received_messages == expected_messages
+            and not server.errors
+        ),
+        "environment": {
+            "hostname": socket.gethostname(),
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+        },
+    }
+
+
+def _benchmark_envelope(
+    sequence: int,
+    source_id: str = "benchmark-client",
+    session_id: str = "tls-benchmark-session",
+):
     return make_envelope(
         "state",
-        "benchmark-client",
-        "tls-benchmark-session",
+        source_id,
+        session_id,
         sequence,
         1_000 + sequence,
         {
-            "robot_id": "benchmark-client",
+            "robot_id": source_id,
             "mode": "idle",
             "safety": "normal",
             "activity": "Benchmarking authenticated transport",
