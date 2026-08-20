@@ -14,6 +14,7 @@ from ump.lan_evidence import (
 
 
 ROOT = Path(__file__).parents[1]
+REVISION = "a" * 40
 
 
 def write_json(path: Path, document: dict) -> dict[str, str]:
@@ -73,6 +74,7 @@ def bundle(directory: Path) -> Path:
     client, server = reports()
     manifest = {
         "protocol": "ump.lan-evidence/v1",
+        "repository_revision": REVISION,
         "run_id": "warehouse-lan-2026-08-20",
         "conducted_at_ms": 1_776_729_600_000,
         "network_description": "Two Ubuntu hosts on the deployment Ethernet LAN",
@@ -93,6 +95,7 @@ class LanEvidenceTests(unittest.TestCase):
         self.assertEqual(report["client_hostname"], "robot-owner-workstation")
         self.assertEqual(report["server_hostname"], "robot-edge-server")
         self.assertEqual(report["samples"], 1000)
+        self.assertEqual(report["repository_revision"], REVISION)
         self.assertEqual(report["evidence_artifacts_verified"], 2)
 
     def test_rejects_same_host_and_loopback_evidence(self):

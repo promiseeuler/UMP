@@ -28,6 +28,8 @@ outside UMP and must be independently functional at the test site.
 ## Bundle
 
 Use `schemas/ump-hardware-pilot-v1.schema.json` as the language-neutral format.
+Set `repository_revision` to the full lowercase commit SHA deployed for the
+pilot; every participant and retained artifact must correspond to that revision.
 Artifact paths are relative to the manifest, cannot escape its directory, and
 carry lowercase SHA-256 digests. Each gate requires a distinct artifact, and a
 read-only bundle rejects assignment evidence. This makes the bundle portable and

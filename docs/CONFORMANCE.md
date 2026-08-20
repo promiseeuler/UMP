@@ -38,8 +38,14 @@ Manufacturers can generate a retainable read-only report without writing Python:
 ump-adapter-conformance inspect \
   --adapter acme_ump.adapter:create_adapter \
   --adapter-config /etc/acme/ump-adapter.json \
+  --revision "$(git rev-parse HEAD)" \
   --output adapter-conformance.json
 ```
+
+`--revision` must be the full lowercase 40-character commit SHA of the UMP
+checkout whose adapter contract is being tested. The retained report binds that
+revision to the adapter implementation digest, package versions, robot metadata,
+and observed environment.
 
 The command records the loaded factory specification, implementation-file
 SHA-256, Python distribution versions when available, robot and capability

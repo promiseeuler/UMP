@@ -5,6 +5,7 @@ from __future__ import annotations
 from hashlib import sha256
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 
@@ -101,13 +102,19 @@ def validate_ros2_smoke_report(
 
     environment = document.get("environment")
     _require(isinstance(environment, dict), "ROS 2 smoke environment is missing")
+    repository_revision = environment.get("repository_revision")
+    _require(
+        isinstance(repository_revision, str)
+        and re.fullmatch(r"[0-9a-f]{40}", repository_revision) is not None,
+        "ROS 2 smoke report requires a full lowercase repository revision",
+    )
     _require(
         environment.get("ros_distro") == "jazzy",
         "ROS 2 smoke evidence must use the supported Jazzy distribution",
     )
     if expected_revision is not None:
         _require(
-            environment.get("repository_revision") == expected_revision,
+            repository_revision == expected_revision,
             "ROS 2 smoke report revision does not match",
         )
 
@@ -130,7 +137,7 @@ def validate_ros2_smoke_report(
         "valid": True,
         "validation_scope": "native_smoke_outcomes_and_source_binding",
         "profile": document["profile"],
-        "repository_revision": environment.get("repository_revision"),
+        "repository_revision": repository_revision,
         "ros_distro": environment["ros_distro"],
         "checks_verified": len(checks),
         "results_verified": len(results),

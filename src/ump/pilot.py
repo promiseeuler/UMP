@@ -101,6 +101,7 @@ def validate_pilot_bundle(manifest_path: str | Path) -> dict[str, Any]:
         "valid": True,
         "validation_scope": "schema_topology_and_evidence_integrity",
         "protocol": document["protocol"],
+        "repository_revision": document["repository_revision"],
         "pilot_id": document["pilot_id"],
         "phase": document["phase"],
         "physical_participants": len(physical),

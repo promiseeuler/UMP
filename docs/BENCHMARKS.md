@@ -49,7 +49,8 @@ Save the client's JSON output as `client.json`. The server emits a `ready` JSON
 event first; save only its final JSON line as `server.json`. Create a bundle
 manifest using
 `schemas/ump-lan-evidence-v1.schema.json`, record the SHA-256 digest of each
-report, and validate it with:
+report, and set `repository_revision` to the full lowercase commit SHA of the
+UMP checkout used on both hosts. Validate it with:
 
 ```sh
 ump-lan-evidence validate lan-evidence.json

@@ -122,6 +122,7 @@ def _load_qualification(root: Path, *, strict_evidence: bool) -> dict[str, Any]:
         raise ValueError(
             f"qualification matrix drift: missing={missing}, extra={extra}"
         )
+    qualified_revisions: set[str] = set()
     for gate in gates:
         gate_id = gate["id"]
         status = gate.get("status")
@@ -158,16 +159,28 @@ def _load_qualification(root: Path, *, strict_evidence: bool) -> dict[str, Any]:
                     raise ValueError(
                         f"invalid qualification result for {gate_id}: {error}"
                     ) from error
+            for result in validation_results:
+                revision = result.get("repository_revision")
+                if not isinstance(revision, str) or not revision:
+                    raise ValueError(
+                        f"qualification result lacks repository revision: {gate_id}"
+                    )
+                qualified_revisions.add(revision)
         gate["validated_results"] = validation_results
         note = gate.get("note")
         if not isinstance(note, str) or not note.strip():
             raise ValueError(f"missing qualification note for {gate_id}")
+    if len(qualified_revisions) > 1:
+        raise ValueError(
+            "qualification results refer to different repository revisions"
+        )
     counts = Counter(gate["status"] for gate in gates)
     return {
         "profile": document.get("profile"),
         "total": len(gates),
         "counts": dict(sorted(counts.items())),
         "ready": counts["pending"] == 0,
+        "qualified_revision": next(iter(qualified_revisions), None),
         "gates": gates,
     }
 

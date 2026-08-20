@@ -24,6 +24,7 @@ from ump.simulation import SimulatedRobot, capability
 
 
 ROOT = Path(__file__).parents[1]
+REVISION = "a" * 40
 
 
 class InvalidIdentityAdapter(SimulatedRobot):
@@ -115,6 +116,7 @@ class AdapterHarnessTests(unittest.TestCase):
         document = inspect_adapter_evidence(
             self.adapter,
             "tests.test_conformance:create_invalid_adapter",
+            repository_revision=REVISION,
             observed_at_ms=1_000,
         )
         implementation = document["adapter"]["implementation"]
@@ -122,8 +124,16 @@ class AdapterHarnessTests(unittest.TestCase):
         self.assertEqual(implementation["sha256"], sha256(path.read_bytes()).hexdigest())
         self.assertEqual(document["mode"], "read_only")
         self.assertEqual(document["observed_at_ms"], 1_000)
+        self.assertEqual(document["repository_revision"], REVISION)
         self.assertTrue(document["passed"])
         self.assertEqual(document["robot"]["robot_id"], self.manifest.robot_id)
+
+        with self.assertRaisesRegex(ValueError, "full lowercase commit SHA"):
+            inspect_adapter_evidence(
+                self.adapter,
+                "tests.test_conformance:create_invalid_adapter",
+                repository_revision="short",
+            )
 
     def test_adapter_cli_writes_evidence_and_reports_conformance_failure(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -135,6 +145,8 @@ class AdapterHarnessTests(unittest.TestCase):
                         "inspect",
                         "--adapter",
                         "examples.read_only_adapter:create_adapter",
+                        "--revision",
+                        REVISION,
                         "--output",
                         str(output_path),
                     ]
@@ -150,6 +162,8 @@ class AdapterHarnessTests(unittest.TestCase):
                         "inspect",
                         "--adapter",
                         "tests.test_conformance:create_invalid_adapter",
+                        "--revision",
+                        REVISION,
                     ]
                 )
             self.assertEqual(status, 1)
@@ -159,7 +173,13 @@ class AdapterHarnessTests(unittest.TestCase):
         errors = StringIO()
         with redirect_stderr(errors):
             status = adapter_conformance_main(
-                ["inspect", "--adapter", "missing.module:create_adapter"]
+                [
+                    "inspect",
+                    "--adapter",
+                    "missing.module:create_adapter",
+                    "--revision",
+                    REVISION,
+                ]
             )
         self.assertEqual(status, 2)
         self.assertIn("cannot be loaded", errors.getvalue())
@@ -168,7 +188,9 @@ class AdapterHarnessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             report_path = Path(directory) / "adapter.json"
             document = inspect_adapter_evidence(
-                self.adapter, "tests.test_conformance:create_invalid_adapter"
+                self.adapter,
+                "tests.test_conformance:create_invalid_adapter",
+                repository_revision=REVISION,
             )
             report_path.write_text(json.dumps(document))
             implementation = document["adapter"]["implementation"]["path"]
@@ -178,13 +200,16 @@ class AdapterHarnessTests(unittest.TestCase):
 
             self.assertTrue(result["valid"])
             self.assertTrue(result["passed"])
+            self.assertEqual(result["repository_revision"], REVISION)
             self.assertTrue(result["implementation_source_verified"])
 
     def test_retained_evidence_rejects_tampering_and_summary_disagreement(self):
         with tempfile.TemporaryDirectory() as directory:
             report_path = Path(directory) / "adapter.json"
             document = inspect_adapter_evidence(
-                self.adapter, "tests.test_conformance:create_invalid_adapter"
+                self.adapter,
+                "tests.test_conformance:create_invalid_adapter",
+                repository_revision=REVISION,
             )
             document["checks"][0]["id"] = "adapter.state"
             report_path.write_text(json.dumps(document))
@@ -192,7 +217,9 @@ class AdapterHarnessTests(unittest.TestCase):
                 validate_adapter_evidence(report_path)
 
             document = inspect_adapter_evidence(
-                self.adapter, "tests.test_conformance:create_invalid_adapter"
+                self.adapter,
+                "tests.test_conformance:create_invalid_adapter",
+                repository_revision=REVISION,
             )
             document["passed"] = False
             report_path.write_text(json.dumps(document))
@@ -212,6 +239,7 @@ class AdapterHarnessTests(unittest.TestCase):
             document = inspect_adapter_evidence(
                 InvalidIdentityAdapter(self.manifest),
                 "tests.test_conformance:create_invalid_adapter",
+                repository_revision=REVISION,
             )
             report_path.write_text(json.dumps(document))
             output = StringIO()

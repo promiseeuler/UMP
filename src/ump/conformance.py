@@ -8,6 +8,7 @@ import inspect
 import json
 from pathlib import Path
 import platform
+import re
 import sys
 import time
 from typing import Any
@@ -144,9 +145,12 @@ def inspect_adapter_evidence(
     adapter: RobotAdapter,
     specification: str,
     *,
+    repository_revision: str,
     observed_at_ms: int | None = None,
 ) -> dict[str, Any]:
     """Run read-only checks and bind the report to the loaded implementation."""
+    if re.fullmatch(r"[0-9a-f]{40}", repository_revision) is None:
+        raise ValueError("repository revision must be a full lowercase commit SHA")
     report = AdapterConformanceHarness().inspect(adapter)
     try:
         implementation_path = Path(inspect.getfile(type(adapter))).resolve()
@@ -172,6 +176,7 @@ def inspect_adapter_evidence(
         pass
     return {
         "profile": "ump.adapter-conformance/v1",
+        "repository_revision": repository_revision,
         "mode": "read_only",
         "observed_at_ms": (
             int(time.time() * 1_000) if observed_at_ms is None else observed_at_ms
@@ -273,6 +278,7 @@ def validate_adapter_evidence(
         "passed": checks_passed,
         "validation_scope": "report_structure_and_optional_source_binding",
         "profile": document["profile"],
+        "repository_revision": document["repository_revision"],
         "subject": document["subject"],
         "robot_id": (
             document["robot"]["robot_id"] if document["robot"] is not None else None

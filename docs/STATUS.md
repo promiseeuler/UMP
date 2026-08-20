@@ -157,6 +157,8 @@ qualification matrix remains fail-closed with eight pending external gates.
   checksums, isolated-install results, provenance receipts, tag, and revision.
 - Executable traceability matrix covering all 41 named PRD functional
   requirements with evidence-backed implemented, partial, or missing status.
+- Gate-specific production evidence verification with project-root confinement
+  and one coherent full repository revision across all passed gates.
 
 ## Not yet implemented
 

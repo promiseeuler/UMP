@@ -5,6 +5,7 @@
   "type": "object",
   "required": [
     "protocol",
+    "repository_revision",
     "run_id",
     "conducted_at_ms",
     "network_description",
@@ -13,6 +14,7 @@
   ],
   "properties": {
     "protocol": { "const": "ump.lan-evidence/v1" },
+    "repository_revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "run_id": { "type": "string", "minLength": 1, "maxLength": 128 },
     "conducted_at_ms": { "type": "integer", "minimum": 1 },
     "network_description": { "type": "string", "minLength": 1, "maxLength": 1024 },

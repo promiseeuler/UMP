@@ -160,6 +160,7 @@ def validate_lan_evidence_bundle(manifest_path: str | Path) -> dict[str, Any]:
         "valid": True,
         "validation_scope": "artifact_integrity_and_cross_host_report_consistency",
         "protocol": document["protocol"],
+        "repository_revision": document["repository_revision"],
         "run_id": document["run_id"],
         "client_hostname": client_hostname,
         "server_hostname": server_hostname,

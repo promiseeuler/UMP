@@ -3,9 +3,10 @@
   "$id": "https://ump.dev/schemas/ump-adapter-conformance-v1.schema.json",
   "title": "UMP Read-Only Adapter Conformance Evidence",
   "type": "object",
-  "required": ["profile", "mode", "observed_at_ms", "adapter", "robot", "subject", "passed", "checks", "environment"],
+  "required": ["profile", "repository_revision", "mode", "observed_at_ms", "adapter", "robot", "subject", "passed", "checks", "environment"],
   "properties": {
     "profile": {"const": "ump.adapter-conformance/v1"},
+    "repository_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "mode": {"const": "read_only"},
     "observed_at_ms": {"type": "integer", "minimum": 1},
     "adapter": {
@@ -84,4 +85,3 @@
   },
   "additionalProperties": false
 }
-

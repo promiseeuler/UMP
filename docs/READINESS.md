@@ -23,7 +23,9 @@ trusting file existence. It validates native ROS 2 outcomes and world binding,
 two-host LAN bundle integrity, supervised hardware-pilot topology, passing
 robot-bound adapter conformance, review type and conclusion, and retained
 release artifact integrity. Validation summaries are emitted as
-`validated_results` on each gate.
+`validated_results` on each gate. All passed gate results must identify the same
+repository revision; readiness reports it as `qualified_revision` and rejects a
+mixture of evidence from different commits.
 
 The production gates cover native ROS 2/Gazebo evidence, representative
 two-host LAN measurements, the supervised hardware pilot, independent adapter

@@ -13,6 +13,9 @@ from ump.ros2_evidence import (
 )
 
 
+REVISION = "a" * 40
+
+
 def smoke_report(world: Path) -> dict:
     def result(assignment_id, status, *, robot_id=None, completed=False):
         value = {"assignment_id": assignment_id, "status": status}
@@ -55,7 +58,7 @@ def smoke_report(world: Path) -> dict:
             "platform": "Linux",
             "python": "3.13",
             "ros_distro": "jazzy",
-            "repository_revision": "abc123",
+            "repository_revision": REVISION,
         },
     }
 
@@ -73,7 +76,7 @@ class Ros2EvidenceTests(unittest.TestCase):
         with TemporaryDirectory() as name:
             report, world, _ = self.write_fixture(Path(name))
             result = validate_ros2_smoke_report(
-                report, world_path=world, expected_revision="abc123"
+                report, world_path=world, expected_revision=REVISION
             )
 
         self.assertTrue(result["valid"])
@@ -120,7 +123,7 @@ class Ros2EvidenceTests(unittest.TestCase):
             output = StringIO()
             with redirect_stdout(output):
                 status = ros2_evidence_main(
-                    [str(report), "--world", str(world), "--revision", "abc123"]
+                    [str(report), "--world", str(world), "--revision", REVISION]
                 )
             self.assertEqual(status, 0)
             self.assertTrue(json.loads(output.getvalue())["valid"])

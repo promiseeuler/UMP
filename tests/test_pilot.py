@@ -11,6 +11,7 @@ from ump.pilot import PilotValidationError, validate_pilot_bundle
 
 
 ROOT = Path(__file__).parents[1]
+REVISION = "a" * 40
 
 
 def evidence(directory: Path, name: str, content: str = "reviewed") -> dict[str, str]:
@@ -61,6 +62,7 @@ def manifest(directory: Path, phase: str = "read_only") -> dict:
         }
     return {
         "protocol": "ump.hardware-pilot/v1",
+        "repository_revision": REVISION,
         "pilot_id": "pilot-warehouse-1",
         "phase": phase,
         "site": "Supervised test facility",
@@ -88,6 +90,7 @@ class PilotValidationTests(unittest.TestCase):
         self.assertTrue(report["valid"])
         self.assertEqual(report["validation_scope"], "schema_topology_and_evidence_integrity")
         self.assertEqual(report["physical_participants"], 2)
+        self.assertEqual(report["repository_revision"], REVISION)
         self.assertEqual(report["simulated_participants"], 1)
         self.assertEqual(report["evidence_artifacts_verified"], 3)
 

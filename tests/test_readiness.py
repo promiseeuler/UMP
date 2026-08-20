@@ -8,7 +8,11 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from ump.cli import readiness_main
-from ump.readiness import _validate_qualification_result, load_readiness_report
+from ump.readiness import (
+    _load_qualification,
+    _validate_qualification_result,
+    load_readiness_report,
+)
 
 
 ROOT = Path(__file__).parents[1]
@@ -25,6 +29,7 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(report["counts"], {"implemented": 41})
         self.assertEqual(report["qualification"]["total"], 8)
         self.assertEqual(report["qualification"]["counts"], {"pending": 8})
+        self.assertIsNone(report["qualification"]["qualified_revision"])
 
     def test_matrix_drift_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -162,6 +167,27 @@ class ReadinessTests(unittest.TestCase):
                 ValueError, "invalid qualification result for QAL-ROS2-NATIVE"
             ):
                 load_readiness_report(root, strict_evidence=False)
+
+    def test_qualification_results_must_share_one_repository_revision(self):
+        qualification = json.loads(
+            (ROOT / "compliance" / "qualification.json").read_text()
+        )
+        for gate in qualification["gates"]:
+            gate["status"] = "passed"
+            gate["result_evidence"] = [f"{gate['id']}.json"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "compliance").mkdir()
+            (root / "compliance" / "qualification.json").write_text(
+                json.dumps(qualification)
+            )
+            revisions = iter(["a" * 40, "b" * 40, *(["a" * 40] * 6)])
+            with patch(
+                "ump.readiness._validate_qualification_result",
+                side_effect=lambda *_: {"repository_revision": next(revisions)},
+            ):
+                with self.assertRaisesRegex(ValueError, "different repository"):
+                    _load_qualification(root, strict_evidence=False)
 
 
 if __name__ == "__main__":

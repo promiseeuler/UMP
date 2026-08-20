@@ -549,6 +549,7 @@ def adapter_conformance_main(argv: list[str] | None = None) -> int:
     )
     inspect_command.add_argument("--adapter", required=True)
     inspect_command.add_argument("--adapter-config")
+    inspect_command.add_argument("--revision", required=True)
     inspect_command.add_argument("--output")
     verify = commands.add_parser("verify", help="Verify one retained report")
     verify.add_argument("report")
@@ -567,7 +568,11 @@ def adapter_conformance_main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, sort_keys=True))
             return 0 if result["passed"] else 1
         adapter = load_adapter(arguments.adapter, arguments.adapter_config)
-        result = inspect_adapter_evidence(adapter, arguments.adapter)
+        result = inspect_adapter_evidence(
+            adapter,
+            arguments.adapter,
+            repository_revision=arguments.revision,
+        )
         encoded = json.dumps(result, sort_keys=True)
         if arguments.output is not None:
             output = Path(arguments.output)
