@@ -113,6 +113,7 @@ class Coordinator:
         self._sequence = 0
         self.session_id = str(uuid4())
         self.store = store or CoordinatorStore()
+        self.store.bind_coordinator(coordinator_id)
         self.authority_lease_ids = dict(authority_lease_ids or {})
         self.require_authority = require_authority
         self.outcomes: dict[str, bool] = {}

@@ -117,6 +117,20 @@ class CoordinatorService:
             if stop.wait(min(self._poll_interval_s, remaining)):
                 raise InterruptedError("coordinator wait interrupted")
 
+    def cancel(
+        self,
+        plan_id: str,
+        reason: str,
+        *,
+        stop: Event | None = None,
+    ) -> tuple[str, ...]:
+        if not self._started:
+            raise RuntimeError("coordinator service is not started")
+        if stop is not None and stop.is_set():
+            raise InterruptedError("coordinator cancellation interrupted")
+        self._health_check()
+        return self.coordinator.cancel(plan_id, reason, self._clock_ms())
+
     def close(self) -> None:
         if self._closed:
             return

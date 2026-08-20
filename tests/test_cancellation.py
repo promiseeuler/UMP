@@ -11,6 +11,7 @@ from ump.collaboration import Coordinator
 from ump.coordinator_store import CoordinatorStore, RunStatus, StepStatus
 from ump.models import (
     Assignment,
+    AssignmentStatus,
     CancellationRequest,
     Capability,
     Outcome,
@@ -205,6 +206,32 @@ class CancellationTests(unittest.TestCase):
             reopened.close()
             self.assertEqual(snapshot.status, RunStatus.UNKNOWN)
             self.assertEqual(snapshot.steps["work"], StepStatus.UNKNOWN)
+
+    def test_owner_can_request_cancellation_after_unknown_restart_state(self):
+        store = CoordinatorStore()
+        goal = SharedGoal("goal-1", "Perform work", ("robot-1",))
+        step = PlanStep(
+            "work",
+            "Perform work",
+            "robot-1",
+            "ump.test.work/v1",
+            {},
+            "Work completes",
+        )
+        plan = Plan("plan-1", goal.goal_id, "planner-1", "One step", (step,))
+        assignment = Assignment("assignment-1", goal.goal_id, plan.plan_id, step)
+        store.create_run(goal, plan, (assignment,), 1_000)
+        store.mark_dispatched(assignment.assignment_id, 1_001)
+        store.record_outcome(assignment.assignment_id, AssignmentStatus.UNKNOWN, 1_002)
+
+        requested = store.request_cancellation(plan.plan_id, 1_003)
+
+        self.assertEqual(requested, (assignment,))
+        self.assertEqual(
+            store.snapshot(plan.plan_id).steps[step.step_id],
+            StepStatus.CANCELLATION_REQUESTED,
+        )
+        store.close()
 
 
 if __name__ == "__main__":

@@ -27,7 +27,12 @@ from .coordinator_node import (
     RunCompletionTimeout,
     parse_authority_leases,
 )
-from .coordinator_store import CoordinatorStore, RunSnapshot, RunStatus
+from .coordinator_store import (
+    CoordinatorStore,
+    RunSnapshot,
+    RunStatus,
+    read_run_snapshot,
+)
 from .credentials import CredentialError, CredentialGeneration, SqliteCredentialStore
 from .inspector import InspectorServer, InspectorStore
 from .journal import SqliteAssignmentJournal
@@ -609,13 +614,16 @@ def coordinator_parser() -> argparse.ArgumentParser:
     submit = commands.add_parser(
         "submit", help="Submit one shared goal over the secure UMP network"
     )
-    submit.add_argument("--network", required=True)
+    def add_network_runtime(command) -> None:
+        command.add_argument("--network", required=True)
+        command.add_argument("--database", required=True)
+        command.add_argument("--credential-database", required=True)
+        command.add_argument("--credential-directory", required=True)
+
+    add_network_runtime(submit)
     submit.add_argument("--planner", required=True, help="Trusted module:factory")
     submit.add_argument("--planner-config")
     submit.add_argument("--goal", required=True, help="Goal JSON path, or - for stdin")
-    submit.add_argument("--database", required=True)
-    submit.add_argument("--credential-database", required=True)
-    submit.add_argument("--credential-directory", required=True)
     submit.add_argument(
         "--authority-lease",
         action="append",
@@ -624,6 +632,13 @@ def coordinator_parser() -> argparse.ArgumentParser:
     )
     submit.add_argument("--participant-timeout", type=float, default=30.0)
     submit.add_argument("--completion-timeout", type=float, default=300.0)
+    cancel = commands.add_parser(
+        "cancel", help="Request native cancellation for one durable run"
+    )
+    add_network_runtime(cancel)
+    cancel.add_argument("--plan-id", required=True)
+    cancel.add_argument("--reason", required=True)
+    cancel.add_argument("--completion-timeout", type=float, default=30.0)
     status = commands.add_parser("status", help="Read one run from the durable journal")
     status.add_argument("--database", required=True)
     status.add_argument("--plan-id", required=True)
@@ -633,18 +648,13 @@ def coordinator_parser() -> argparse.ArgumentParser:
 def coordinator_main(argv: list[str] | None = None) -> int:
     arguments = coordinator_parser().parse_args(argv)
     if arguments.command == "status":
-        store: CoordinatorStore | None = None
         try:
-            store = CoordinatorStore(arguments.database, recover_interrupted=False)
-            snapshot = store.snapshot(arguments.plan_id)
+            snapshot = read_run_snapshot(arguments.database, arguments.plan_id)
             print(json.dumps(_run_snapshot_document(snapshot), sort_keys=True))
             return 0
         except (KeyError, OSError, sqlite3.Error, ValueError) as error:
             print(f"ump-coordinator: {type(error).__name__}: {error}", file=sys.stderr)
             return 2
-        finally:
-            if store is not None:
-                store.close()
 
     service = None
     credentials = None
@@ -654,17 +664,22 @@ def coordinator_main(argv: list[str] | None = None) -> int:
     previous_handlers = {}
     plan_id: str | None = None
     try:
-        goal = _load_shared_goal(arguments.goal)
-        planner = load_planner(arguments.planner, arguments.planner_config)
-        authority_leases = parse_authority_leases(arguments.authority_lease)
         config = load_network_config(arguments.network)
-        unknown_participants = set(goal.participant_ids) - {
-            peer.robot_id for peer in config.peers
-        }
-        if unknown_participants:
-            raise ValueError(
-                f"goal participants are not configured peers: {sorted(unknown_participants)}"
-            )
+        goal = None
+        planner = None
+        authority_leases = {}
+        if arguments.command == "submit":
+            goal = _load_shared_goal(arguments.goal)
+            planner = load_planner(arguments.planner, arguments.planner_config)
+            authority_leases = parse_authority_leases(arguments.authority_lease)
+            unknown_participants = set(goal.participant_ids) - {
+                peer.robot_id for peer in config.peers
+            }
+            if unknown_participants:
+                raise ValueError(
+                    "goal participants are not configured peers: "
+                    f"{sorted(unknown_participants)}"
+                )
         credentials = SqliteCredentialStore(
             config.robot_id,
             arguments.credential_database,
@@ -679,7 +694,20 @@ def coordinator_main(argv: list[str] | None = None) -> int:
             config, certificate_revoked=credentials.is_revoked
         )
         registry = Registry(bus)
-        store = CoordinatorStore(arguments.database)
+        store = CoordinatorStore(
+            arguments.database,
+            recover_interrupted=arguments.command == "submit",
+        )
+        if arguments.command == "cancel":
+            plan = store.plan(arguments.plan_id)
+            assigned_robot_ids = {step.assigned_robot_id for step in plan.steps}
+            unknown_targets = assigned_robot_ids - {
+                peer.robot_id for peer in config.peers
+            }
+            if unknown_targets:
+                raise ValueError(
+                    f"assigned robots are not configured peers: {sorted(unknown_targets)}"
+                )
         coordinator = Coordinator(
             config.robot_id,
             bus,
@@ -718,6 +746,35 @@ def coordinator_main(argv: list[str] | None = None) -> int:
             ),
             flush=True,
         )
+        if arguments.command == "cancel":
+            plan_id = arguments.plan_id
+            assignment_ids = service.cancel(
+                plan_id,
+                arguments.reason,
+                stop=stop,
+            )
+            snapshot = coordinator.snapshot(plan_id)
+            print(
+                json.dumps(
+                    {
+                        "event": "cancellation_requested",
+                        "assignment_ids": assignment_ids,
+                        **_run_snapshot_document(snapshot),
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            if snapshot.status is RunStatus.ACTIVE:
+                snapshot = service.wait_for_completion(
+                    plan_id, arguments.completion_timeout, stop
+                )
+            print(
+                json.dumps(_run_snapshot_document(snapshot), sort_keys=True),
+                flush=True,
+            )
+            return 0 if snapshot.status is RunStatus.CANCELLED else 1
+        assert goal is not None and planner is not None
         plan = service.submit(
             goal,
             planner,
@@ -840,17 +897,20 @@ def main(argv: list[str] | None = None) -> int:
         "authority": authority_main,
         "benchmark": benchmark_main,
         "conformance": conformance_main,
+        "coordinator": coordinator_main,
         "credentials": credentials_main,
         "inspector": inspector_main,
         "lan-benchmark": lan_benchmark_main,
         "node": node_main,
+        "pilot": pilot_main,
         "reconcile": reconcile_main,
         "vocabulary": vocabulary_main,
         "readiness": readiness_main,
     }
     if not arguments or arguments[0] not in commands:
+        choices = ",".join(commands)
         print(
-            "usage: python -m ump.cli {authority,benchmark,conformance,credentials,inspector,lan-benchmark,node,readiness,reconcile,vocabulary} ...",
+            f"usage: python -m ump.cli {{{choices}}} ...",
             file=sys.stderr,
         )
         return 2

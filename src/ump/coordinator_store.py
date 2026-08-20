@@ -56,6 +56,28 @@ class RunSnapshot:
     steps: dict[str, StepStatus]
 
 
+def read_run_snapshot(path: str | Path, plan_id: str) -> RunSnapshot:
+    """Read one run through a SQLite read-only connection without recovery."""
+    database = Path(path).resolve()
+    connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+    try:
+        run = connection.execute(
+            "SELECT goal_id, status FROM runs WHERE plan_id = ?", (plan_id,)
+        ).fetchone()
+        if run is None:
+            raise KeyError(plan_id)
+        steps = {
+            step_id: StepStatus(status)
+            for step_id, status in connection.execute(
+                "SELECT step_id, status FROM run_steps WHERE plan_id = ? ORDER BY rowid",
+                (plan_id,),
+            )
+        }
+        return RunSnapshot(plan_id, run[0], RunStatus(run[1]), steps)
+    finally:
+        connection.close()
+
+
 def _canonical(value: object) -> str:
     return json.dumps(
         payload(value), ensure_ascii=False, separators=(",", ":"), sort_keys=True
@@ -153,10 +175,36 @@ class CoordinatorStore:
                 FOREIGN KEY(plan_id) REFERENCES runs(plan_id)
             );
             CREATE INDEX IF NOT EXISTS run_steps_plan ON run_steps(plan_id);
+            CREATE TABLE IF NOT EXISTS coordinator_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
             """
         )
         if recover_interrupted:
             self._recover_interrupted_runs()
+
+    def bind_coordinator(self, coordinator_id: str) -> None:
+        """Permanently bind this journal to one authenticated coordinator identity."""
+        if not coordinator_id or len(coordinator_id.encode("utf-8")) > 128:
+            raise ValueError("coordinator identity is required and bounded")
+        with self._lock:
+            self._connection.execute("BEGIN IMMEDIATE")
+            try:
+                row = self._connection.execute(
+                    "SELECT value FROM coordinator_metadata WHERE key = 'coordinator_id'"
+                ).fetchone()
+                if row is None:
+                    self._connection.execute(
+                        "INSERT INTO coordinator_metadata VALUES ('coordinator_id', ?)",
+                        (coordinator_id,),
+                    )
+                elif row[0] != coordinator_id:
+                    raise ValueError("coordinator journal belongs to another identity")
+                self._connection.execute("COMMIT")
+            except BaseException:
+                self._connection.execute("ROLLBACK")
+                raise
 
     def _recover_interrupted_runs(self) -> None:
         with self._lock:
@@ -335,13 +383,14 @@ class CoordinatorStore:
                 rows = self._connection.execute(
                     """
                     SELECT assignment_json FROM run_steps
-                    WHERE plan_id = ? AND status IN (?, ?)
+                    WHERE plan_id = ? AND status IN (?, ?, ?)
                     ORDER BY rowid
                     """,
                     (
                         plan_id,
                         StepStatus.DISPATCHED.value,
                         StepStatus.ACCEPTED.value,
+                        StepStatus.UNKNOWN.value,
                     ),
                 ).fetchall()
                 self._connection.execute(
@@ -359,7 +408,7 @@ class CoordinatorStore:
                 self._connection.execute(
                     """
                     UPDATE run_steps SET status = ?, updated_at_ms = ?
-                    WHERE plan_id = ? AND status IN (?, ?)
+                    WHERE plan_id = ? AND status IN (?, ?, ?)
                     """,
                     (
                         StepStatus.CANCELLATION_REQUESTED.value,
@@ -367,6 +416,7 @@ class CoordinatorStore:
                         plan_id,
                         StepStatus.DISPATCHED.value,
                         StepStatus.ACCEPTED.value,
+                        StepStatus.UNKNOWN.value,
                     ),
                 )
                 self._refresh_run_locked(plan_id, now_ms)

@@ -18,6 +18,10 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("cryptography>=43,<47", metadata["dependencies"])
         self.assertEqual(metadata["scripts"]["ump-reconcile"], "ump.cli:reconcile_main")
         self.assertEqual(
+            metadata["scripts"]["ump-coordinator"], "ump.cli:coordinator_main"
+        )
+        self.assertEqual(metadata["scripts"]["ump-pilot"], "ump.cli:pilot_main")
+        self.assertEqual(
             metadata["scripts"]["ump-lan-benchmark"],
             "ump.cli:lan_benchmark_main",
         )

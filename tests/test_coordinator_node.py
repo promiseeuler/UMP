@@ -17,6 +17,7 @@ from ump.coordinator_node import (
 from ump.coordinator_store import CoordinatorStore, RunStatus
 from ump.demo import WarehousePlanner
 from ump.models import RobotManifest, SharedGoal
+from ump.models import Assignment, Plan, PlanStep
 from ump.network import (
     PeerEndpoint,
     SqliteReplayProtector,
@@ -179,6 +180,39 @@ def participants(bus):
 
 
 class CoordinatorServiceTests(unittest.TestCase):
+    def test_service_publishes_owner_cancellation_request(self):
+        bus = ServiceBus()
+        registry = Registry(bus)
+        coordinator = Coordinator(
+            bus.robot_id, bus, registry, require_authority=False
+        )
+        goal = SharedGoal("goal-cancel-1", "Perform bounded work", ("robot-1",))
+        step = PlanStep(
+            "work",
+            "Perform bounded work",
+            "robot-1",
+            "ump.test.work/v1",
+            {},
+            "Work reaches a terminal state",
+        )
+        plan = Plan("plan-cancel-1", goal.goal_id, "planner-1", "Work", (step,))
+        assignment = Assignment("assignment-1", goal.goal_id, plan.plan_id, step)
+        coordinator.store.create_run(goal, plan, (assignment,), 1_000)
+        coordinator.store.mark_dispatched(assignment.assignment_id, 1_001)
+        service = CoordinatorService(
+            bus, coordinator, registry, clock_ms=lambda: 1_100
+        )
+        service.start()
+
+        requested = service.cancel(plan.plan_id, "Owner stopped supervised work")
+
+        self.assertEqual(requested, (assignment.assignment_id,))
+        cancellation = next(
+            item for item in bus.trace if item.message_type == "cancellation_request"
+        )
+        self.assertEqual(cancellation.payload["reason"], "Owner stopped supervised work")
+        service.close()
+
     def test_full_collaboration_completes_over_mutual_tls(self):
         with TemporaryDirectory() as directory_name:
             directory = Path(directory_name)

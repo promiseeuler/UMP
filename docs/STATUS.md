@@ -92,6 +92,8 @@
   and authority stores, bounded 1–10 Hz state publication, and signal shutdown.
 - Owner-facing `ump-coordinator` workflow with trusted planner loading, bounded
   participant readiness, durable goal submission, completion waiting, and status.
+- Owner cancellation command with permanent coordinator-journal identity binding,
+  restart-uncertain cancellation requests, and terminal evidence waiting.
 - Four-identity mutual-TLS loopback integration covering authorized awareness,
   three dependency-ordered assignments, outcomes, and terminal run durability.
 - Integrity-bound hardware-pilot bundle verifier enforcing the PRD topology and

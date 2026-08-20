@@ -55,6 +55,37 @@ run, `2` for configuration/validation failure, and `3` for timeout or
 interruption. A timeout or signal never fabricates a
 cancellation; the printed run remains available for operator reconciliation.
 
+## Cancel
+
+Cancellation is a high-level request to each robot's native adapter. It is not an
+emergency stop, and UMP never claims cancellation until the robot accepts it and
+publishes terminal evidence.
+
+Use the same coordinator network identity and durable journal that submitted the
+plan:
+
+```sh
+ump-coordinator cancel \
+  --network /etc/ump/coordinator-network.json \
+  --credential-database /var/lib/ump/coordinator-credentials.sqlite3 \
+  --credential-directory /var/lib/ump/coordinator-credentials \
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --plan-id PLAN_ID \
+  --reason "Operator ended supervised work"
+```
+
+If `submit` is still waiting on that host, interrupt it first so `cancel` can bind
+the coordinator's configured listener. The journal is permanently bound to the
+first coordinator identity that opens it; a different identity fails closed.
+Cancellation may be requested for dispatched, accepted, or restart-uncertain
+assignments. Pending dependent work is cancelled locally without publication.
+
+The command prints the affected assignment IDs and waits up to 30 seconds for a
+terminal run result. Exit status `0` means the durable run is `cancelled`; `1`
+means it reached another terminal state, `2` indicates validation/configuration
+failure, and `3` indicates timeout or interruption. Continue using the physical
+emergency-stop system whenever immediate risk reduction is required.
+
 ## Status
 
 Status is read without applying restart recovery or modifying the durable journal

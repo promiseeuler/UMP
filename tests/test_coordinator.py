@@ -1,4 +1,5 @@
 import sys
+import sqlite3
 import tempfile
 import unittest
 from dataclasses import replace
@@ -7,7 +8,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from ump.collaboration import Coordinator, PlanValidationError
-from ump.coordinator_store import CoordinatorStore, RunStatus, StepStatus
+from ump.coordinator_store import (
+    CoordinatorStore,
+    RunStatus,
+    StepStatus,
+    read_run_snapshot,
+)
 from ump.demo import WarehousePlanner, build_demo
 from ump.models import (
     AssignmentAcknowledgement,
@@ -80,6 +86,29 @@ def robot_reply(bus, assignment, status, sequence):
 
 
 class CoordinatorLifecycleTests(unittest.TestCase):
+    def test_durable_journal_is_bound_to_one_coordinator_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "coordinator.sqlite3"
+            first_bus = InMemoryBus()
+            first = Coordinator(
+                "coordinator-1",
+                first_bus,
+                Registry(first_bus),
+                store=CoordinatorStore(database),
+            )
+            first.close()
+
+            second_store = CoordinatorStore(database, recover_interrupted=False)
+            second_bus = InMemoryBus()
+            with self.assertRaisesRegex(ValueError, "another identity"):
+                Coordinator(
+                    "coordinator-2",
+                    second_bus,
+                    Registry(second_bus),
+                    store=second_store,
+                )
+            second_store.close()
+
     def test_observer_open_does_not_apply_restart_recovery(self):
         with tempfile.TemporaryDirectory() as directory:
             bus, registry, goal = awareness_only_network()
@@ -101,6 +130,13 @@ class CoordinatorLifecycleTests(unittest.TestCase):
             self.assertEqual(observed.steps["inspect-route"], StepStatus.DISPATCHED)
             self.assertEqual(coordinator.snapshot(plan.plan_id).status, RunStatus.ACTIVE)
             coordinator.close()
+
+    def test_read_only_snapshot_does_not_initialize_an_absent_database(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "absent.sqlite3"
+            with self.assertRaises(sqlite3.OperationalError):
+                read_run_snapshot(database, "plan-1")
+            self.assertFalse(database.exists())
 
     def test_coordinator_requires_authority_lease_mapping_by_default(self):
         bus, registry, goal = awareness_only_network()

@@ -67,6 +67,11 @@ is validated before any run is journaled or published. Replanning is additive:
 a terminal plan remains immutable while a new plan receives a new identifier,
 an exactly incremented revision, and an explicit predecessor identifier.
 
+A durable coordinator journal is permanently bound to one authenticated
+coordinator identity. This lets an owner restart the network process and request
+native cancellation for dispatched, accepted, or uncertain work without allowing
+a different identity to inherit cancellation authority.
+
 Participants execute adapters synchronously by default for deterministic
 simulation. Manufacturers may opt into a bounded `execution_workers` pool for
 independent native high-level requests. Authorization, schema validation,
