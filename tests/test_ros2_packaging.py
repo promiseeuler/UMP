@@ -75,6 +75,7 @@ class Ros2PackagingTests(unittest.TestCase):
         self.assertIn("ros-tooling/setup-ros@v0.7", workflow)
         self.assertIn("ros-jazzy-ros-gz-sim", workflow)
         self.assertIn("colcon test-result --verbose", workflow)
+        self.assertIn("pip install --break-system-packages .", workflow)
         self.assertIn("timeout 180s bash ros2_ws/smoke.sh", workflow)
         self.assertNotIn("@main", workflow)
 
@@ -85,6 +86,11 @@ class Ros2PackagingTests(unittest.TestCase):
         self.assertEqual(smoke.count("--expect succeeded"), 2)
         self.assertEqual(smoke.count("--expect cancelled"), 1)
         self.assertEqual(smoke.count("--expect rejected"), 1)
+        self.assertIn("ros2 run ump_gazebo_demo adapter_smoke_client", smoke)
+        self.assertIn("--inputs-json", smoke)
+
+        setup = (ROS / "ump_gazebo_demo" / "setup.py").read_text()
+        self.assertIn("adapter_smoke_client:main", setup)
 
     def test_python_package_uses_exported_build_type_not_rosdep_key(self):
         package = ET.parse(ROS / "ump_gazebo_demo" / "package.xml").getroot()

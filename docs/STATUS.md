@@ -76,6 +76,8 @@
   capability-specific codecs, cancellation, and uncertainty handling.
 - ROS 2 `ExecuteCapability` interface package and Gazebo Harmonic conformance
   world with three cancellable proxy capability servers.
+- Native smoke path through `RclpyActionBackend` and `Ros2RobotAdapter` from a
+  structured UMP assignment to a structured UMP outcome.
 - Pinned Ubuntu Noble / ROS 2 Jazzy package build-and-test workflow for the
   reference interfaces and Gazebo fixture.
 - Container-verified Jazzy interface generation and package build, plus a native

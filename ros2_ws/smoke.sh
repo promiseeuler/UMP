@@ -63,6 +63,12 @@ exercise() {
 }
 exercise --action /robot_quadruped_1/execute_capability \
   --assignment-id smoke-inspect --capability ump.navigation.inspect-route/v1 --expect succeeded
+ros2 run ump_gazebo_demo adapter_smoke_client \
+  --action /robot_humanoid_1/execute_capability \
+  --robot-id robot-humanoid-1 \
+  --assignment-id smoke-adapter-carry \
+  --capability ump.material.carry/v1 \
+  --inputs-json '{"object":"package-1","destination":"storage"}'
 exercise --action /robot_humanoid_1/execute_capability \
   --assignment-id smoke-carry --capability ump.material.carry/v1 --expect succeeded
 exercise --action /robot_mobile_arm_1/execute_capability \

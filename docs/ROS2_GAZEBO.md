@@ -28,6 +28,12 @@ requires the Gazebo world service, three action servers, successful goals,
 capability rejection, and cancellation. Until that workflow result is inspected,
 simulator runtime and physics behavior remain unverified.
 
+The native smoke also constructs the public `Ros2RobotAdapter`,
+`RclpyActionBackend`, generated `ExecuteCapability` binding, and a structured UMP
+assignment. It requires that assignment to cross the manufacturer adapter
+boundary and return a successful structured UMP outcome. Separate direct action
+checks retain native success, capability rejection, and cancellation coverage.
+
 ## Why ROS actions
 
 UMP capabilities represent high-level work that may run for seconds or minutes,

@@ -25,6 +25,7 @@ setup(
         "console_scripts": [
             "proxy_action_server = ump_gazebo_demo.proxy_action_server:main",
             "action_smoke_client = ump_gazebo_demo.action_smoke_client:main",
+            "adapter_smoke_client = ump_gazebo_demo.adapter_smoke_client:main",
         ],
     },
 )

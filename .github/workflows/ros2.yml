@@ -26,6 +26,7 @@ jobs:
         run: |
           source /opt/ros/jazzy/setup.bash
           rosdep install --from-paths ros2_ws/src --ignore-src -r -y
+          python3 -m pip install --break-system-packages .
       - name: Build and test packages
         shell: bash
         run: |
