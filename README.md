@@ -45,7 +45,7 @@ transport, and placement steps from one shared goal.
 - `docs/INTEROPERABILITY.md`: SI unit and coordinate-frame schema profile.
 - `docs/VOCABULARY.md`: versioned standard high-level capability contracts.
 - `docs/BENCHMARKS.md`: local and two-host benchmarks and evidence validation.
-- `docs/READINESS.md`: executable PRD requirement traceability policy.
+- `docs/READINESS.md`: functional traceability and production qualification policy.
 - `docs/VERSIONING.md`: package versioning and release-artifact verification.
 - `docs/INSPECTOR.md`: read-only local protocol inspector setup.
 - `docs/HARDWARE_PILOT.md`: physical-pilot evidence profile and verifier.

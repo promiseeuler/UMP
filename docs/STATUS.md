@@ -4,6 +4,9 @@
 
 **Maturity:** Reference foundation, not production or physical-control ready
 
+The functional traceability matrix is complete. The separate production
+qualification matrix remains fail-closed with eight pending external gates.
+
 ## Implemented
 
 - Fresh product requirements and architecture boundaries.

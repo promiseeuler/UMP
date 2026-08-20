@@ -1045,6 +1045,11 @@ def readiness_main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Validate matrix coverage and evidence paths without requiring readiness",
     )
+    parser.add_argument(
+        "--functional-only",
+        action="store_true",
+        help="Require functional completeness without claiming production readiness",
+    )
     arguments = parser.parse_args(argv)
     try:
         report = load_readiness_report(arguments.project_root)
@@ -1052,7 +1057,11 @@ def readiness_main(argv: list[str] | None = None) -> int:
         print(f"ump-readiness: {error}", file=sys.stderr)
         return 2
     print(json.dumps(report, sort_keys=True))
-    return 0 if arguments.validate_only or report["ready"] else 1
+    if arguments.validate_only:
+        return 0
+    if arguments.functional_only:
+        return 0 if report["functional_ready"] else 1
+    return 0 if report["ready"] else 1
 
 
 def inspector_main(argv: list[str] | None = None) -> int:

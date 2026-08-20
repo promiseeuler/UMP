@@ -1,0 +1,61 @@
+{
+  "profile": "ump.production-qualification/v1",
+  "gates": [
+    {
+      "id": "QAL-ROS2-NATIVE",
+      "status": "pending",
+      "implementation_evidence": ["docs/ROS2_GAZEBO.md", ".github/workflows/ros2.yml"],
+      "result_evidence": [],
+      "note": "A commit-bound native Ubuntu Noble, ROS 2 Jazzy, and Gazebo Harmonic smoke artifact must be retained and validated."
+    },
+    {
+      "id": "QAL-LAN-TWO-HOST",
+      "status": "pending",
+      "implementation_evidence": ["docs/BENCHMARKS.md", "src/ump/lan_evidence.py"],
+      "result_evidence": [],
+      "note": "A validated mutual-TLS benchmark bundle from two representative deployment hosts must pass the healthy-LAN target."
+    },
+    {
+      "id": "QAL-HARDWARE-PILOT",
+      "status": "pending",
+      "implementation_evidence": ["docs/HARDWARE_PILOT.md", "src/ump/pilot.py"],
+      "result_evidence": [],
+      "note": "A supervised pilot with at least two physical robots and one simulated participant must produce a validated evidence bundle."
+    },
+    {
+      "id": "QAL-ADAPTER-CONFORMANCE",
+      "status": "pending",
+      "implementation_evidence": ["docs/CONFORMANCE.md", "src/ump/conformance.py"],
+      "result_evidence": [],
+      "note": "At least one independent manufacturer adapter must provide retained conformance results."
+    },
+    {
+      "id": "QAL-SECURITY-REVIEW",
+      "status": "pending",
+      "implementation_evidence": ["SECURITY.md", "docs/NETWORK_PROFILE.md"],
+      "result_evidence": [],
+      "note": "An independent security review must be completed with blocking findings resolved or explicitly accepted."
+    },
+    {
+      "id": "QAL-SAFETY-REVIEW",
+      "status": "pending",
+      "implementation_evidence": ["docs/AUTHORITY.md", "docs/HARDWARE_PILOT.md"],
+      "result_evidence": [],
+      "note": "An independent safety review of the coordination boundary and pilot controls must be completed."
+    },
+    {
+      "id": "QAL-INTEROPERABILITY-REVIEW",
+      "status": "pending",
+      "implementation_evidence": ["docs/INTEROPERABILITY.md", "docs/CONFORMANCE.md"],
+      "result_evidence": [],
+      "note": "An independent interoperability review must validate the public protocol and adapter contracts."
+    },
+    {
+      "id": "QAL-RELEASE-ARTIFACT",
+      "status": "pending",
+      "implementation_evidence": ["docs/VERSIONING.md", ".github/workflows/release.yml"],
+      "result_evidence": [],
+      "note": "A tagged, checksummed, provenance-attested release artifact must be retained and install-tested."
+    }
+  ]
+}
