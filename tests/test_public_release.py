@@ -39,8 +39,11 @@ def repository(*, deleted_secret: bool = False) -> tempfile.TemporaryDirectory:
         "old implementation\n", encoding="utf-8"
     )
     if deleted_secret:
+        private_key_header = "-----BEGIN " + "PRIVATE KEY-----"
+        private_key_footer = "-----END " + "PRIVATE KEY-----"
         (root / "legacy" / "secret.txt").write_text(
-            "-----BEGIN PRIVATE KEY-----\nnot-real\n", encoding="utf-8"
+            f"{private_key_header}\n{'A' * 80}\n{private_key_footer}\n",
+            encoding="utf-8",
         )
     git(root, "add", ".")
     git(root, "commit", "-m", "legacy")

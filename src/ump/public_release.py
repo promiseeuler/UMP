@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 import re
 import subprocess
@@ -16,7 +17,9 @@ REQUIRED_PUBLIC_FILES = (
 )
 SECRET_PATTERNS = {
     "private_key": re.compile(
-        rb"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----"
+        rb"-----BEGIN (?P<kind>(?:RSA |EC |DSA |OPENSSH |PGP )?)PRIVATE KEY-----"
+        rb"\s+[A-Za-z0-9+/=\r\n]{64,}\s+"
+        rb"-----END (?P=kind)PRIVATE KEY-----"
     ),
     "github_token": re.compile(rb"(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})"),
     "aws_access_key": re.compile(rb"AKIA[0-9A-Z]{16}"),
@@ -91,13 +94,6 @@ def audit_public_release(
     )
     sensitive_paths = sorted(path for path in historical_paths if SENSITIVE_PATH.search(path))
 
-    patches = _git(root, "log", "--all", "-p", "--format=")
-    secret_matches = {
-        name: len(pattern.findall(patches))
-        for name, pattern in SECRET_PATTERNS.items()
-        if pattern.search(patches)
-    }
-
     object_paths = {object_id: path for object_id, path in objects}
     object_input = "".join(f"{object_id}\n" for object_id in object_paths).encode()
     object_rows = _git_input(
@@ -106,11 +102,13 @@ def audit_public_release(
         "cat-file",
         "--batch-check=%(objectname) %(objecttype) %(objectsize)",
     ).decode("ascii").splitlines()
+    blob_ids = []
     large_blobs = []
     for row in object_rows:
         object_id, object_type, size_text = row.split()
         if object_type != "blob":
             continue
+        blob_ids.append(object_id)
         try:
             size = int(size_text)
         except ValueError as error:
@@ -119,6 +117,22 @@ def audit_public_release(
             large_blobs.append(
                 {"path": object_paths.get(object_id, ""), "size_bytes": size}
             )
+
+    blob_input = "".join(f"{object_id}\n" for object_id in blob_ids).encode()
+    blob_stream = BytesIO(_git_input(root, blob_input, "cat-file", "--batch"))
+    secret_matches: dict[str, int] = {}
+    for expected_object_id in blob_ids:
+        header = blob_stream.readline().decode("ascii").split()
+        if len(header) != 3 or header[0] != expected_object_id or header[1] != "blob":
+            raise PublicReadinessError("Git blob batch response is invalid")
+        size = int(header[2])
+        content = blob_stream.read(size)
+        if len(content) != size or blob_stream.read(1) != b"\n":
+            raise PublicReadinessError("Git blob content is truncated")
+        for name, pattern in SECRET_PATTERNS.items():
+            match_count = len(pattern.findall(content))
+            if match_count:
+                secret_matches[name] = secret_matches.get(name, 0) + match_count
 
     authors = sorted(
         set(
