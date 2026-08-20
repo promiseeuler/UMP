@@ -6,7 +6,13 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from ump.benchmark import BenchmarkThresholds, percentile, run_reference_benchmark
+from ump.benchmark import (
+    BenchmarkThresholds,
+    TlsBenchmarkThresholds,
+    percentile,
+    run_reference_benchmark,
+    run_tls_loopback_benchmark,
+)
 from ump.cli import benchmark_main
 
 
@@ -52,6 +58,33 @@ class BenchmarkTests(unittest.TestCase):
     def test_invalid_sample_count_returns_usage_error(self):
         with patch("builtins.print"):
             self.assertEqual(benchmark_main(["--samples", "1"]), 2)
+
+    def test_tls_loopback_report_measures_authenticated_round_trips(self):
+        result = run_tls_loopback_benchmark(samples=10)
+        document = result.as_dict()
+        self.assertTrue(document["passed"])
+        self.assertEqual(document["profile"], "ump.reference.tls-loopback/v1")
+        self.assertEqual(document["samples"], 10)
+        self.assertGreater(document["round_trip_p95_ms"], 0)
+        self.assertIn("mutual-TLS", document["environment"]["transport"])
+
+    def test_tls_threshold_failure_changes_report_status(self):
+        result = run_tls_loopback_benchmark(
+            samples=10,
+            thresholds=TlsBenchmarkThresholds(round_trip_p95_ms=0.0),
+        )
+        self.assertFalse(result.passed)
+
+    def test_cli_selects_tls_loopback_profile(self):
+        with patch("builtins.print") as output:
+            exit_code = benchmark_main(
+                ["--profile", "tls-loopback", "--samples", "10"]
+            )
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(
+            json.loads(output.call_args.args[0])["profile"],
+            "ump.reference.tls-loopback/v1",
+        )
 
 
 if __name__ == "__main__":

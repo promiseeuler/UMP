@@ -7,7 +7,7 @@ import sys
 import time
 
 from .authority import SqliteAuthorityStore
-from .benchmark import run_reference_benchmark
+from .benchmark import run_reference_benchmark, run_tls_loopback_benchmark
 from .conformance import validate_vector_suite
 from .credentials import CredentialError, CredentialGeneration, SqliteCredentialStore
 from .inspector import InspectorServer, InspectorStore
@@ -263,12 +263,20 @@ def benchmark_main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--samples", type=int, default=5_000)
     parser.add_argument("--participants", type=int, default=100)
+    parser.add_argument(
+        "--profile",
+        choices=("in-memory", "tls-loopback"),
+        default="in-memory",
+    )
     arguments = parser.parse_args(argv)
     try:
-        report = run_reference_benchmark(
-            samples=arguments.samples,
-            participants=arguments.participants,
-        )
+        if arguments.profile == "tls-loopback":
+            report = run_tls_loopback_benchmark(samples=arguments.samples)
+        else:
+            report = run_reference_benchmark(
+                samples=arguments.samples,
+                participants=arguments.participants,
+            )
     except ValueError as error:
         print(f"ump-benchmark: {error}", file=sys.stderr)
         return 2

@@ -25,5 +25,6 @@ jobs:
       - run: python -m ump.demo
       - run: ump-conformance conformance/v0.1
       - run: ump-benchmark
+      - run: ump-benchmark --profile tls-loopback --samples 100
       - run: ump-readiness --validate-only
       - run: python -m json.tool schemas/ump-v0.schema.json > /dev/null

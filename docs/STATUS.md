@@ -80,6 +80,8 @@
   for robot state, capabilities, and correlated protocol events.
 - Reproducible reference-runtime benchmark for canonical in-memory state
   propagation, throughput, message size, and incremental idle Python heap.
+- End-to-end mutual-TLS loopback benchmark covering fresh connection setup,
+  identity binding, replay checks, framing, handling, and acknowledgement.
 - Executable traceability matrix covering all 41 named PRD functional
   requirements with evidence-backed implemented, partial, or missing status.
 
