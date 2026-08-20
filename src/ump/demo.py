@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from uuid import uuid4
 
 from .authority import AllowAllAuthorizer
@@ -53,6 +54,12 @@ class WarehousePlanner:
                 ),
             ),
         )
+
+
+def create_warehouse_planner(config_path: Path | None = None) -> WarehousePlanner:
+    """Create the deterministic reference planner through the public loader contract."""
+    del config_path
+    return WarehousePlanner()
 
 
 def build_demo():

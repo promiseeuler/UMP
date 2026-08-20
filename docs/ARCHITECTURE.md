@@ -27,7 +27,9 @@ proposal. The reference planner is deterministic; an AI model can replace it
 without changing adapters.
 
 The manufacturer-facing Python contract lives in `ump.adapter` and is re-exported
-from `ump`; implementation guidance is in `MANUFACTURER_ADAPTER.md`.
+from `ump`; implementation guidance is in `MANUFACTURER_ADAPTER.md`. The planner
+contract lives in `ump.planner`, is also re-exported from `ump`, and is documented
+in `PLANNER.md`.
 
 ## Transport bindings
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Protocol
 from uuid import uuid4
 
 from .coordinator_store import CoordinatorStore, RunSnapshot, RunStatus, StepStatus
@@ -15,24 +14,12 @@ from .models import (
     CancellationStatus,
     Outcome,
     Plan,
-    RobotManifest,
-    RobotState,
     SharedGoal,
     payload,
 )
+from .planner import Planner
 from .runtime import Registry
 from .transport import MessageBus, ProtocolDecodeError, encode_envelope, make_envelope
-
-
-class Planner(Protocol):
-    planner_id: str
-
-    def propose(
-        self,
-        goal: SharedGoal,
-        manifests: Mapping[str, RobotManifest],
-        states: Mapping[str, RobotState],
-    ) -> Plan: ...
 
 
 class PlanValidationError(ValueError):

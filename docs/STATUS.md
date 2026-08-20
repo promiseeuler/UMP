@@ -16,6 +16,8 @@
 - Per-process session identity, monotonic sequences, replay rejection, and freshness.
 - Source identity agreement for manifest and state payloads.
 - Planner-neutral shared goals and dependency-based microtask plans.
+- Public transport-independent planner protocol and trusted factory loader for
+  deterministic, human-backed, or model-backed reasoning providers.
 - Validation-atomic bounded goal batches and immutable plan revision lineage.
 - Plan validation for participants, freshness, capabilities, dependencies, cycles,
   and deadlines.

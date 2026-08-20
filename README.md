@@ -37,6 +37,7 @@ transport, and placement steps from one shared goal.
 - `docs/AUTHORITY.md`: robot-local assignment leases and owner CLI.
 - `docs/CREDENTIALS.md`: issued-certificate enrollment, rotation, and revocation.
 - `docs/NODE.md`: owner-facing long-running participant service.
+- `docs/PLANNER.md`: reasoning-provider contract and validation boundary.
 - `docs/RECONCILIATION.md`: evidence-based resolution of uncertain native work.
 - `docs/ROS2_GAZEBO.md`: manufacturer ROS action adapter and simulator profile.
 - `docs/CONFORMANCE.md`: golden vectors and safe adapter validation workflow.
