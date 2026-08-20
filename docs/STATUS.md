@@ -86,6 +86,8 @@
   and a runnable zero-capability read-only hardware integration starting point.
 - Owner-facing `ump-node` service with trusted adapter factories, durable assignment
   and authority stores, bounded 1–10 Hz state publication, and signal shutdown.
+- Participant-node enforcement of the active managed credential generation,
+  handshake-time peer revocation, and runtime local-credential revocation checks.
 - Append-only SQLite protocol recorder and loopback-only, read-only inspector UI
   for robot state, capabilities, and correlated protocol events.
 - Reproducible reference-runtime benchmark for canonical in-memory state

@@ -690,7 +690,12 @@ class TlsNetworkBus:
         )
 
     @classmethod
-    def from_config(cls, config: NetworkConfig) -> TlsNetworkBus:
+    def from_config(
+        cls,
+        config: NetworkConfig,
+        *,
+        certificate_revoked: Callable[[str], bool] | None = None,
+    ) -> TlsNetworkBus:
         bus = cls(
             config.robot_id,
             config.bind_host,
@@ -709,6 +714,7 @@ class TlsNetworkBus:
                 config.maximum_pending_deliveries,
                 config.reserved_safety_deliveries,
             ),
+            certificate_revoked=certificate_revoked,
         )
         for peer in config.peers:
             bus.add_peer(peer)

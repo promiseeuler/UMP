@@ -444,10 +444,16 @@ def node_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--adapter-config")
     parser.add_argument("--assignment-database", required=True)
     parser.add_argument("--authority-database", required=True)
+    parser.add_argument("--credential-database", required=True)
+    parser.add_argument("--credential-directory", required=True)
     parser.add_argument("--state-hz", type=float, default=2.0)
     parser.add_argument("--execution-workers", type=int, default=0)
     arguments = parser.parse_args(argv)
     service = None
+    credentials = None
+    journal = None
+    authority = None
+    bus = None
     stop = Event()
     previous_handlers = {}
     try:
@@ -467,23 +473,34 @@ def node_main(argv: list[str] | None = None) -> int:
             raise ValueError(f"adapter conformance failed: {failures}")
         if adapter.manifest().robot_id != config.robot_id:
             raise ValueError("adapter and network robot identities differ")
+        credentials = SqliteCredentialStore(
+            config.robot_id,
+            arguments.credential_database,
+            arguments.credential_directory,
+        )
+        credentials.require_active_bundle(
+            config.certificate_path,
+            config.private_key_path,
+            config.ca_path,
+        )
         journal = SqliteAssignmentJournal(arguments.assignment_database)
         authority = SqliteAuthorityStore(config.robot_id, arguments.authority_database)
-        bus = TlsNetworkBus.from_config(config)
-        try:
-            service = ParticipantService(
-                adapter,
-                bus,
-                journal,
-                authority,
-                state_hz=arguments.state_hz,
-                execution_workers=arguments.execution_workers,
-            )
-        except BaseException:
-            bus.stop()
-            journal.close()
-            authority.close()
-            raise
+        bus = TlsNetworkBus.from_config(
+            config, certificate_revoked=credentials.is_revoked
+        )
+        service = ParticipantService(
+            adapter,
+            bus,
+            journal,
+            authority,
+            state_hz=arguments.state_hz,
+            execution_workers=arguments.execution_workers,
+            health_check=lambda: credentials.require_active_bundle(
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            ),
+        )
 
         def request_stop(_signal_number, _frame) -> None:
             stop.set()
@@ -516,6 +533,15 @@ def node_main(argv: list[str] | None = None) -> int:
             signal.signal(signal_number, handler)
         if service is not None:
             service.close()
+        else:
+            if bus is not None:
+                bus.stop()
+            if journal is not None:
+                journal.close()
+            if authority is not None:
+                authority.close()
+        if credentials is not None:
+            credentials.close()
 
 
 def readiness_main(argv: list[str] | None = None) -> int:

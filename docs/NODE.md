@@ -15,6 +15,8 @@ ump-node \
   --adapter-config /etc/manufacturer/robot.json \
   --assignment-database /var/lib/ump/assignments.sqlite3 \
   --authority-database /var/lib/ump/authority.sqlite3 \
+  --credential-database /var/lib/ump/credentials.sqlite3 \
+  --credential-directory /var/lib/ump/credentials \
   --state-hz 2
 ```
 
@@ -29,6 +31,12 @@ opening its listener. `state-hz` is bounded to the PRD's 1–10 Hz range. The no
 starts its mutual-TLS listener, publishes its manifest and initial state,
 then publishes semantic state at the selected rate until `SIGINT` or `SIGTERM`.
 It emits one JSON `ready` event after successful startup.
+
+The network certificate, private key, and CA paths must exactly match the active
+generation in the robot-local credential store. Peer revocations are checked on
+every inbound and outbound handshake. The node also rechecks its active local
+generation before every state publication and exits if that generation is
+retired or revoked; restart it after an approved credential rotation.
 
 ## Authority and durability
 
@@ -54,7 +62,9 @@ From a source checkout, the included example can exercise the node path:
 ump-node --network config/network.json \
   --adapter examples.read_only_adapter:create_adapter \
   --assignment-database state/assignments.sqlite3 \
-  --authority-database state/authority.sqlite3
+  --authority-database state/authority.sqlite3 \
+  --credential-database state/credentials.sqlite3 \
+  --credential-directory state/credentials
 ```
 
 Replace the example paths and credentials before running it. The example

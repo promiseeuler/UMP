@@ -206,6 +206,36 @@ class SqliteCredentialStore:
             ).fetchone()
         return self._generation(row) if row else None
 
+    def require_active_bundle(
+        self,
+        certificate_path: str | Path,
+        private_key_path: str | Path,
+        ca_path: str | Path,
+    ) -> CredentialGeneration:
+        """Require the configured TLS files to be the active managed generation."""
+        generation = self.active()
+        if generation is None:
+            raise CredentialError("robot has no active credential generation")
+        expected = tuple(
+            path.resolve()
+            for path in (
+                generation.certificate_path,
+                generation.private_key_path,
+                generation.ca_path,
+            )
+        )
+        configured = tuple(
+            Path(path).resolve()
+            for path in (certificate_path, private_key_path, ca_path)
+        )
+        if configured != expected:
+            raise CredentialError(
+                "network TLS files do not match the active credential generation"
+            )
+        if self.is_revoked(generation.fingerprint_sha256):
+            raise CredentialError("active credential generation is revoked")
+        return generation
+
     def get(self, generation: int) -> CredentialGeneration:
         with self._lock:
             return self._generation(self._row(generation))

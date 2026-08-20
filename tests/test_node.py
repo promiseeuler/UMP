@@ -118,6 +118,39 @@ class ParticipantServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identities differ"):
             ParticipantService(Adapter(), Bus("robot-2"), Resource(), Resource())
 
+    def test_service_checks_credential_health_at_start_and_before_publication(self):
+        checks = []
+
+        def health_check():
+            checks.append("checked")
+
+        service = ParticipantService(
+            Adapter(),
+            Bus(),
+            Resource(),
+            Resource(),
+            state_hz=10.0,
+            health_check=health_check,
+        )
+        service.start()
+        service.run(BoundedStop(2))
+        service.close()
+        self.assertEqual(checks, ["checked", "checked", "checked"])
+
+    def test_failed_startup_health_check_does_not_open_network_listener(self):
+        bus = Bus()
+
+        def revoked():
+            raise RuntimeError("active credential is revoked")
+
+        service = ParticipantService(
+            Adapter(), bus, Resource(), Resource(), health_check=revoked
+        )
+        with self.assertRaisesRegex(RuntimeError, "revoked"):
+            service.start()
+        service.close()
+        self.assertFalse(bus.started)
+
     def test_documented_example_factory_loads_as_adapter(self):
         adapter = load_adapter("examples.read_only_adapter:create_adapter")
         self.assertEqual(adapter.manifest().capabilities, ())

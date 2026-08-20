@@ -75,6 +75,43 @@ class CredentialStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(CredentialError, "revoked"):
             self.store.activate(generation.generation, int(time.time() * 1_000))
 
+    def test_runtime_requires_configured_files_from_active_generation(self):
+        generation = self.store.enroll(
+            *issue(self.root, "robot-1", "runtime"), int(time.time() * 1_000)
+        )
+        with self.assertRaisesRegex(CredentialError, "no active"):
+            self.store.require_active_bundle(
+                generation.certificate_path,
+                generation.private_key_path,
+                generation.ca_path,
+            )
+        self.store.activate(generation.generation, int(time.time() * 1_000))
+        self.assertEqual(
+            self.store.require_active_bundle(
+                generation.certificate_path,
+                generation.private_key_path,
+                generation.ca_path,
+            ).generation,
+            generation.generation,
+        )
+        with self.assertRaisesRegex(CredentialError, "do not match"):
+            self.store.require_active_bundle(
+                self.root / "different.pem",
+                generation.private_key_path,
+                generation.ca_path,
+            )
+        self.store.revoke(
+            generation.fingerprint_sha256,
+            "runtime revocation",
+            int(time.time() * 1_000),
+        )
+        with self.assertRaisesRegex(CredentialError, "no active"):
+            self.store.require_active_bundle(
+                generation.certificate_path,
+                generation.private_key_path,
+                generation.ca_path,
+            )
+
     def test_duplicate_enrollment_fails_with_domain_error(self):
         bundle = issue(self.root, "robot-1", "duplicate")
         self.store.enroll(*bundle, int(time.time() * 1_000))

@@ -47,6 +47,7 @@ class ParticipantService:
         state_hz: float = 2.0,
         execution_workers: int = 0,
         clock_ms: Callable[[], int] | None = None,
+        health_check: Callable[[], None] | None = None,
     ) -> None:
         if not 1.0 <= state_hz <= 10.0:
             raise ValueError("state_hz must be between 1 and 10")
@@ -57,6 +58,7 @@ class ParticipantService:
         self.bus = bus
         self._clock_ms = clock_ms or (lambda: int(time.time() * 1_000))
         self._interval = 1.0 / state_hz
+        self._health_check = health_check or (lambda: None)
         self._participant = Participant(
             adapter,
             bus,
@@ -73,6 +75,7 @@ class ParticipantService:
             raise RuntimeError("participant service is closed")
         if self._started:
             raise RuntimeError("participant service is already started")
+        self._health_check()
         endpoint = self.bus.start()
         try:
             self._participant.announce(self._clock_ms())
@@ -86,6 +89,7 @@ class ParticipantService:
         if not self._started:
             raise RuntimeError("participant service must be started before run")
         while not stop.wait(self._interval):
+            self._health_check()
             self._participant.publish_state(self._clock_ms())
 
     def close(self) -> None:
