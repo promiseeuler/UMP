@@ -72,6 +72,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("/tmp/ump-release/bin/ump-demo", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-adapter-conformance --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-adapter-conformance schema", workflow)
+        self.assertIn("/tmp/ump-release/bin/ump-authority --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-evidence schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-node --help", workflow)

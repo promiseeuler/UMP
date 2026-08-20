@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 from pathlib import Path
 import sqlite3
@@ -11,6 +12,228 @@ from .models import Assignment, AuthorityLease, LeaseStatus
 
 class AuthorizationError(PermissionError):
     pass
+
+
+class AuthorityReadError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class AuthorityLeaseSummary:
+    lease: AuthorityLease
+    effective_status: str
+    updated_at_ms: int
+
+
+EFFECTIVE_LEASE_STATUSES = frozenset(
+    {"active", "not_yet_valid", "expired", "revoked"}
+)
+AUTHORITY_LEASE_COLUMNS = frozenset(
+    {
+        "lease_id",
+        "grantor_robot_id",
+        "issuer_id",
+        "capabilities_json",
+        "issued_at_ms",
+        "expires_at_ms",
+        "maximum_clock_uncertainty_ms",
+        "revision",
+        "status",
+        "updated_at_ms",
+    }
+)
+AUTHORITY_EVENT_COLUMNS = frozenset(
+    {"sequence", "lease_id", "event_type", "revision", "occurred_at_ms", "detail"}
+)
+
+
+def _open_authority_read_only(path: str | Path) -> sqlite3.Connection:
+    database = Path(path).resolve()
+    if not database.is_file():
+        raise AuthorityReadError(f"authority database does not exist: {database}")
+    try:
+        connection = sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)
+        connection.execute("PRAGMA query_only = ON")
+        tables = {
+            "authority_leases": AUTHORITY_LEASE_COLUMNS,
+            "authority_events": AUTHORITY_EVENT_COLUMNS,
+        }
+        for table, expected in tables.items():
+            columns = {
+                row[1] for row in connection.execute(f"PRAGMA table_info({table})")
+            }
+            if missing := sorted(expected - columns):
+                raise AuthorityReadError(
+                    f"authority database {table} is missing columns: {missing}"
+                )
+        return connection
+    except (sqlite3.Error, AuthorityReadError) as error:
+        if "connection" in locals():
+            connection.close()
+        if isinstance(error, AuthorityReadError):
+            raise
+        raise AuthorityReadError(
+            f"authority database cannot be opened read-only: {error}"
+        ) from error
+
+
+def _effective_status(lease: AuthorityLease, now_ms: int) -> str:
+    if lease.status is LeaseStatus.REVOKED:
+        return "revoked"
+    if lease.status is LeaseStatus.EXPIRED:
+        return "expired"
+    uncertainty = lease.maximum_clock_uncertainty_ms
+    if now_ms - uncertainty < lease.issued_at_ms:
+        return "not_yet_valid"
+    if now_ms + uncertainty >= lease.expires_at_ms:
+        return "expired"
+    return "active"
+
+
+def _summary(row: tuple, now_ms: int) -> AuthorityLeaseSummary:
+    try:
+        capabilities = json.loads(row[3])
+        if not isinstance(capabilities, list):
+            raise ValueError("capabilities are not an array")
+        lease = AuthorityLease(
+            lease_id=row[0],
+            grantor_robot_id=row[1],
+            issuer_id=row[2],
+            capabilities=tuple(capabilities),
+            issued_at_ms=row[4],
+            expires_at_ms=row[5],
+            maximum_clock_uncertainty_ms=row[6],
+            revision=row[7],
+            status=LeaseStatus(row[8]),
+        )
+        return AuthorityLeaseSummary(lease, _effective_status(lease, now_ms), row[9])
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise AuthorityReadError(f"authority lease row is invalid: {error}") from error
+
+
+def read_authority_leases(
+    path: str | Path,
+    robot_id: str,
+    now_ms: int,
+    *,
+    effective_status: str | None = None,
+    issuer_id: str | None = None,
+    limit: int = 100,
+) -> tuple[AuthorityLeaseSummary, ...]:
+    """List bounded lease summaries from an existing database without mutation."""
+    if not isinstance(robot_id, str) or not robot_id.strip():
+        raise AuthorityReadError("robot_id is required")
+    if type(now_ms) is not int or now_ms < 0:
+        raise AuthorityReadError("now_ms must be a non-negative integer")
+    if effective_status is not None and effective_status not in EFFECTIVE_LEASE_STATUSES:
+        raise AuthorityReadError("effective lease status is invalid")
+    if issuer_id is not None and (not isinstance(issuer_id, str) or not issuer_id.strip()):
+        raise AuthorityReadError("issuer_id filter is invalid")
+    if type(limit) is not int or not 1 <= limit <= 1_000:
+        raise AuthorityReadError("lease limit must be between 1 and 1000")
+
+    connection = _open_authority_read_only(path)
+    try:
+        clauses = ["grantor_robot_id = ?"]
+        parameters: list[object] = [robot_id]
+        if issuer_id is not None:
+            clauses.append("issuer_id = ?")
+            parameters.append(issuer_id)
+        if effective_status == "active":
+            clauses.append(
+                "status = 'active' AND ? - maximum_clock_uncertainty_ms >= issued_at_ms "
+                "AND ? + maximum_clock_uncertainty_ms < expires_at_ms"
+            )
+            parameters.extend((now_ms, now_ms))
+        elif effective_status == "not_yet_valid":
+            clauses.append(
+                "status = 'active' AND ? - maximum_clock_uncertainty_ms < issued_at_ms"
+            )
+            parameters.append(now_ms)
+        elif effective_status == "expired":
+            clauses.append(
+                "(status = 'expired' OR (status = 'active' "
+                "AND ? + maximum_clock_uncertainty_ms >= expires_at_ms))"
+            )
+            parameters.append(now_ms)
+        elif effective_status == "revoked":
+            clauses.append("status = 'revoked'")
+        rows = connection.execute(
+            "SELECT lease_id, grantor_robot_id, issuer_id, capabilities_json, "
+            "issued_at_ms, expires_at_ms, maximum_clock_uncertainty_ms, revision, "
+            "status, updated_at_ms FROM authority_leases WHERE "
+            + " AND ".join(clauses)
+            + " ORDER BY updated_at_ms DESC, lease_id LIMIT ?",
+            (*parameters, limit),
+        ).fetchall()
+        return tuple(_summary(row, now_ms) for row in rows)
+    except sqlite3.Error as error:
+        raise AuthorityReadError(f"authority leases cannot be read: {error}") from error
+    finally:
+        connection.close()
+
+
+def read_authority_lease(
+    path: str | Path, robot_id: str, lease_id: str, now_ms: int
+) -> AuthorityLeaseSummary:
+    if not isinstance(robot_id, str) or not robot_id.strip():
+        raise AuthorityReadError("robot_id is required")
+    if not isinstance(lease_id, str) or not lease_id.strip():
+        raise AuthorityReadError("lease_id is required")
+    if type(now_ms) is not int or now_ms < 0:
+        raise AuthorityReadError("now_ms must be a non-negative integer")
+    connection = _open_authority_read_only(path)
+    try:
+        row = connection.execute(
+            "SELECT lease_id, grantor_robot_id, issuer_id, capabilities_json, "
+            "issued_at_ms, expires_at_ms, maximum_clock_uncertainty_ms, revision, "
+            "status, updated_at_ms FROM authority_leases "
+            "WHERE grantor_robot_id = ? AND lease_id = ?",
+            (robot_id, lease_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError(lease_id)
+        return _summary(row, now_ms)
+    except sqlite3.Error as error:
+        raise AuthorityReadError(f"authority lease cannot be read: {error}") from error
+    finally:
+        connection.close()
+
+
+def read_authority_events(
+    path: str | Path,
+    robot_id: str,
+    lease_id: str,
+    *,
+    limit: int = 1_000,
+) -> tuple[tuple[int, str, int, int, str], ...]:
+    if not isinstance(robot_id, str) or not robot_id.strip():
+        raise AuthorityReadError("robot_id is required")
+    if not isinstance(lease_id, str) or not lease_id.strip():
+        raise AuthorityReadError("lease_id is required")
+    if type(limit) is not int or not 1 <= limit <= 1_000:
+        raise AuthorityReadError("event limit must be between 1 and 1000")
+    connection = _open_authority_read_only(path)
+    try:
+        owner = connection.execute(
+            "SELECT grantor_robot_id FROM authority_leases WHERE lease_id = ?",
+            (lease_id,),
+        ).fetchone()
+        if owner is None or owner[0] != robot_id:
+            raise KeyError(lease_id)
+        return tuple(
+            connection.execute(
+                "SELECT sequence, event_type, revision, occurred_at_ms, detail FROM ("
+                "SELECT sequence, event_type, revision, occurred_at_ms, detail "
+                "FROM authority_events WHERE lease_id = ? "
+                "ORDER BY sequence DESC LIMIT ?) ORDER BY sequence",
+                (lease_id, limit),
+            )
+        )
+    except sqlite3.Error as error:
+        raise AuthorityReadError(f"authority events cannot be read: {error}") from error
+    finally:
+        connection.close()
 
 
 class AssignmentAuthorizer(Protocol):
@@ -106,7 +329,7 @@ class SqliteAuthorityStore:
             try:
                 existing = self._connection.execute(
                     """
-                    SELECT grantor_robot_id, issuer_id, revision
+                    SELECT grantor_robot_id, issuer_id, revision, status
                     FROM authority_leases WHERE lease_id = ?
                     """,
                     (lease.lease_id,),
@@ -114,6 +337,10 @@ class SqliteAuthorityStore:
                 if existing is not None:
                     if existing[0] != lease.grantor_robot_id or existing[1] != lease.issuer_id:
                         raise AuthorizationError("lease identity fields are immutable")
+                    if LeaseStatus(existing[3]) is LeaseStatus.REVOKED:
+                        raise AuthorizationError(
+                            "revoked lease cannot be renewed; use a new lease ID"
+                        )
                     if lease.revision != existing[2] + 1:
                         raise AuthorizationError("lease renewal revision must increase by one")
                 self._connection.execute(

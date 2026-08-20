@@ -67,6 +67,8 @@ qualification matrix remains fail-closed with eight pending external gates.
 - Deny-by-default participant and coordinator assignment authorization.
 - Durable robot-local capability leases with issuer, time, and clock bounds.
 - Revision-checked local grant, renewal, revocation, persistence, and audit history.
+- Read-only bounded authority inventory, exact lease lookup, effective-time status,
+  issuer filtering, and robot-bound event inspection for owners.
 - Durable externally issued credential enrollment, staged rotation, activation,
   local fingerprint revocation, and handshake-time revocation enforcement.
 - Robot-local evidence-based resolution of unknown assignments with immutable

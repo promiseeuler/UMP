@@ -14,7 +14,15 @@ import time
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-from .authority import SqliteAuthorityStore
+from .authority import (
+    EFFECTIVE_LEASE_STATUSES,
+    AuthorityLeaseSummary,
+    AuthorityReadError,
+    SqliteAuthorityStore,
+    read_authority_events,
+    read_authority_lease,
+    read_authority_leases,
+)
 from .adapter import CommunicationLossHandler
 from .benchmark import (
     run_reference_benchmark,
@@ -121,16 +129,43 @@ def authority_parser() -> argparse.ArgumentParser:
 
     events = commands.add_parser("events", help="Print the lease audit history")
     events.add_argument("--lease-id", required=True)
+    events.add_argument("--limit", type=int, default=1_000)
+    leases = commands.add_parser("list", help="List bounded local lease inventory")
+    leases.add_argument("--status", choices=sorted(EFFECTIVE_LEASE_STATUSES))
+    leases.add_argument("--issuer-id")
+    leases.add_argument("--limit", type=int, default=100)
+    show = commands.add_parser("show", help="Print one exact local lease")
+    show.add_argument("--lease-id", required=True)
     return parser
+
+
+def _authority_lease_document(summary: AuthorityLeaseSummary) -> dict[str, object]:
+    lease = summary.lease
+    return {
+        "lease_id": lease.lease_id,
+        "grantor_robot_id": lease.grantor_robot_id,
+        "issuer_id": lease.issuer_id,
+        "capabilities": list(lease.capabilities),
+        "issued_at_ms": lease.issued_at_ms,
+        "expires_at_ms": lease.expires_at_ms,
+        "maximum_clock_uncertainty_ms": lease.maximum_clock_uncertainty_ms,
+        "revision": lease.revision,
+        "stored_status": lease.status.value,
+        "effective_status": summary.effective_status,
+        "updated_at_ms": summary.updated_at_ms,
+    }
 
 
 def authority_main(argv: list[str] | None = None) -> int:
     arguments = authority_parser().parse_args(argv)
     now_ms = int(time.time() * 1_000)
-    store = SqliteAuthorityStore(arguments.robot_id, arguments.database)
+    store = None
     try:
         if arguments.command == "grant":
-            issued_at_ms = arguments.issued_at_ms or now_ms
+            store = SqliteAuthorityStore(arguments.robot_id, arguments.database)
+            issued_at_ms = (
+                now_ms if arguments.issued_at_ms is None else arguments.issued_at_ms
+            )
             lease = AuthorityLease(
                 lease_id=arguments.lease_id,
                 grantor_robot_id=arguments.robot_id,
@@ -153,7 +188,12 @@ def authority_main(argv: list[str] | None = None) -> int:
                 )
             )
         elif arguments.command == "revoke":
-            occurred_at_ms = arguments.occurred_at_ms or now_ms
+            store = SqliteAuthorityStore(arguments.robot_id, arguments.database)
+            occurred_at_ms = (
+                now_ms
+                if arguments.occurred_at_ms is None
+                else arguments.occurred_at_ms
+            )
             store.revoke(
                 arguments.lease_id,
                 arguments.expected_revision,
@@ -170,7 +210,7 @@ def authority_main(argv: list[str] | None = None) -> int:
                     sort_keys=True,
                 )
             )
-        else:
+        elif arguments.command == "events":
             events = [
                 {
                     "sequence": event[0],
@@ -179,15 +219,57 @@ def authority_main(argv: list[str] | None = None) -> int:
                     "occurred_at_ms": event[3],
                     "detail": event[4],
                 }
-                for event in store.events(arguments.lease_id)
+                for event in read_authority_events(
+                    arguments.database,
+                    arguments.robot_id,
+                    arguments.lease_id,
+                    limit=arguments.limit,
+                )
             ]
             print(json.dumps(events, sort_keys=True))
+        elif arguments.command == "show":
+            print(
+                json.dumps(
+                    _authority_lease_document(
+                        read_authority_lease(
+                            arguments.database,
+                            arguments.robot_id,
+                            arguments.lease_id,
+                            now_ms,
+                        )
+                    ),
+                    sort_keys=True,
+                )
+            )
+        else:
+            summaries = read_authority_leases(
+                arguments.database,
+                arguments.robot_id,
+                now_ms,
+                effective_status=arguments.status,
+                issuer_id=arguments.issuer_id,
+                limit=arguments.limit,
+            )
+            print(
+                json.dumps(
+                    [_authority_lease_document(summary) for summary in summaries],
+                    sort_keys=True,
+                )
+            )
         return 0
-    except (KeyError, ValueError, PermissionError) as error:
+    except (
+        AuthorityReadError,
+        KeyError,
+        OSError,
+        PermissionError,
+        sqlite3.Error,
+        ValueError,
+    ) as error:
         print(f"ump-authority: {error}", file=sys.stderr)
         return 2
     finally:
-        store.close()
+        if store is not None:
+            store.close()
 
 
 def credentials_parser() -> argparse.ArgumentParser:

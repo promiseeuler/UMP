@@ -1,11 +1,19 @@
 import sys
+from hashlib import sha256
 import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from ump.authority import AuthorizationError, SqliteAuthorityStore
+from ump.authority import (
+    AuthorizationError,
+    AuthorityReadError,
+    SqliteAuthorityStore,
+    read_authority_events,
+    read_authority_lease,
+    read_authority_leases,
+)
 from ump.models import Assignment, AuthorityLease, PlanStep, RobotManifest, payload
 from ump.runtime import Participant
 from ump.simulation import SimulatedRobot, capability
@@ -111,6 +119,8 @@ class AuthorityStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(AuthorizationError, "revision"):
             store.revoke("lease-1", 2, 2_000, "operator request")
         store.revoke("lease-1", 1, 2_000, "operator request")
+        with self.assertRaisesRegex(AuthorizationError, "cannot be renewed"):
+            store.grant(lease(revision=3, expires_at_ms=20_000), 2_100)
         events = store.events("lease-1")
         self.assertEqual([event[1] for event in events], ["grant", "revoke"])
         store.close()
@@ -128,6 +138,104 @@ class AuthorityStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(AuthorizationError, "increase by one"):
             store.grant(lease(revision=3), 1_000)
         store.close()
+
+    def test_read_only_inventory_reports_effective_status_and_filters(self):
+        store = SqliteAuthorityStore(ROBOT_ID, self.path)
+        store.grant(lease(lease_id="active"), 900)
+        store.grant(
+            lease(lease_id="future", issued_at_ms=6_000, expires_at_ms=12_000),
+            901,
+        )
+        store.grant(lease(lease_id="expired", expires_at_ms=4_000), 902)
+        store.grant(
+            lease(lease_id="other-issuer", issuer_id="coordinator-2"), 903
+        )
+        store.grant(lease(lease_id="revoked"), 904)
+        store.revoke("revoked", 1, 2_000, "operator request")
+        store.close()
+
+        summaries = read_authority_leases(self.path, ROBOT_ID, 5_000)
+        statuses = {
+            item.lease.lease_id: item.effective_status for item in summaries
+        }
+        self.assertEqual(statuses["active"], "active")
+        self.assertEqual(statuses["future"], "not_yet_valid")
+        self.assertEqual(statuses["expired"], "expired")
+        self.assertEqual(statuses["revoked"], "revoked")
+        self.assertEqual(
+            [item.lease.lease_id for item in read_authority_leases(
+                self.path, ROBOT_ID, 5_000, effective_status="active"
+            )],
+            ["other-issuer", "active"],
+        )
+        self.assertEqual(
+            [item.lease.lease_id for item in read_authority_leases(
+                self.path, ROBOT_ID, 5_000, issuer_id="coordinator-2"
+            )],
+            ["other-issuer"],
+        )
+        self.assertEqual(
+            [item.lease.lease_id for item in read_authority_leases(
+                self.path,
+                ROBOT_ID,
+                5_000,
+                effective_status="expired",
+                limit=1,
+            )],
+            ["expired"],
+        )
+        self.assertEqual(
+            read_authority_lease(self.path, ROBOT_ID, "future", 5_000).effective_status,
+            "not_yet_valid",
+        )
+        self.assertEqual(
+            read_authority_lease(self.path, ROBOT_ID, "active", 1_050).effective_status,
+            "not_yet_valid",
+        )
+        self.assertEqual(
+            read_authority_lease(self.path, ROBOT_ID, "active", 1_100).effective_status,
+            "active",
+        )
+        self.assertEqual(
+            read_authority_lease(self.path, ROBOT_ID, "active", 9_900).effective_status,
+            "expired",
+        )
+
+    def test_read_inventory_is_non_mutating_and_fails_closed(self):
+        store = SqliteAuthorityStore(ROBOT_ID, self.path)
+        store.grant(lease(), 900)
+        store.close()
+        before = sha256(self.path.read_bytes()).hexdigest()
+        files_before = sorted(item.name for item in self.path.parent.iterdir())
+
+        read_authority_leases(self.path, ROBOT_ID, 5_000)
+        read_authority_lease(self.path, ROBOT_ID, "lease-1", 5_000)
+        read_authority_events(self.path, ROBOT_ID, "lease-1")
+
+        self.assertEqual(before, sha256(self.path.read_bytes()).hexdigest())
+        self.assertEqual(
+            files_before, sorted(item.name for item in self.path.parent.iterdir())
+        )
+        missing = self.path.parent / "missing" / "authority.sqlite3"
+        with self.assertRaisesRegex(AuthorityReadError, "does not exist"):
+            read_authority_leases(missing, ROBOT_ID, 5_000)
+        self.assertFalse(missing.parent.exists())
+        self.assertEqual(read_authority_leases(self.path, "robot-2", 5_000), ())
+        with self.assertRaises(KeyError):
+            read_authority_lease(self.path, "robot-2", "lease-1", 5_000)
+
+    def test_bounded_events_return_latest_transitions_in_chronological_order(self):
+        store = SqliteAuthorityStore(ROBOT_ID, self.path)
+        store.grant(lease(), 900)
+        store.grant(lease(revision=2, expires_at_ms=12_000), 1_000)
+        store.revoke("lease-1", 2, 2_000, "operator request")
+        store.close()
+
+        events = read_authority_events(
+            self.path, ROBOT_ID, "lease-1", limit=2
+        )
+        self.assertEqual([item[1] for item in events], ["grant", "revoke"])
+        self.assertEqual([item[2] for item in events], [2, 3])
 
 
 class ParticipantAuthorizationTests(unittest.TestCase):

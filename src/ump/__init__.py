@@ -1,7 +1,14 @@
 """Universal Machine Protocol reference implementation."""
 
 from .adapter import CommunicationLossHandler, RobotAdapter
-from .authority import SqliteAuthorityStore
+from .authority import (
+    AuthorityLeaseSummary,
+    AuthorityReadError,
+    SqliteAuthorityStore,
+    read_authority_events,
+    read_authority_lease,
+    read_authority_leases,
+)
 from .conformance import (
     AdapterEvidenceValidationError,
     AdapterConformanceHarness,
@@ -73,6 +80,8 @@ __all__ = [
     "AdapterEvidenceValidationError",
     "Assignment",
     "AssignmentStatus",
+    "AuthorityLeaseSummary",
+    "AuthorityReadError",
     "Availability",
     "Capability",
     "CommunicationLossHandler",
@@ -122,6 +131,9 @@ __all__ = [
     "network_config_schema",
     "lan_evidence_schema",
     "read_run_summaries",
+    "read_authority_events",
+    "read_authority_lease",
+    "read_authority_leases",
     "shared_goal_from_document",
     "shared_goals_from_document",
     "review_schema",

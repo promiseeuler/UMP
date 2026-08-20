@@ -3,7 +3,7 @@ import json
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
@@ -31,13 +31,29 @@ class AuthorityCliTests(unittest.TestCase):
                         "--capability",
                         "ump.material.carry/v1",
                         "--issued-at-ms",
-                        "1000",
+                        "0",
                         "--expires-at-ms",
                         "10000",
                     ]
                 )
             self.assertEqual(result, 0)
             self.assertEqual(json.loads(output.getvalue())["status"], "active")
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                result = authority_main(common + ["list", "--limit", "10"])
+            self.assertEqual(result, 0)
+            inventory = json.loads(output.getvalue())
+            self.assertEqual([item["lease_id"] for item in inventory], ["lease-1"])
+            self.assertEqual(inventory[0]["stored_status"], "active")
+            self.assertEqual(inventory[0]["effective_status"], "expired")
+            self.assertEqual(inventory[0]["issued_at_ms"], 0)
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                result = authority_main(common + ["show", "--lease-id", "lease-1"])
+            self.assertEqual(result, 0)
+            self.assertEqual(json.loads(output.getvalue())["issuer_id"], "coordinator-1")
 
             output = io.StringIO()
             with redirect_stdout(output):
@@ -63,6 +79,32 @@ class AuthorityCliTests(unittest.TestCase):
                 )
             self.assertEqual(result, 0)
             self.assertEqual(json.loads(output.getvalue())["status"], "revoked")
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                result = authority_main(common + ["list", "--status", "revoked"])
+            self.assertEqual(result, 0)
+            self.assertEqual(
+                json.loads(output.getvalue())[0]["effective_status"], "revoked"
+            )
+
+    def test_read_only_authority_commands_do_not_create_missing_database(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            database = Path(temporary_directory) / "missing" / "authority.sqlite3"
+            errors = io.StringIO()
+            with redirect_stderr(errors):
+                result = authority_main(
+                    [
+                        "--robot-id",
+                        "robot-1",
+                        "--database",
+                        str(database),
+                        "list",
+                    ]
+                )
+            self.assertEqual(result, 2)
+            self.assertIn("does not exist", errors.getvalue())
+            self.assertFalse(database.parent.exists())
 
 
 class ReconciliationCliTests(unittest.TestCase):

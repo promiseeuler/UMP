@@ -54,6 +54,8 @@ ump-authority \
 
 Renew a lease by repeating `grant` with the same lease and issuer identities and
 exactly the next revision. Scope and time may be changed by that local renewal.
+Revocation is terminal for a lease ID; create a new ID after a fresh owner
+approval instead of reactivating revoked history.
 
 ```sh
 ump-authority \
@@ -74,6 +76,32 @@ ump-authority \
   events \
   --lease-id owner-shift-a
 ```
+
+Discover leases without already knowing their IDs:
+
+```sh
+ump-authority \
+  --robot-id robot-humanoid-1 \
+  --database /var/lib/ump/authority.sqlite3 \
+  list --status active --issuer-id warehouse-coordinator-1 --limit 100
+
+ump-authority \
+  --robot-id robot-humanoid-1 \
+  --database /var/lib/ump/authority.sqlite3 \
+  show --lease-id owner-shift-a
+```
+
+`list` returns newest-updated leases first and supports 1–1,000 results. `show`
+performs an exact lookup independent of that bound. Both report the immutable
+`stored_status` separately from `effective_status`. Effective status is
+`active`, `not_yet_valid`, `expired`, or `revoked` using receiver-local time and
+the same clock-uncertainty boundaries as assignment authorization.
+
+`list`, `show`, and `events` open an existing database using SQLite read-only
+and query-only modes. They validate both authority tables, verify the local robot
+owns the selected lease, and never create a missing parent, database, table, or
+event. Missing, incompatible, or mismatched evidence returns exit status `2`.
+`events --limit` returns the latest bounded transitions in chronological order.
 
 ## Runtime configuration
 
