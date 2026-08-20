@@ -1,0 +1,57 @@
+name: Release artifacts
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+          tar -tzf dist/*.tar.gz | grep '/schemas/ump-v0.schema.json$'
+          tar -tzf dist/*.tar.gz | grep '/conformance/v0.1/manifest.json$'
+          tar -tzf dist/*.tar.gz | grep '/docs/PRD.md$'
+          tar -tzf dist/*.tar.gz | grep '/ros2_ws/src/ump_interfaces/action/ExecuteCapability.action$'
+      - name: Test installed wheel
+        run: |
+          python -m venv /tmp/ump-release
+          /tmp/ump-release/bin/python -m pip install dist/*.whl
+          (cd /tmp && /tmp/ump-release/bin/ump-demo)
+          (cd /tmp && /tmp/ump-release/bin/ump-benchmark --samples 10 --participants 2)
+          (cd /tmp && /tmp/ump-release/bin/ump-benchmark --profile tls-loopback --samples 10)
+      - name: Generate checksums
+        run: sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
+      - name: Attest public release artifacts
+        if: github.event.repository.visibility == 'public'
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ump-${{ github.ref_name }}
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30

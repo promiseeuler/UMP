@@ -37,6 +37,7 @@ transport, and placement steps from one shared goal.
 - `docs/INTEROPERABILITY.md`: SI unit and coordinate-frame schema profile.
 - `docs/BENCHMARKS.md`: reproducible reference-runtime quality measurements.
 - `docs/READINESS.md`: executable PRD requirement traceability policy.
+- `docs/VERSIONING.md`: package versioning and release-artifact verification.
 - `docs/INSPECTOR.md`: read-only local protocol inspector setup.
 - `docs/STATUS.md`: implemented behavior and explicit production gaps.
 - `conformance/v0.1`: byte-exact valid and invalid protocol vectors.

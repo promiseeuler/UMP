@@ -1,15 +1,31 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "universal-machine-protocol"
 version = "0.1.0"
 description = "Manufacturer-neutral shared awareness and collaboration for robots"
+readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 authors = [{ name = "UMP Contributors" }]
 dependencies = ["cryptography>=43,<47", "jsonschema>=4.23,<5"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Manufacturing",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
+]
+
+[project.urls]
+Homepage = "https://github.com/promiseeuler/UMP"
+Repository = "https://github.com/promiseeuler/UMP"
+Issues = "https://github.com/promiseeuler/UMP/issues"
 
 [project.scripts]
 ump-demo = "ump.demo:main"
