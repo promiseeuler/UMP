@@ -338,6 +338,9 @@ class Participant:
             raise TypeError("adapter manifest must be RobotManifest")
         if snapshot.robot_id != self.robot_id:
             raise ValueError("adapter manifest robot identity differs")
+        for capability in snapshot.capabilities:
+            Draft202012Validator.check_schema(capability.input_schema)
+            Draft202012Validator.check_schema(capability.output_schema)
         return snapshot
 
     def publish_manifest(

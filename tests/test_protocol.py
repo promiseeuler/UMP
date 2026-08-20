@@ -5,6 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
@@ -140,6 +141,21 @@ class ProtocolTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "identity differs"):
             participant.publish_manifest(2_000, manifest=foreign_manifest)
+
+    def test_participant_rejects_invalid_dynamic_capability_schema(self):
+        participant = self.participants[0]
+        manifest = participant.adapter.manifest()
+        invalid_capability = replace(
+            manifest.capabilities[0], input_schema={"type": "not-a-json-type"}
+        )
+        invalid_manifest = replace(
+            manifest,
+            capabilities=(invalid_capability,) + manifest.capabilities[1:],
+        )
+        trace_length = len(self.bus.trace)
+        with self.assertRaises(SchemaError):
+            participant.publish_manifest(2_000, manifest=invalid_manifest)
+        self.assertEqual(len(self.bus.trace), trace_length)
 
     def test_operational_publication_emits_changed_safety_on_priority_stream_first(self):
         participant = self.participants[0]
