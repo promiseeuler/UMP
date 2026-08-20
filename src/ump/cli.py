@@ -50,6 +50,7 @@ from .planner import load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .readiness import load_readiness_report
 from .ros2_evidence import Ros2EvidenceValidationError, validate_ros2_smoke_report
+from .review import ReviewValidationError, review_schema, validate_review_bundle
 from .runtime import Registry
 from .vocabulary import standard_capability, vocabulary_document
 
@@ -1034,6 +1035,31 @@ def ros2_evidence_main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def review_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-review",
+        description="Validate integrity-bound independent review evidence.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    validate = commands.add_parser("validate", help="Validate one review manifest")
+    validate.add_argument("manifest")
+    commands.add_parser("schema", help="Print the independent review JSON Schema")
+    arguments = parser.parse_args(argv)
+    try:
+        result = (
+            review_schema()
+            if arguments.command == "schema"
+            else validate_review_bundle(arguments.manifest)
+        )
+        print(json.dumps(result, sort_keys=True))
+        if arguments.command == "validate" and not result["passed"]:
+            return 1
+        return 0
+    except ReviewValidationError as error:
+        print(f"ump-review: {error}", file=sys.stderr)
+        return 2
+
+
 def readiness_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-readiness",
@@ -1110,6 +1136,7 @@ def main(argv: list[str] | None = None) -> int:
         "vocabulary": vocabulary_main,
         "readiness": readiness_main,
         "ros2-evidence": ros2_evidence_main,
+        "review": review_main,
     }
     if not arguments or arguments[0] not in commands:
         choices = ",".join(commands)

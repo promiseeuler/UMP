@@ -127,6 +127,8 @@ qualification matrix remains fail-closed with eight pending external gates.
   bounded server lifetime, peer identity pinning, and machine-readable reports.
 - Integrity-bound two-host benchmark evidence verifier with distinct-host,
   non-loopback, identity, endpoint, sample-count, and quality-gate checks.
+- Integrity-bound independent security, safety, and interoperability review
+  bundles with finding disposition and pass/reject CLI semantics.
 - Locally validated wheel and complete source-distribution build, with isolated
   wheel smoke tests and a checksum/provenance-aware release workflow.
 - Executable traceability matrix covering all 41 named PRD functional

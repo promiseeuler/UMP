@@ -42,6 +42,7 @@ ump-pilot = "ump.cli:pilot_main"
 ump-reconcile = "ump.cli:reconcile_main"
 ump-readiness = "ump.cli:readiness_main"
 ump-ros2-evidence = "ump.cli:ros2_evidence_main"
+ump-review = "ump.cli:review_main"
 ump-vocabulary = "ump.cli:vocabulary_main"
 
 [tool.setuptools]
@@ -58,4 +59,5 @@ ump = [
   "vocabulary_data/**/*.json",
   "pilot_data/**/*.json",
   "lan_evidence_data/**/*.json",
+  "review_data/**/*.json",
 ]

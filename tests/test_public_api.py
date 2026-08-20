@@ -39,6 +39,7 @@ class PublicApiTests(unittest.TestCase):
             "RunStatus",
             "RunSummary",
             "Ros2EvidenceValidationError",
+            "ReviewValidationError",
             "StepStatus",
             "standard_capabilities",
             "standard_capability",
@@ -47,10 +48,12 @@ class PublicApiTests(unittest.TestCase):
             "lan_evidence_schema",
             "pilot_schema",
             "read_run_summaries",
+            "review_schema",
             "validate_pilot_bundle",
             "validate_lan_evidence_bundle",
             "validate_plan",
             "validate_ros2_smoke_report",
+            "validate_review_bundle",
         ):
             self.assertIn(public_name, ump.__all__)
             self.assertTrue(hasattr(ump, public_name))

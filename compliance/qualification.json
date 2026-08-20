@@ -32,21 +32,21 @@
     {
       "id": "QAL-SECURITY-REVIEW",
       "status": "pending",
-      "implementation_evidence": ["SECURITY.md", "docs/NETWORK_PROFILE.md"],
+      "implementation_evidence": ["SECURITY.md", "docs/INDEPENDENT_REVIEWS.md", "src/ump/review.py"],
       "result_evidence": [],
       "note": "An independent security review must be completed with blocking findings resolved or explicitly accepted."
     },
     {
       "id": "QAL-SAFETY-REVIEW",
       "status": "pending",
-      "implementation_evidence": ["docs/AUTHORITY.md", "docs/HARDWARE_PILOT.md"],
+      "implementation_evidence": ["docs/AUTHORITY.md", "docs/INDEPENDENT_REVIEWS.md", "src/ump/review.py"],
       "result_evidence": [],
       "note": "An independent safety review of the coordination boundary and pilot controls must be completed."
     },
     {
       "id": "QAL-INTEROPERABILITY-REVIEW",
       "status": "pending",
-      "implementation_evidence": ["docs/INTEROPERABILITY.md", "docs/CONFORMANCE.md"],
+      "implementation_evidence": ["docs/INTEROPERABILITY.md", "docs/INDEPENDENT_REVIEWS.md", "src/ump/review.py"],
       "result_evidence": [],
       "note": "An independent interoperability review must validate the public protocol and adapter contracts."
     },
