@@ -1,0 +1,22 @@
+string task_id
+string issuer_machine_id
+string capability
+uint8[] input
+string input_content_type
+uint32 attempt
+builtin_interfaces/Time deadline
+string correlation_id
+---
+bool succeeded
+string code
+string detail
+uint8[] output
+string output_content_type
+bool outcome_unknown
+bool retryable
+builtin_interfaces/Duration retry_after
+---
+uint8 progress_percent
+string stage
+string detail
+

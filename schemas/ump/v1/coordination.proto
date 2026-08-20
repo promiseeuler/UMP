@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package ump.v1;
+
+enum ResourceConcurrency {
+  RESOURCE_CONCURRENCY_UNSPECIFIED = 0;
+  RESOURCE_CONCURRENCY_EXCLUSIVE = 1;
+  RESOURCE_CONCURRENCY_SHARED = 2;
+  RESOURCE_CONCURRENCY_CAPACITY = 3;
+}
+
+message ResourceDescriptor {
+  string resource_id = 1;
+  string resource_type = 2;
+  ResourceConcurrency concurrency = 3;
+  uint32 capacity = 4;
+  string frame_id = 5;
+  uint64 revision = 6;
+}
+
+enum ReservationStatus {
+  RESERVATION_STATUS_UNSPECIFIED = 0;
+  RESERVATION_STATUS_ACTIVE = 1;
+  RESERVATION_STATUS_RELEASED = 2;
+  RESERVATION_STATUS_EXPIRED = 3;
+  RESERVATION_STATUS_REVOKED = 4;
+}
+
+message ResourceClaim {
+  string resource_id = 1;
+  uint32 quantity = 2;
+}
+
+message ReservationRequest {
+  string reservation_id = 1;
+  string task_id = 2;
+  repeated ResourceClaim claims = 3;
+  uint64 expires_at_ms = 4;
+}
+
+message ReservationRecord {
+  string reservation_id = 1;
+  string owner_machine_id = 2;
+  string task_id = 3;
+  repeated ResourceClaim claims = 4;
+  uint64 issued_at_ms = 5;
+  uint64 expires_at_ms = 6;
+  ReservationStatus status = 7;
+  uint64 revision = 8;
+}
+
+message ReservationResponse {
+  ReservationRecord reservation = 1;
+  string rejection_code = 2;
+  string detail = 3;
+}
+
+message ReservationRelease {
+  string reservation_id = 1;
+  uint64 previous_revision = 2;
+  string reason = 3;
+}
+
+message Vector3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Quaternion {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+  double w = 4;
+}
+
+message Pose {
+  Vector3 position_m = 1;
+  Quaternion orientation = 2;
+}
+
+message SpatialContext {
+  string reference_frame_id = 1;
+  string subject_frame_id = 2;
+  Pose pose = 3;
+  uint64 source_time_ms = 4;
+  uint64 maximum_age_ms = 5;
+  double position_uncertainty_m = 6;
+  double orientation_uncertainty_rad = 7;
+}
+
+enum HandoffState {
+  HANDOFF_STATE_UNSPECIFIED = 0;
+  HANDOFF_STATE_PROPOSED = 1;
+  HANDOFF_STATE_PREPARED = 2;
+  HANDOFF_STATE_READY = 3;
+  HANDOFF_STATE_TRANSFERRING = 4;
+  HANDOFF_STATE_COMMITTED = 5;
+  HANDOFF_STATE_ABORTED = 6;
+  HANDOFF_STATE_FAILED = 7;
+  HANDOFF_STATE_UNKNOWN = 8;
+}
+
+message HandoffProposal {
+  string handoff_id = 1;
+  string task_id = 2;
+  string source_machine_id = 3;
+  string destination_machine_id = 4;
+  string subject_id = 5;
+  string reservation_id = 6;
+  SpatialContext transfer_context = 7;
+  repeated string preconditions = 8;
+  uint64 deadline_ms = 9;
+}
+
+message HandoffEvidence {
+  string actor_machine_id = 1;
+  string evidence_type = 2;
+  bytes evidence = 3;
+  uint64 observed_at_ms = 4;
+}
+
+message HandoffUpdate {
+  string handoff_id = 1;
+  HandoffState state = 2;
+  uint64 previous_revision = 3;
+  repeated HandoffEvidence evidence = 4;
+  string reason = 5;
+}
+
+message HandoffRecord {
+  HandoffProposal proposal = 1;
+  HandoffState state = 2;
+  uint64 revision = 3;
+  string authoritative_owner_machine_id = 4;
+  repeated HandoffEvidence evidence = 5;
+  bool retry_safe = 6;
+  bool inspection_required = 7;
+  string failure_code = 8;
+}
+
+message HandoffReconcileRequest {
+  repeated string handoff_ids = 1;
+  uint64 known_journal_sequence = 2;
+}
+
+message HandoffReconcileResponse {
+  repeated HandoffRecord handoffs = 1;
+  uint64 journal_sequence = 2;
+}

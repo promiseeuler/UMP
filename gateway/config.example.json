@@ -1,0 +1,8 @@
+{
+  "gateway_id": "ump:gateway:cell-a-01",
+  "represented_machine_id": "ump:machine:vendor-arm-01",
+  "controller_interface": "vendor_https_api_v1",
+  "runtime_config": "/var/lib/ump/config.json",
+  "bridge_config": "/etc/ump/vendor-http-bridge.json",
+  "status_file": "/run/ump/gateway-status.json"
+}

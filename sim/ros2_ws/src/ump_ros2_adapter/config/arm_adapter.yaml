@@ -1,0 +1,8 @@
+/**:
+  ros__parameters:
+    machine_id: "ump:machine:robot-arm-1"
+    local_socket: "/run/ump/arm/adapter.sock"
+    controller_action: "/arm_controller/execute_capability"
+    parent_frame: "world"
+    child_frame: "robot_arm/tool0"
+    tf_period_seconds: 0.1

@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+
+if ! getent group ump >/dev/null; then
+    addgroup --system ump
+fi
+if ! getent passwd ump >/dev/null; then
+    adduser --system --ingroup ump --home /var/lib/ump --no-create-home \
+        --disabled-password --disabled-login ump
+fi
+
+install -d -o ump -g ump -m 0700 /var/lib/ump
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl daemon-reload >/dev/null 2>&1 || true
+fi
+
+exit 0

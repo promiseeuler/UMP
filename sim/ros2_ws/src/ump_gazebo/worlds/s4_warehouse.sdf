@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+<sdf version="1.10">
+  <world name="s4">
+    <physics name="deterministic" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <gravity>0 0 -9.80665</gravity>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="ump_payload_handoff" name="ump::gazebo::PayloadHandoff">
+      <payload_model>package</payload_model><payload_link>body</payload_link>
+      <arm_model>robot_arm</arm_model><arm_link>tool0</arm_link>
+      <mobile_model>mobile_base</mobile_model><mobile_link>base_link</mobile_link>
+      <maximum_distance>0.65</maximum_distance>
+      <initial_owner>arm</initial_owner>
+      <state_topic>/ump/payload/state</state_topic>
+    </plugin>
+    <plugin filename="ump_zone_monitor" name="ump::gazebo::ZoneMonitor">
+      <center_x>0</center_x><center_y>1</center_y>
+      <half_extent_x>0.9</half_extent_x><half_extent_y>0.9</half_extent_y>
+      <state_topic>/ump/zone/state</state_topic>
+      <allowed_model>floor</allowed_model>
+      <allowed_model>transfer_zone</allowed_model>
+      <allowed_model>mobile_base</allowed_model>
+      <allowed_model>robot_arm</allowed_model>
+      <allowed_model>package</allowed_model>
+    </plugin>
+
+    <light name="overhead" type="directional">
+      <pose>0 0 8 0 0 0</pose>
+      <cast_shadows>true</cast_shadows>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <direction>-0.3 0.2 -1</direction>
+    </light>
+
+    <model name="floor">
+      <static>true</static>
+      <link name="floor_link">
+        <collision name="collision"><geometry><box><size>14 8 0.1</size></box></geometry></collision>
+        <visual name="visual">
+          <geometry><box><size>14 8 0.1</size></box></geometry>
+          <material><diffuse>0.32 0.34 0.35 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="transfer_zone">
+      <static>true</static>
+      <pose>0 1 0.006 0 0 0</pose>
+      <link name="zone">
+        <visual name="visual">
+          <geometry><box><size>1.8 1.8 0.01</size></box></geometry>
+          <material><diffuse>0.1 0.65 0.38 0.65</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <include>
+      <uri>model://ump_mobile_base</uri>
+      <name>mobile_base</name>
+      <pose>-4 0 0.35 0 0 0</pose>
+    </include>
+
+    <model name="robot_arm">
+      <pose>0 1.65 0.05 0 0 -1.5708</pose>
+      <link name="pedestal">
+        <inertial><mass>80</mass><inertia><ixx>3</ixx><iyy>3</iyy><izz>2</izz></inertia></inertial>
+        <collision name="collision"><geometry><cylinder><radius>0.35</radius><length>0.7</length></cylinder></geometry></collision>
+        <visual name="visual"><geometry><cylinder><radius>0.35</radius><length>0.7</length></cylinder></geometry><material><diffuse>0.8 0.22 0.18 1</diffuse></material></visual>
+      </link>
+      <joint name="pedestal_fixed" type="fixed">
+        <parent>world</parent><child>pedestal</child>
+      </joint>
+      <link name="upper_arm">
+        <pose relative_to="pedestal">0 0 0.75 0 0 0</pose>
+        <inertial><mass>5</mass><inertia><ixx>0.3</ixx><iyy>0.3</iyy><izz>0.08</izz></inertia></inertial>
+        <collision name="collision"><geometry><box><size>0.18 0.18 0.9</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.18 0.18 0.9</size></box></geometry><material><diffuse>0.85 0.28 0.2 1</diffuse></material></visual>
+      </link>
+      <joint name="shoulder" type="revolute">
+        <parent>pedestal</parent><child>upper_arm</child><pose>0 0 0.35 0 0 0</pose>
+        <axis><xyz>0 1 0</xyz><limit><lower>-1.4</lower><upper>1.4</upper><effort>100</effort><velocity>1</velocity></limit></axis>
+      </joint>
+      <link name="tool0">
+        <pose relative_to="upper_arm">0 0 0.58 0 0 0</pose>
+        <inertial><mass>1</mass><inertia><ixx>0.02</ixx><iyy>0.02</iyy><izz>0.02</izz></inertia></inertial>
+        <collision name="collision"><geometry><sphere><radius>0.14</radius></sphere></geometry></collision>
+        <visual name="visual"><geometry><sphere><radius>0.14</radius></sphere></geometry><material><diffuse>0.14 0.14 0.15 1</diffuse></material></visual>
+      </link>
+      <joint name="elbow" type="revolute">
+        <parent>upper_arm</parent><child>tool0</child><pose>0 0 0.45 0 0 0</pose>
+        <axis><xyz>0 1 0</xyz><limit><lower>-1.8</lower><upper>1.8</upper><effort>80</effort><velocity>1</velocity></limit></axis>
+      </joint>
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+        <joint_name>shoulder</joint_name><topic>/model/robot_arm/shoulder</topic><p_gain>40</p_gain>
+      </plugin>
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+        <joint_name>elbow</joint_name><topic>/model/robot_arm/elbow</topic><p_gain>30</p_gain>
+      </plugin>
+    </model>
+
+    <model name="package">
+      <pose>0 1.65 1.38 0 0 0</pose>
+      <link name="body">
+        <inertial><mass>2</mass><inertia><ixx>0.025</ixx><iyy>0.025</iyy><izz>0.025</izz></inertia></inertial>
+        <collision name="collision"><geometry><box><size>0.36 0.30 0.30</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.36 0.30 0.30</size></box></geometry><material><diffuse>0.96 0.72 0.12 1</diffuse></material></visual>
+      </link>
+    </model>
+  </world>
+</sdf>
