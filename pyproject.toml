@@ -18,6 +18,7 @@ ump-benchmark = "ump.cli:benchmark_main"
 ump-conformance = "ump.cli:conformance_main"
 ump-credentials = "ump.cli:credentials_main"
 ump-inspector = "ump.cli:inspector_main"
+ump-reconcile = "ump.cli:reconcile_main"
 ump-readiness = "ump.cli:readiness_main"
 
 [tool.setuptools]

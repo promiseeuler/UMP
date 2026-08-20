@@ -41,6 +41,15 @@ class AssignmentJournal(Protocol):
     ) -> ClaimResult: ...
     def complete(self, assignment: Assignment, outcome: Outcome, now_ms: int) -> None: ...
     def lookup(self, assignment_id: str) -> JournalRecord | None: ...
+    def resolve_unknown(
+        self,
+        assignment_id: str,
+        status: AssignmentStatus,
+        description: str,
+        resolver_id: str,
+        evidence: str,
+        now_ms: int,
+    ) -> Outcome: ...
     def close(self) -> None: ...
 
 
@@ -165,6 +174,32 @@ class MemoryAssignmentJournal:
     def lookup(self, assignment_id: str) -> JournalRecord | None:
         return self._records.get(assignment_id)
 
+    def resolve_unknown(
+        self,
+        assignment_id: str,
+        status: AssignmentStatus,
+        description: str,
+        resolver_id: str,
+        evidence: str,
+        now_ms: int,
+    ) -> Outcome:
+        del now_ms
+        _validate_resolution(status, resolver_id, evidence)
+        record = self._records.get(assignment_id)
+        if record is None:
+            raise ValueError("assignment does not exist")
+        if record.status is not AssignmentStatus.UNKNOWN or record.outcome is not None:
+            raise ValueError("only an unknown assignment can be resolved")
+        outcome = Outcome(
+            assignment_id,
+            record.assignment.step.assigned_robot_id,
+            status is AssignmentStatus.SUCCEEDED,
+            description,
+            status,
+        )
+        self.complete(record.assignment, outcome, 0)
+        return outcome
+
     def close(self) -> None:
         pass
 
@@ -196,6 +231,19 @@ class SqliteAssignmentJournal:
                 outcome_json TEXT,
                 accepted_at_ms INTEGER NOT NULL,
                 updated_at_ms INTEGER NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS assignment_resolutions (
+                assignment_id TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                resolver_id TEXT NOT NULL,
+                evidence TEXT NOT NULL,
+                occurred_at_ms INTEGER NOT NULL,
+                outcome_json TEXT NOT NULL,
+                FOREIGN KEY(assignment_id) REFERENCES assignments(assignment_id)
             )
             """
         )
@@ -340,6 +388,99 @@ class SqliteAssignmentJournal:
             fingerprint=row[0],
         )
 
+    def resolve_unknown(
+        self,
+        assignment_id: str,
+        status: AssignmentStatus,
+        description: str,
+        resolver_id: str,
+        evidence: str,
+        now_ms: int,
+    ) -> Outcome:
+        _validate_resolution(status, resolver_id, evidence)
+        with self._lock:
+            self._connection.execute("BEGIN IMMEDIATE")
+            try:
+                row = self._connection.execute(
+                    """
+                    SELECT assignment_json, status, outcome_json
+                    FROM assignments WHERE assignment_id = ?
+                    """,
+                    (assignment_id,),
+                ).fetchone()
+                if row is None:
+                    raise ValueError("assignment does not exist")
+                if AssignmentStatus(row[1]) is not AssignmentStatus.UNKNOWN or row[2] is not None:
+                    raise ValueError("only an unknown assignment can be resolved")
+                assignment = _decode_assignment(row[0])
+                outcome = Outcome(
+                    assignment_id,
+                    assignment.step.assigned_robot_id,
+                    status is AssignmentStatus.SUCCEEDED,
+                    description,
+                    status,
+                )
+                encoded = _outcome_json(outcome)
+                self._connection.execute(
+                    """
+                    INSERT INTO assignment_resolutions
+                    (assignment_id, status, resolver_id, evidence, occurred_at_ms, outcome_json)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (assignment_id, status.value, resolver_id, evidence, now_ms, encoded),
+                )
+                self._connection.execute(
+                    """
+                    UPDATE assignments SET status = ?, outcome_json = ?, updated_at_ms = ?
+                    WHERE assignment_id = ?
+                    """,
+                    (status.value, encoded, now_ms, assignment_id),
+                )
+                self._connection.execute(
+                    "DELETE FROM resource_reservations WHERE assignment_id = ?",
+                    (assignment_id,),
+                )
+                self._connection.execute("COMMIT")
+                return outcome
+            except BaseException:
+                self._connection.execute("ROLLBACK")
+                raise
+
+    def resolution(self, assignment_id: str) -> dict[str, object] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT status, resolver_id, evidence, occurred_at_ms
+                FROM assignment_resolutions WHERE assignment_id = ?
+                """,
+                (assignment_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "assignment_id": assignment_id,
+            "status": row[0],
+            "resolver_id": row[1],
+            "evidence": row[2],
+            "occurred_at_ms": row[3],
+        }
+
     def close(self) -> None:
         with self._lock:
             self._connection.close()
+
+
+def _validate_resolution(
+    status: AssignmentStatus, resolver_id: str, evidence: str
+) -> None:
+    if status not in {
+        AssignmentStatus.SUCCEEDED,
+        AssignmentStatus.FAILED,
+        AssignmentStatus.REJECTED,
+        AssignmentStatus.CANCELLED,
+    }:
+        raise ValueError("resolution requires a known terminal status")
+    if not resolver_id.strip() or len(resolver_id.encode("utf-8")) > 128:
+        raise ValueError("resolver_id must contain 1 to 128 UTF-8 bytes")
+    if not evidence.strip() or len(evidence.encode("utf-8")) > 4_096:
+        raise ValueError("resolution evidence must contain 1 to 4096 UTF-8 bytes")

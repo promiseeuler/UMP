@@ -31,6 +31,7 @@ transport, and placement steps from one shared goal.
 - `docs/NETWORK_PROFILE.md`: mutual-TLS and discovery alpha profile.
 - `docs/AUTHORITY.md`: robot-local assignment leases and owner CLI.
 - `docs/CREDENTIALS.md`: issued-certificate enrollment, rotation, and revocation.
+- `docs/RECONCILIATION.md`: evidence-based resolution of uncertain native work.
 - `docs/ROS2_GAZEBO.md`: manufacturer ROS action adapter and simulator profile.
 - `docs/CONFORMANCE.md`: golden vectors and safe adapter validation workflow.
 - `docs/INTEROPERABILITY.md`: SI unit and coordinate-frame schema profile.

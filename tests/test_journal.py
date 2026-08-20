@@ -160,6 +160,62 @@ class SqliteJournalTests(unittest.TestCase):
         )
         reopened.close()
 
+    def test_operator_evidence_resolves_unknown_and_releases_resources(self):
+        item = replace(
+            assignment(),
+            step=replace(assignment().step, resources=("fixture/inspection-1",)),
+        )
+        journal = SqliteAssignmentJournal(self.path)
+        journal.claim(item, "coordinator-1", 1_000)
+        journal.close()
+
+        reopened = SqliteAssignmentJournal(self.path)
+        outcome = reopened.resolve_unknown(
+            item.assignment_id,
+            AssignmentStatus.SUCCEEDED,
+            "Barcode scan and destination sensor confirm delivery",
+            "operator/alice",
+            "inspection-record:site-a/2026-08-20/42",
+            1_200,
+        )
+        self.assertTrue(outcome.succeeded)
+        self.assertEqual(reopened.lookup(item.assignment_id).outcome, outcome)
+        self.assertEqual(
+            reopened.resolution(item.assignment_id),
+            {
+                "assignment_id": item.assignment_id,
+                "status": "succeeded",
+                "resolver_id": "operator/alice",
+                "evidence": "inspection-record:site-a/2026-08-20/42",
+                "occurred_at_ms": 1_200,
+            },
+        )
+        second = replace(item, assignment_id="assignment-durable-2")
+        self.assertEqual(
+            reopened.claim(second, "coordinator-1", 1_201).kind,
+            ClaimKind.NEW,
+        )
+        reopened.close()
+
+    def test_resolution_rejects_unknown_status_and_terminal_rewrite(self):
+        item = assignment()
+        journal = SqliteAssignmentJournal(self.path)
+        journal.claim(item, "coordinator-1", 1_000)
+        journal.close()
+        reopened = SqliteAssignmentJournal(self.path)
+        with self.assertRaisesRegex(ValueError, "known terminal"):
+            reopened.resolve_unknown(
+                item.assignment_id, AssignmentStatus.UNKNOWN, "Unknown", "operator/a", "No evidence", 1_100
+            )
+        reopened.resolve_unknown(
+            item.assignment_id, AssignmentStatus.FAILED, "Not completed", "operator/a", "Camera review", 1_101
+        )
+        with self.assertRaisesRegex(ValueError, "only an unknown"):
+            reopened.resolve_unknown(
+                item.assignment_id, AssignmentStatus.SUCCEEDED, "Changed", "operator/b", "Different review", 1_102
+            )
+        reopened.close()
+
 
 if __name__ == "__main__":
     unittest.main()

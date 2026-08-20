@@ -51,6 +51,59 @@ def coordinator_fixture(store_path: Path):
 
 
 class ReconciliationTests(unittest.TestCase):
+    def test_operator_resolution_becomes_durable_participant_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            coordinator_path = root / "coordinator.sqlite3"
+            participant_path = root / "participant.sqlite3"
+            first, plan, envelope, assignment, manifest = coordinator_fixture(
+                coordinator_path
+            )
+            first.close()
+            journal = SqliteAssignmentJournal(participant_path)
+            journal.claim(assignment, "coordinator", 1_200)
+            journal.close()
+            journal = SqliteAssignmentJournal(participant_path)
+            journal.resolve_unknown(
+                assignment.assignment_id,
+                AssignmentStatus.SUCCEEDED,
+                "Inspection route completion confirmed from native mission log",
+                "manufacturer/service-console",
+                "mission-log:inspection-2026-08-20-001",
+                1_900,
+            )
+            journal.close()
+
+            recovery_bus = InMemoryBus()
+            worker = Participant(
+                SimulatedRobot(manifest),
+                recovery_bus,
+                SqliteAssignmentJournal(participant_path),
+                AllowAllAuthorizer(),
+                clock_ms=lambda: 2_000,
+            )
+            recovered = Coordinator(
+                "coordinator",
+                recovery_bus,
+                Registry(recovery_bus),
+                CoordinatorStore(coordinator_path),
+                require_authority=False,
+            )
+            recovered.reconcile(plan.plan_id, 2_000)
+
+            snapshot = recovered.snapshot(plan.plan_id)
+            self.assertEqual(snapshot.status, RunStatus.ACTIVE)
+            self.assertEqual(snapshot.steps["inspect-route"], StepStatus.SUCCEEDED)
+            dispatched = [
+                item.payload["assignment_id"]
+                for item in recovery_bus.trace
+                if item.message_type == "assignment"
+            ]
+            self.assertNotIn(assignment.assignment_id, dispatched)
+            self.assertTrue(dispatched)
+            recovered.close()
+            worker.close()
+
     def test_terminal_participant_evidence_resolves_crash_gap_and_resumes_dependencies(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

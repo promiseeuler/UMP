@@ -11,7 +11,8 @@ from .benchmark import run_reference_benchmark
 from .conformance import validate_vector_suite
 from .credentials import CredentialError, CredentialGeneration, SqliteCredentialStore
 from .inspector import InspectorServer, InspectorStore
-from .models import AuthorityLease
+from .journal import SqliteAssignmentJournal
+from .models import AssignmentStatus, AuthorityLease, payload
 from .readiness import load_readiness_report
 
 
@@ -185,6 +186,44 @@ def credentials_main(argv: list[str] | None = None) -> int:
             store.close()
 
 
+def reconcile_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-reconcile",
+        description="Resolve an unknown robot-local assignment from operator evidence.",
+    )
+    parser.add_argument("--database", required=True)
+    parser.add_argument("--assignment-id", required=True)
+    parser.add_argument(
+        "--status",
+        required=True,
+        choices=("succeeded", "failed", "rejected", "cancelled"),
+    )
+    parser.add_argument("--description", required=True)
+    parser.add_argument("--resolver-id", required=True)
+    parser.add_argument("--evidence", required=True)
+    parser.add_argument("--occurred-at-ms", type=int)
+    arguments = parser.parse_args(argv)
+    journal: SqliteAssignmentJournal | None = None
+    try:
+        journal = SqliteAssignmentJournal(arguments.database)
+        outcome = journal.resolve_unknown(
+            arguments.assignment_id,
+            AssignmentStatus(arguments.status),
+            arguments.description,
+            arguments.resolver_id,
+            arguments.evidence,
+            arguments.occurred_at_ms or int(time.time() * 1_000),
+        )
+        print(json.dumps(payload(outcome), sort_keys=True))
+        return 0
+    except (OSError, sqlite3.Error, ValueError) as error:
+        print(f"ump-reconcile: {error}", file=sys.stderr)
+        return 2
+    finally:
+        if journal is not None:
+            journal.close()
+
+
 def conformance_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-conformance",
@@ -295,11 +334,12 @@ def main(argv: list[str] | None = None) -> int:
         "conformance": conformance_main,
         "credentials": credentials_main,
         "inspector": inspector_main,
+        "reconcile": reconcile_main,
         "readiness": readiness_main,
     }
     if not arguments or arguments[0] not in commands:
         print(
-            "usage: python -m ump.cli {authority,benchmark,conformance,credentials,inspector,readiness} ...",
+            "usage: python -m ump.cli {authority,benchmark,conformance,credentials,inspector,readiness,reconcile} ...",
             file=sys.stderr,
         )
         return 2

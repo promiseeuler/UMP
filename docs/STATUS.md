@@ -57,6 +57,8 @@
 - Revision-checked local grant, renewal, revocation, persistence, and audit history.
 - Durable externally issued credential enrollment, staged rotation, activation,
   local fingerprint revocation, and handshake-time revocation enforcement.
+- Robot-local evidence-based resolution of unknown assignments with immutable
+  outcome, resolver identity, evidence audit, and safe resource release.
 - Receiver-local lease evaluation resistant to sender timestamp backdating.
 - Required-peer communication watchdog with manufacturer-defined loss and
   restoration callbacks derived from semantic-state freshness.
@@ -85,7 +87,6 @@
 
 - Automated integration with deployment-specific CA enrollment protocols,
   hardware security modules, and online OCSP/CRL services.
-- Physical/domain-specific resolution when no durable adapter outcome exists.
 - Runtime-verified ROS 2/Gazebo dynamics, Isaac Sim, Webots, or physical robot
   adapters. The checked-in Gazebo proxies validate lifecycle, not physical work.
 - Healthy-LAN TLS benchmarks, independent adapter conformance results, or release
