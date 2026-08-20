@@ -144,6 +144,8 @@ qualification matrix remains fail-closed with eight pending external gates.
   bundles with finding disposition and pass/reject CLI semantics.
 - Locally validated wheel and complete source-distribution build, with isolated
   wheel smoke tests and a checksum/provenance-aware release workflow.
+- Versioned retained-release evidence schema and verifier binding distributions,
+  checksums, isolated-install results, provenance receipts, tag, and revision.
 - Executable traceability matrix covering all 41 named PRD functional
   requirements with evidence-backed implemented, partial, or missing status.
 

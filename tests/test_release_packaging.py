@@ -36,6 +36,10 @@ class ReleasePackagingTests(unittest.TestCase):
         )
         self.assertEqual(metadata["scripts"]["ump-goal"], "ump.cli:goal_main")
         self.assertEqual(
+            metadata["scripts"]["ump-release-evidence"],
+            "ump.cli:release_evidence_main",
+        )
+        self.assertEqual(
             metadata["scripts"]["ump-lan-benchmark"],
             "ump.cli:lan_benchmark_main",
         )
@@ -70,6 +74,9 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("/tmp/ump-release/bin/ump-ros2-evidence --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-review schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-goal schema", workflow)
+        self.assertIn("/tmp/ump-release/bin/ump-release-evidence schema", workflow)
+        self.assertIn("dist/install-report.json", workflow)
+        self.assertIn('"profile": "ump.release-install-report/v1"', workflow)
         self.assertIn("schemas/ump-v0.schema.json", workflow)
         self.assertIn("schemas/ump-lan-evidence-v1.schema.json", workflow)
         self.assertIn("schemas/ump-independent-review-v1.schema.json", workflow)
@@ -77,6 +84,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("schemas/ump-network-config-v1.schema.json", workflow)
         self.assertIn("schemas/ump-shared-goal-v1.schema.json", workflow)
         self.assertIn("schemas/ump-shared-goal-batch-v1.schema.json", workflow)
+        self.assertIn("schemas/ump-release-evidence-v1.schema.json", workflow)
         self.assertIn("vocabulary_data/v1/catalog.json", workflow)
         self.assertIn("examples/read_only_adapter.py", workflow)
         self.assertIn("actions/upload-artifact@v7", workflow)

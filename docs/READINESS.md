@@ -23,6 +23,10 @@ conformance, security review, safety review, interoperability review, and a
 retained tagged release artifact. A gate cannot be marked `passed` without at
 least one existing result-evidence file.
 
+Release evidence is checked with `ump-release-evidence`; this validates retained
+artifact and receipt consistency while leaving cryptographic provenance
+verification to `gh attestation verify` as documented in `VERSIONING.md`.
+
 To check functional implementation alone without claiming production readiness:
 
 ```sh

@@ -53,7 +53,7 @@
     {
       "id": "QAL-RELEASE-ARTIFACT",
       "status": "pending",
-      "implementation_evidence": ["docs/VERSIONING.md", ".github/workflows/release.yml"],
+      "implementation_evidence": ["docs/VERSIONING.md", ".github/workflows/release.yml", "src/ump/release_evidence.py", "schemas/ump-release-evidence-v1.schema.json"],
       "result_evidence": [],
       "note": "A tagged, checksummed, provenance-attested release artifact must be retained and install-tested."
     }

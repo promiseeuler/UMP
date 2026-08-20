@@ -56,6 +56,7 @@ transport, and placement steps from one shared goal.
 - `schemas/ump-network-config-v1.schema.json`: strict deployment configuration.
 - `schemas/ump-shared-goal-v1.schema.json`: strict owner goal document contract.
 - `schemas/ump-shared-goal-batch-v1.schema.json`: bounded atomic goal-batch contract.
+- `schemas/ump-release-evidence-v1.schema.json`: retained release qualification bundle.
 - `src/ump`: dependency-light reference implementation.
 - `tests`: protocol and collaboration tests.
 

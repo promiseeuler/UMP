@@ -54,6 +54,11 @@ from .planner import Planner, load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .runtime import Participant, Registry
 from .ros2_evidence import Ros2EvidenceValidationError, validate_ros2_smoke_report
+from .release_evidence import (
+    ReleaseEvidenceValidationError,
+    release_evidence_schema,
+    validate_release_evidence_bundle,
+)
 from .review import (
     ReviewValidationError,
     review_schema,
@@ -90,6 +95,7 @@ __all__ = [
     "RobotState",
     "Ros2EvidenceValidationError",
     "ReviewValidationError",
+    "ReleaseEvidenceValidationError",
     "RunSnapshot",
     "RunStatus",
     "RunSummary",
@@ -113,6 +119,7 @@ __all__ = [
     "shared_goal_from_document",
     "shared_goals_from_document",
     "review_schema",
+    "release_evidence_schema",
     "pilot_schema",
     "validate_pilot_bundle",
     "validate_lan_evidence_bundle",
@@ -121,4 +128,5 @@ __all__ = [
     "validate_adapter_evidence",
     "validate_ros2_smoke_report",
     "validate_review_bundle",
+    "validate_release_evidence_bundle",
 ]

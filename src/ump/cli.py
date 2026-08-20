@@ -77,6 +77,11 @@ from .node import ParticipantService, load_adapter
 from .planner import load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .readiness import load_readiness_report
+from .release_evidence import (
+    ReleaseEvidenceValidationError,
+    release_evidence_schema,
+    validate_release_evidence_bundle,
+)
 from .ros2_evidence import Ros2EvidenceValidationError, validate_ros2_smoke_report
 from .review import ReviewValidationError, review_schema, validate_review_bundle
 from .runtime import Registry
@@ -1330,6 +1335,29 @@ def review_main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def release_evidence_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-release-evidence",
+        description="Validate integrity-bound retained UMP release evidence.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    validate = commands.add_parser("validate", help="Validate one release manifest")
+    validate.add_argument("manifest")
+    commands.add_parser("schema", help="Print the release evidence JSON Schema")
+    arguments = parser.parse_args(argv)
+    try:
+        result = (
+            release_evidence_schema()
+            if arguments.command == "schema"
+            else validate_release_evidence_bundle(arguments.manifest)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except ReleaseEvidenceValidationError as error:
+        print(f"ump-release-evidence: {error}", file=sys.stderr)
+        return 2
+
+
 def readiness_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-readiness",
@@ -1408,6 +1436,7 @@ def main(argv: list[str] | None = None) -> int:
         "reconcile": reconcile_main,
         "vocabulary": vocabulary_main,
         "readiness": readiness_main,
+        "release-evidence": release_evidence_main,
         "ros2-evidence": ros2_evidence_main,
         "review": review_main,
     }

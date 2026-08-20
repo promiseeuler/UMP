@@ -25,3 +25,28 @@ eligible GitHub plan for that service.
 Verify downloaded files against `SHA256SUMS`. When a provenance attestation is
 available, verify it with GitHub CLI against this repository before installation.
 Release artifacts do not certify UMP or an adapter for physical robot operation.
+
+## Retained qualification evidence
+
+The production release gate requires a retained bundle containing the exact
+wheel, source distribution, `SHA256SUMS`, isolated-install report, and a GitHub
+attestation verification receipt. Validate the bundle with:
+
+```sh
+ump-release-evidence validate release-evidence.json
+ump-release-evidence schema
+```
+
+The manifest binds every artifact by relative path, byte size, and SHA-256. Its
+tag must match the package version, and the install and provenance receipts must
+agree on the release ID, repository, and full commit revision. The install report
+uses profile `ump.release-install-report/v1` and records passing
+`wheel_installed`, `import_smoke`, `demo`, and `schema_commands` checks.
+The release workflow generates and retains this report after every isolated
+wheel smoke sequence.
+
+The provenance receipt uses profile
+`ump.github-attestation-verification/v1`, records the repository and revision,
+and binds both distribution filenames and digests after successful `gh
+attestation verify` commands. The UMP verifier checks retention and consistency;
+it does not replace GitHub CLI's cryptographic verification of the attestation.

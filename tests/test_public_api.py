@@ -41,6 +41,7 @@ class PublicApiTests(unittest.TestCase):
             "RunSummary",
             "Ros2EvidenceValidationError",
             "ReviewValidationError",
+            "ReleaseEvidenceValidationError",
             "StepStatus",
             "standard_capabilities",
             "adapter_evidence_schema",
@@ -56,6 +57,7 @@ class PublicApiTests(unittest.TestCase):
             "pilot_schema",
             "read_run_summaries",
             "review_schema",
+            "release_evidence_schema",
             "shared_goal_from_document",
             "shared_goals_from_document",
             "validate_pilot_bundle",
@@ -65,6 +67,7 @@ class PublicApiTests(unittest.TestCase):
             "validate_adapter_evidence",
             "validate_ros2_smoke_report",
             "validate_review_bundle",
+            "validate_release_evidence_bundle",
         ):
             self.assertIn(public_name, ump.__all__)
             self.assertTrue(hasattr(ump, public_name))

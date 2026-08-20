@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schemas/ump-release-evidence-v1.schema.json",
+  "title": "UMP retained release evidence",
+  "type": "object",
+  "required": ["profile", "release_id", "repository", "tag", "package_name", "package_version", "repository_revision", "built_at_ms", "artifacts"],
+  "properties": {
+    "profile": {"const": "ump.release-evidence/v1"},
+    "release_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "repository": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", "maxLength": 256},
+    "tag": {"type": "string", "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:[-+][0-9A-Za-z.-]+)?$"},
+    "package_name": {"const": "universal-machine-protocol"},
+    "package_version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:[-+][0-9A-Za-z.-]+)?$"},
+    "repository_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "built_at_ms": {"type": "integer", "minimum": 1},
+    "artifacts": {
+      "type": "object",
+      "required": ["wheel", "source_distribution", "checksums", "install_report", "provenance_verification"],
+      "properties": {
+        "wheel": {"$ref": "#/$defs/evidence"},
+        "source_distribution": {"$ref": "#/$defs/evidence"},
+        "checksums": {"$ref": "#/$defs/evidence"},
+        "install_report": {"$ref": "#/$defs/evidence"},
+        "provenance_verification": {"$ref": "#/$defs/evidence"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["artifact", "sha256", "size_bytes"],
+      "properties": {
+        "artifact": {"type": "string", "minLength": 1, "maxLength": 512},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

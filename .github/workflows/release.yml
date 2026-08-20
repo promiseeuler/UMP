@@ -33,6 +33,7 @@ jobs:
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-network-config-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-shared-goal-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-shared-goal-batch-v1.schema.json$'
+          tar -tzf dist/*.tar.gz | grep '/schemas/ump-release-evidence-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/conformance/v0.1/manifest.json$'
           tar -tzf dist/*.tar.gz | grep '/src/ump/vocabulary_data/v1/catalog.json$'
           tar -tzf dist/*.tar.gz | grep '/examples/read_only_adapter.py$'
@@ -55,8 +56,35 @@ jobs:
           (cd /tmp && /tmp/ump-release/bin/ump-goal batch-schema)
           (cd /tmp && /tmp/ump-release/bin/ump-ros2-evidence --help)
           (cd /tmp && /tmp/ump-release/bin/ump-review schema)
+          (cd /tmp && /tmp/ump-release/bin/ump-release-evidence schema)
+      - name: Retain isolated install report
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import tomllib
+
+          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          report = {
+              "profile": "ump.release-install-report/v1",
+              "release_id": f"ump-{os.environ['GITHUB_REF_NAME']}",
+              "package_version": version,
+              "repository_revision": os.environ["GITHUB_SHA"],
+              "checks": {
+                  "wheel_installed": True,
+                  "import_smoke": True,
+                  "demo": True,
+                  "schema_commands": True,
+              },
+              "passed": True,
+          }
+          Path("dist/install-report.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n"
+          )
+          PY
       - name: Generate checksums
-        run: sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
+        run: sha256sum dist/*.whl dist/*.tar.gz dist/install-report.json > dist/SHA256SUMS
       - name: Attest public release artifacts
         if: github.event.repository.visibility == 'public'
         uses: actions/attest@v4
@@ -70,6 +98,7 @@ jobs:
           path: |
             dist/*.whl
             dist/*.tar.gz
+            dist/install-report.json
             dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 30
