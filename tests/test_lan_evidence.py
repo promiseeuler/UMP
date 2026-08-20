@@ -26,6 +26,7 @@ def write_json(path: Path, document: dict) -> dict[str, str]:
 def reports() -> tuple[dict, dict]:
     client = {
         "profile": "ump.reference.tls-network/v1",
+        "repository_revision": REVISION,
         "samples": 1000,
         "warmup_samples": 64,
         "local_robot_id": "benchmark-client",
@@ -53,6 +54,7 @@ def reports() -> tuple[dict, dict]:
     }
     server = {
         "profile": "ump.reference.tls-network-server/v1",
+        "repository_revision": REVISION,
         "robot_id": "benchmark-server",
         "bind_host": "0.0.0.0",
         "bind_port": 7443,
@@ -135,6 +137,20 @@ class LanEvidenceTests(unittest.TestCase):
             document["server_report"] = write_json(directory / "server.json", server)
             path.write_text(json.dumps(document))
             with self.assertRaisesRegex(LanEvidenceValidationError, "message counts"):
+                validate_lan_evidence_bundle(path)
+
+    def test_rejects_report_from_a_different_repository_revision(self):
+        with TemporaryDirectory() as name:
+            directory = Path(name)
+            path = bundle(directory)
+            document = json.loads(path.read_text())
+            client, _ = reports()
+            client["repository_revision"] = "b" * 40
+            document["client_report"] = write_json(
+                directory / "client.json", client
+            )
+            path.write_text(json.dumps(document))
+            with self.assertRaisesRegex(LanEvidenceValidationError, "revision"):
                 validate_lan_evidence_bundle(path)
 
     def test_cli_and_packaged_schema(self):

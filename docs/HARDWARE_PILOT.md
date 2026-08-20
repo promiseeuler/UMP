@@ -35,6 +35,12 @@ carry lowercase SHA-256 digests. Each gate requires a distinct artifact, and a
 read-only bundle rejects assignment evidence. This makes the bundle portable and
 detects missing, reused, contradictory, or modified evidence.
 
+Each participant's `conformance_evidence` must be an
+`ump.adapter-conformance/v1` report. Validation requires the report to pass,
+identify the same participant robot, and bind the pilot manifest's repository
+revision. A correctly hashed placeholder or report from another robot or
+checkout is rejected.
+
 Validate it with:
 
 ```sh
@@ -43,8 +49,9 @@ ump-pilot schema
 ```
 
 Successful output uses validation scope
-`schema_topology_and_evidence_integrity`. It proves format, topology, phase
-requirements, file containment, and digests only. Production readiness still
+`schema_topology_conformance_and_evidence_integrity`. It proves format, topology, phase
+requirements, adapter-report consistency, file containment, and digests.
+Production readiness still
 requires qualified humans to inspect the contents, sign the applicable reviews,
 and accept residual safety and interoperability risk.
 

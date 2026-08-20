@@ -6,6 +6,7 @@ import gc
 import math
 from pathlib import Path
 import platform
+import re
 import socket
 import sys
 import tempfile
@@ -96,6 +97,7 @@ class TlsBenchmarkResult:
 @dataclass(frozen=True)
 class TlsNetworkBenchmarkResult:
     profile: str
+    repository_revision: str
     samples: int
     warmup_samples: int
     local_robot_id: str
@@ -343,6 +345,7 @@ def run_tls_network_benchmark(
     port: int,
     local_robot_id: str,
     remote_robot_id: str,
+    repository_revision: str,
     certificate_path: str | Path,
     private_key_path: str | Path,
     ca_path: str | Path,
@@ -352,6 +355,8 @@ def run_tls_network_benchmark(
     expected_certificate_sha256: str | None = None,
     thresholds: TlsBenchmarkThresholds | None = None,
 ) -> TlsNetworkBenchmarkResult:
+    if re.fullmatch(r"[0-9a-f]{40}", repository_revision) is None:
+        raise ValueError("repository revision must be a full lowercase commit SHA")
     if samples < 10:
         raise ValueError("samples must be at least 10")
     if not 0 <= warmup_samples <= 10_000:
@@ -398,6 +403,7 @@ def run_tls_network_benchmark(
     p99_ms = percentile(timings, 0.99) / 1_000_000
     return TlsNetworkBenchmarkResult(
         profile="ump.reference.tls-network/v1",
+        repository_revision=repository_revision,
         samples=samples,
         warmup_samples=warmup_samples,
         local_robot_id=local_robot_id,
@@ -433,6 +439,7 @@ def serve_tls_network_benchmark(
     host: str,
     port: int,
     robot_id: str,
+    repository_revision: str,
     certificate_path: str | Path,
     private_key_path: str | Path,
     ca_path: str | Path,
@@ -440,6 +447,8 @@ def serve_tls_network_benchmark(
     timeout: float,
     ready: Callable[[str, int], None] | None = None,
 ) -> dict[str, Any]:
+    if re.fullmatch(r"[0-9a-f]{40}", repository_revision) is None:
+        raise ValueError("repository revision must be a full lowercase commit SHA")
     if expected_messages < 1:
         raise ValueError("expected messages must be positive")
     if timeout <= 0:
@@ -474,6 +483,7 @@ def serve_tls_network_benchmark(
         received_messages = received
     return {
         "profile": "ump.reference.tls-network-server/v1",
+        "repository_revision": repository_revision,
         "robot_id": robot_id,
         "bind_host": bound_host,
         "bind_port": bound_port,

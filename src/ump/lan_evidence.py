@@ -80,6 +80,15 @@ def validate_lan_evidence_bundle(manifest_path: str | Path) -> dict[str, Any]:
     )
     _require(client.get("passed") is True, "client benchmark did not pass")
     _require(server.get("passed") is True, "server benchmark did not pass")
+    revision = document["repository_revision"]
+    _require(
+        client.get("repository_revision") == revision,
+        "client report repository revision does not match the manifest",
+    )
+    _require(
+        server.get("repository_revision") == revision,
+        "server report repository revision does not match the manifest",
+    )
     checks = client.get("checks")
     _require(
         isinstance(checks, dict)

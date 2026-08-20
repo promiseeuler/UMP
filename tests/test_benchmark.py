@@ -21,6 +21,9 @@ from ump.benchmark import (
 from ump.cli import benchmark_main
 
 
+REVISION = "a" * 40
+
+
 class BenchmarkTests(unittest.TestCase):
     def test_nearest_rank_percentile_is_deterministic(self):
         values = [50, 10, 40, 20, 30]
@@ -111,6 +114,7 @@ class BenchmarkTests(unittest.TestCase):
                         host="127.0.0.1",
                         port=0,
                         robot_id="benchmark-server",
+                        repository_revision=REVISION,
                         certificate_path=server_certificate,
                         private_key_path=server_key,
                         ca_path=ca,
@@ -128,6 +132,7 @@ class BenchmarkTests(unittest.TestCase):
                 port=endpoint["port"],
                 local_robot_id="benchmark-client",
                 remote_robot_id="benchmark-server",
+                repository_revision=REVISION,
                 certificate_path=client_certificate,
                 private_key_path=client_key,
                 ca_path=ca,
@@ -138,6 +143,7 @@ class BenchmarkTests(unittest.TestCase):
             self.assertFalse(thread.is_alive())
             self.assertTrue(result.passed)
             self.assertEqual(result.profile, "ump.reference.tls-network/v1")
+            self.assertEqual(result.repository_revision, REVISION)
             self.assertEqual(server_report[0]["received_messages"], 12)
             self.assertTrue(server_report[0]["passed"])
 

@@ -24,25 +24,72 @@ def evidence(directory: Path, name: str, content: str = "reviewed") -> dict[str,
     }
 
 
+def conformance_evidence(directory: Path, name: str, robot_id: str) -> dict[str, str]:
+    document = {
+        "profile": "ump.adapter-conformance/v1",
+        "repository_revision": REVISION,
+        "mode": "read_only",
+        "observed_at_ms": 1_000,
+        "adapter": {
+            "specification": "vendor.adapter:create_adapter",
+            "implementation": {"path": "adapter.py", "sha256": "b" * 64},
+            "module": "vendor.adapter",
+            "class": "RobotAdapter",
+            "distributions": [],
+        },
+        "robot": {
+            "robot_id": robot_id,
+            "manufacturer": "Example Robotics",
+            "model": "Pilot Fixture",
+            "robot_class": "test",
+            "adapter_version": "1.0.0",
+            "capabilities": [],
+        },
+        "subject": robot_id,
+        "passed": True,
+        "checks": [
+            {"id": check_id, "passed": True, "description": "passed"}
+            for check_id in (
+                "adapter.manifest",
+                "adapter.state",
+                "adapter.identity",
+            )
+        ],
+        "environment": {
+            "python": "3.13",
+            "implementation": "CPython",
+            "platform": "Linux",
+            "executable": "/usr/bin/python3",
+        },
+    }
+    return evidence(directory, name, json.dumps(document, sort_keys=True))
+
+
 def manifest(directory: Path, phase: str = "read_only") -> dict:
     participants = [
         {
             "robot_id": "physical-robot-1",
             "deployment": "physical",
             "adapter_id": "vendor-a.adapter/v1",
-            "conformance_evidence": evidence(directory, "physical-1.json"),
+            "conformance_evidence": conformance_evidence(
+                directory, "physical-1.json", "physical-robot-1"
+            ),
         },
         {
             "robot_id": "physical-robot-2",
             "deployment": "physical",
             "adapter_id": "vendor-b.adapter/v1",
-            "conformance_evidence": evidence(directory, "physical-2.json"),
+            "conformance_evidence": conformance_evidence(
+                directory, "physical-2.json", "physical-robot-2"
+            ),
         },
         {
             "robot_id": "simulated-robot-1",
             "deployment": "simulation",
             "adapter_id": "ump.simulation/v1",
-            "conformance_evidence": evidence(directory, "simulation.json"),
+            "conformance_evidence": conformance_evidence(
+                directory, "simulation.json", "simulated-robot-1"
+            ),
         },
     ]
     safety = {}
@@ -88,7 +135,10 @@ class PilotValidationTests(unittest.TestCase):
             )
 
         self.assertTrue(report["valid"])
-        self.assertEqual(report["validation_scope"], "schema_topology_and_evidence_integrity")
+        self.assertEqual(
+            report["validation_scope"],
+            "schema_topology_conformance_and_evidence_integrity",
+        )
         self.assertEqual(report["physical_participants"], 2)
         self.assertEqual(report["repository_revision"], REVISION)
         self.assertEqual(report["simulated_participants"], 1)
@@ -144,6 +194,31 @@ class PilotValidationTests(unittest.TestCase):
             document = manifest(directory)
             document["participants"][0]["conformance_evidence"]["artifact"] = "../outside"
             with self.assertRaises(PilotValidationError):
+                validate_pilot_bundle(write_manifest(directory, document))
+
+    def test_rejects_conformance_for_another_robot_or_revision(self):
+        with TemporaryDirectory() as name:
+            directory = Path(name)
+            document = manifest(directory)
+            conformance = json.loads((directory / "physical-1.json").read_text())
+            conformance["repository_revision"] = "b" * 40
+            document["participants"][0]["conformance_evidence"] = evidence(
+                directory,
+                "physical-1.json",
+                json.dumps(conformance, sort_keys=True),
+            )
+            with self.assertRaisesRegex(PilotValidationError, "revision differs"):
+                validate_pilot_bundle(write_manifest(directory, document))
+
+            document = manifest(directory)
+            conformance = json.loads((directory / "physical-1.json").read_text())
+            conformance["robot"]["robot_id"] = "different-robot"
+            document["participants"][0]["conformance_evidence"] = evidence(
+                directory,
+                "physical-1.json",
+                json.dumps(conformance, sort_keys=True),
+            )
+            with self.assertRaisesRegex(PilotValidationError, "identity differs"):
                 validate_pilot_bundle(write_manifest(directory, document))
 
     def test_cli_emits_machine_readable_report_and_failure_status(self):

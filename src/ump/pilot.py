@@ -10,6 +10,8 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from .conformance import AdapterEvidenceValidationError, validate_adapter_evidence
+
 
 class PilotValidationError(ValueError):
     pass
@@ -97,11 +99,35 @@ def validate_pilot_bundle(manifest_path: str | Path) -> dict[str, Any]:
             )
         verified += 1
 
+    revision = document["repository_revision"]
+    for participant in participants:
+        report_path = (
+            base / participant["conformance_evidence"]["artifact"]
+        ).resolve()
+        try:
+            report = validate_adapter_evidence(report_path)
+        except AdapterEvidenceValidationError as error:
+            raise PilotValidationError(
+                f"invalid conformance evidence for {participant['robot_id']}: {error}"
+            ) from error
+        if report["passed"] is not True:
+            raise PilotValidationError(
+                f"conformance evidence did not pass for {participant['robot_id']}"
+            )
+        if report["robot_id"] != participant["robot_id"]:
+            raise PilotValidationError(
+                f"conformance evidence robot identity differs for {participant['robot_id']}"
+            )
+        if report["repository_revision"] != revision:
+            raise PilotValidationError(
+                f"conformance evidence revision differs for {participant['robot_id']}"
+            )
+
     return {
         "valid": True,
-        "validation_scope": "schema_topology_and_evidence_integrity",
+        "validation_scope": "schema_topology_conformance_and_evidence_integrity",
         "protocol": document["protocol"],
-        "repository_revision": document["repository_revision"],
+        "repository_revision": revision,
         "pilot_id": document["pilot_id"],
         "phase": document["phase"],
         "physical_participants": len(physical),

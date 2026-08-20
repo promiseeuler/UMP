@@ -26,6 +26,7 @@ separate hosts using deployment-issued credentials. On the receiving host:
 
 ```sh
 ump-lan-benchmark server --robot-id benchmark-server --host 0.0.0.0 \
+  --revision "$(git rev-parse HEAD)" \
   --port 7443 --certificate server.pem --private-key server.key --ca site-ca.pem \
   --samples 1000 --warmup-samples 64
 ```
@@ -34,12 +35,14 @@ After its JSON `ready` event, run on the sending host:
 
 ```sh
 ump-lan-benchmark client --robot-id benchmark-client --host 192.0.2.10 \
+  --revision "$(git rev-parse HEAD)" \
   --port 7443 --peer-id benchmark-server --certificate client.pem \
   --private-key client.key --ca site-ca.pem --samples 1000 --warmup-samples 64
 ```
 
-The certificate URI identities must match `--robot-id` and `--peer-id`. Operators
-should also provide `--peer-certificate-sha256` when their deployment pins peer
+The certificate URI identities must match `--robot-id` and `--peer-id`. Both
+hosts must run and record the same full lowercase `--revision`. Operators should
+also provide `--peer-certificate-sha256` when their deployment pins peer
 certificates. Both roles emit machine-readable JSON; retain both reports with the
 host models, operating systems, network topology, interface type, and run time.
 A loopback run proves the harness only. The PRD healthy-LAN gate requires these
@@ -56,9 +59,10 @@ UMP checkout used on both hosts. Validate it with:
 ump-lan-evidence validate lan-evidence.json
 ```
 
-The verifier checks both artifact digests, successful benchmark gates, distinct
-client and server hostnames, non-loopback addressing, reciprocal server identity
-and port, and matching sent/received counts. It emits a machine-readable summary.
+The verifier checks both artifact digests, report/manifest revision agreement,
+successful benchmark gates, distinct client and server hostnames, non-loopback
+addressing, reciprocal server identity and port, and matching sent/received
+counts. It emits a machine-readable summary.
 This proves evidence integrity and internal cross-host consistency; operators
 must still verify that the recorded network description and machines represent
 the intended deployment environment.

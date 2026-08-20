@@ -123,7 +123,8 @@ qualification matrix remains fail-closed with eight pending external gates.
 - Four-identity mutual-TLS loopback integration covering authorized awareness,
   three dependency-ordered assignments, outcomes, and terminal run durability.
 - Integrity-bound hardware-pilot bundle verifier enforcing the PRD topology and
-  supervised-phase evidence gates without claiming physical validation.
+  supervised-phase gates, participant adapter-report semantics, robot/revision
+  agreement, and artifact digests without claiming physical validation.
 - Participant-node enforcement of the active managed credential generation,
   handshake-time peer revocation, and runtime local-credential revocation checks.
 - Non-mutating participant preflight for adapter identity, current credential
@@ -146,7 +147,8 @@ qualification matrix remains fail-closed with eight pending external gates.
 - End-to-end mutual-TLS loopback benchmark covering fresh connection setup,
   identity binding, replay checks, framing, handling, and acknowledgement.
 - Two-host mutual-TLS network benchmark harness with deployment credentials,
-  bounded server lifetime, peer identity pinning, and machine-readable reports.
+  bounded server lifetime, peer identity pinning, source-revision binding, and
+  machine-readable reports.
 - Integrity-bound two-host benchmark evidence verifier with distinct-host,
   non-loopback, identity, endpoint, sample-count, and quality-gate checks.
 - Integrity-bound independent security, safety, and interoperability review

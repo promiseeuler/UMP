@@ -637,6 +637,7 @@ def lan_benchmark_main(argv: list[str] | None = None) -> int:
 
     server = commands.add_parser("server", help="Receive a bounded benchmark run")
     server.add_argument("--robot-id", required=True)
+    server.add_argument("--revision", required=True)
     server.add_argument("--host", default="0.0.0.0")
     server.add_argument("--port", type=int, required=True)
     server.add_argument("--certificate", required=True)
@@ -648,6 +649,7 @@ def lan_benchmark_main(argv: list[str] | None = None) -> int:
 
     client = commands.add_parser("client", help="Run and report a benchmark")
     client.add_argument("--robot-id", required=True)
+    client.add_argument("--revision", required=True)
     client.add_argument("--host", required=True)
     client.add_argument("--port", type=int, required=True)
     client.add_argument("--peer-id", required=True)
@@ -680,6 +682,7 @@ def lan_benchmark_main(argv: list[str] | None = None) -> int:
                 host=arguments.host,
                 port=arguments.port,
                 robot_id=arguments.robot_id,
+                repository_revision=arguments.revision,
                 certificate_path=arguments.certificate,
                 private_key_path=arguments.private_key,
                 ca_path=arguments.ca,
@@ -693,6 +696,7 @@ def lan_benchmark_main(argv: list[str] | None = None) -> int:
                 port=arguments.port,
                 local_robot_id=arguments.robot_id,
                 remote_robot_id=arguments.peer_id,
+                repository_revision=arguments.revision,
                 certificate_path=arguments.certificate,
                 private_key_path=arguments.private_key,
                 ca_path=arguments.ca,
