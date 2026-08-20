@@ -38,6 +38,7 @@ from .node import ParticipantService, load_adapter
 from .planner import Planner, load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .runtime import Participant, Registry
+from .ros2_evidence import Ros2EvidenceValidationError, validate_ros2_smoke_report
 from .vocabulary import standard_capabilities, standard_capability
 
 __all__ = [
@@ -66,6 +67,7 @@ __all__ = [
     "RobotAdapter",
     "RobotManifest",
     "RobotState",
+    "Ros2EvidenceValidationError",
     "RunSnapshot",
     "RunStatus",
     "RunSummary",
@@ -84,4 +86,5 @@ __all__ = [
     "validate_pilot_bundle",
     "validate_lan_evidence_bundle",
     "validate_plan",
+    "validate_ros2_smoke_report",
 ]

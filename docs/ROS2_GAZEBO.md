@@ -28,6 +28,22 @@ requires the Gazebo world service, three action servers, successful goals,
 capability rejection, and cancellation. Until that workflow result is inspected,
 simulator runtime and physics behavior remain unverified.
 
+The smoke writes `/tmp/ump-ros2-gazebo-smoke.json` only after every lifecycle
+check succeeds. CI validates that report against the checked-in world digest and
+the exact repository revision, then retains it as a 30-day workflow artifact.
+Validate a downloaded or locally produced report with:
+
+```sh
+ump-ros2-evidence /tmp/ump-ros2-gazebo-smoke.json \
+  --world ros2_ws/src/ump_gazebo_demo/worlds/three_robot_world.sdf \
+  --revision COMMIT_SHA
+```
+
+The validator requires Jazzy, all six readiness/lifecycle checks, and the exact
+success, adapter success, cancellation, and capability-rejection results. This
+is native middleware lifecycle evidence. It remains explicitly insufficient to
+claim locomotion, manipulation, contact, or physics fidelity.
+
 The native smoke also constructs the public `Ros2RobotAdapter`,
 `RclpyActionBackend`, generated `ExecuteCapability` binding, and a structured UMP
 assignment. It requires that assignment to cross the manufacturer adapter
@@ -98,6 +114,9 @@ colcon build --symlink-install
 source install/setup.bash
 ros2 launch ump_gazebo_demo three_robot_world.launch.py
 ```
+
+For the bounded headless evidence run, execute `bash smoke.sh` from `ros2_ws`
+after sourcing the workspace. Set `UMP_SMOKE_REPORT` to choose a report path.
 
 The launch uses the standard `ros_gz_sim` launch integration documented by
 [Gazebo](https://gazebosim.org/docs/harmonic/ros2_integration/). The humanoid,

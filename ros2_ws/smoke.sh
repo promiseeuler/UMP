@@ -61,19 +61,78 @@ fi
 exercise() {
   ros2 run ump_gazebo_demo action_smoke_client "$@"
 }
-exercise --action /robot_quadruped_1/execute_capability \
+inspect_result=$(exercise --action /robot_quadruped_1/execute_capability \
   --assignment-id smoke-inspect --capability ump.navigation.inspect-route/v1 --expect succeeded
-ros2 run ump_gazebo_demo adapter_smoke_client \
+)
+adapter_result=$(ros2 run ump_gazebo_demo adapter_smoke_client \
   --action /robot_humanoid_1/execute_capability \
   --robot-id robot-humanoid-1 \
   --assignment-id smoke-adapter-carry \
   --capability ump.material.carry/v1 \
   --inputs-json '{"object":"package-1","destination":"storage"}'
-exercise --action /robot_humanoid_1/execute_capability \
+)
+carry_result=$(exercise --action /robot_humanoid_1/execute_capability \
   --assignment-id smoke-carry --capability ump.material.carry/v1 --expect succeeded
-exercise --action /robot_mobile_arm_1/execute_capability \
+)
+cancel_result=$(exercise --action /robot_mobile_arm_1/execute_capability \
   --assignment-id smoke-place --capability ump.manipulation.place/v1 --expect cancelled
-exercise --action /robot_quadruped_1/execute_capability \
+)
+reject_result=$(exercise --action /robot_quadruped_1/execute_capability \
   --assignment-id smoke-reject --capability ump.material.carry/v1 --expect rejected
+)
 
-printf '%s\n' 'UMP ROS 2 / Gazebo smoke test passed'
+export UMP_SMOKE_INSPECT_RESULT="$inspect_result"
+export UMP_SMOKE_ADAPTER_RESULT="$adapter_result"
+export UMP_SMOKE_CARRY_RESULT="$carry_result"
+export UMP_SMOKE_CANCEL_RESULT="$cancel_result"
+export UMP_SMOKE_REJECT_RESULT="$reject_result"
+export UMP_SMOKE_WORLD="$share/worlds/three_robot_world.sdf"
+export UMP_SMOKE_REPORT="${UMP_SMOKE_REPORT:-/tmp/ump-ros2-gazebo-smoke.json}"
+python3 - <<'PY'
+from hashlib import sha256
+import json
+import os
+from pathlib import Path
+import platform
+import socket
+
+result_names = (
+    "INSPECT_RESULT",
+    "ADAPTER_RESULT",
+    "CARRY_RESULT",
+    "CANCEL_RESULT",
+    "REJECT_RESULT",
+)
+results = [json.loads(os.environ[f"UMP_SMOKE_{name}"]) for name in result_names]
+world = Path(os.environ["UMP_SMOKE_WORLD"])
+report = {
+    "profile": "ump.ros2-gazebo-smoke/v1",
+    "passed": True,
+    "world": {
+        "path": str(world),
+        "sha256": sha256(world.read_bytes()).hexdigest(),
+        "service": "/world/ump_conformance/control",
+    },
+    "checks": {
+        "gazebo_world_ready": True,
+        "three_action_servers_ready": True,
+        "native_action_success": True,
+        "ump_adapter_success": True,
+        "native_cancellation": True,
+        "capability_rejection": True,
+    },
+    "results": results,
+    "environment": {
+        "hostname": socket.gethostname(),
+        "platform": platform.platform(),
+        "python": platform.python_version(),
+        "ros_distro": os.environ["ROS_DISTRO"],
+        "repository_revision": os.environ.get("GITHUB_SHA", "unknown"),
+    },
+}
+encoded = json.dumps(report, sort_keys=True, separators=(",", ":"))
+path = Path(os.environ["UMP_SMOKE_REPORT"])
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(encoded + "\n", encoding="utf-8")
+print(encoded)
+PY

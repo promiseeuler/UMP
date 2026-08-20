@@ -41,6 +41,7 @@ ump-node = "ump.cli:node_main"
 ump-pilot = "ump.cli:pilot_main"
 ump-reconcile = "ump.cli:reconcile_main"
 ump-readiness = "ump.cli:readiness_main"
+ump-ros2-evidence = "ump.cli:ros2_evidence_main"
 ump-vocabulary = "ump.cli:vocabulary_main"
 
 [tool.setuptools]

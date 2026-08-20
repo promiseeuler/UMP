@@ -49,6 +49,7 @@ from .node import ParticipantService, load_adapter
 from .planner import load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .readiness import load_readiness_report
+from .ros2_evidence import Ros2EvidenceValidationError, validate_ros2_smoke_report
 from .runtime import Registry
 from .vocabulary import standard_capability, vocabulary_document
 
@@ -1011,6 +1012,28 @@ def lan_evidence_main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def ros2_evidence_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-ros2-evidence",
+        description="Validate a native ROS 2/Gazebo smoke report.",
+    )
+    parser.add_argument("report")
+    parser.add_argument("--world")
+    parser.add_argument("--revision")
+    arguments = parser.parse_args(argv)
+    try:
+        result = validate_ros2_smoke_report(
+            arguments.report,
+            world_path=arguments.world,
+            expected_revision=arguments.revision,
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except Ros2EvidenceValidationError as error:
+        print(f"ump-ros2-evidence: {error}", file=sys.stderr)
+        return 2
+
+
 def readiness_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-readiness",
@@ -1077,6 +1100,7 @@ def main(argv: list[str] | None = None) -> int:
         "reconcile": reconcile_main,
         "vocabulary": vocabulary_main,
         "readiness": readiness_main,
+        "ros2-evidence": ros2_evidence_main,
     }
     if not arguments or arguments[0] not in commands:
         choices = ",".join(commands)

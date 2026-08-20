@@ -22,6 +22,10 @@ class ReleasePackagingTests(unittest.TestCase):
         )
         self.assertEqual(metadata["scripts"]["ump-pilot"], "ump.cli:pilot_main")
         self.assertEqual(
+            metadata["scripts"]["ump-ros2-evidence"],
+            "ump.cli:ros2_evidence_main",
+        )
+        self.assertEqual(
             metadata["scripts"]["ump-lan-benchmark"],
             "ump.cli:lan_benchmark_main",
         )
@@ -51,6 +55,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-evidence schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-node --help", workflow)
+        self.assertIn("/tmp/ump-release/bin/ump-ros2-evidence --help", workflow)
         self.assertIn("schemas/ump-v0.schema.json", workflow)
         self.assertIn("schemas/ump-lan-evidence-v1.schema.json", workflow)
         self.assertIn("vocabulary_data/v1/catalog.json", workflow)

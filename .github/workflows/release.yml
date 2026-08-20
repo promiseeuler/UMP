@@ -43,6 +43,7 @@ jobs:
           (cd /tmp && /tmp/ump-release/bin/ump-lan-benchmark --help)
           (cd /tmp && /tmp/ump-release/bin/ump-lan-evidence schema)
           (cd /tmp && /tmp/ump-release/bin/ump-node --help)
+          (cd /tmp && /tmp/ump-release/bin/ump-ros2-evidence --help)
       - name: Generate checksums
         run: sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
       - name: Attest public release artifacts

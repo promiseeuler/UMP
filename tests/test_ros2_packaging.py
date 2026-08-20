@@ -77,6 +77,9 @@ class Ros2PackagingTests(unittest.TestCase):
         self.assertIn("colcon test-result --verbose", workflow)
         self.assertIn("pip install --break-system-packages .", workflow)
         self.assertIn("timeout 180s bash ros2_ws/smoke.sh", workflow)
+        self.assertIn("ump-ros2-evidence /tmp/ump-ros2-gazebo-smoke.json", workflow)
+        self.assertIn("actions/upload-artifact@v7", workflow)
+        self.assertIn("retention-days: 30", workflow)
         self.assertNotIn("@main", workflow)
 
     def test_runtime_smoke_covers_world_and_action_lifecycle(self):
@@ -88,6 +91,8 @@ class Ros2PackagingTests(unittest.TestCase):
         self.assertEqual(smoke.count("--expect rejected"), 1)
         self.assertIn("ros2 run ump_gazebo_demo adapter_smoke_client", smoke)
         self.assertIn("--inputs-json", smoke)
+        self.assertIn('"profile": "ump.ros2-gazebo-smoke/v1"', smoke)
+        self.assertIn("UMP_SMOKE_REPORT", smoke)
 
         setup = (ROS / "ump_gazebo_demo" / "setup.py").read_text()
         self.assertIn("adapter_smoke_client:main", setup)
