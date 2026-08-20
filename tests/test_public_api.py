@@ -20,6 +20,7 @@ class PublicApiTests(unittest.TestCase):
             "Assignment",
             "AssignmentStatus",
             "Availability",
+            "CommunicationLossHandler",
             "Mode",
             "Outcome",
             "ParticipantService",

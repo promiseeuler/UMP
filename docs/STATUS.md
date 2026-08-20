@@ -92,6 +92,8 @@
   safety-stream-first publication and independent sequence ordering.
 - Change-only participant manifest refresh so capability and availability updates
   reach peers before the corresponding periodic state.
+- Owner-node required-peer configuration wired to the manufacturer communication
+  loss/restoration contract with freshness-derived, edge-triggered callbacks.
 - Append-only SQLite protocol recorder and loopback-only, read-only inspector UI
   for robot state, capabilities, and correlated protocol events.
 - Reproducible reference-runtime benchmark for canonical in-memory state

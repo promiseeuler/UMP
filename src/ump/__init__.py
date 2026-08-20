@@ -1,6 +1,6 @@
 """Universal Machine Protocol reference implementation."""
 
-from .adapter import RobotAdapter
+from .adapter import CommunicationLossHandler, RobotAdapter
 from .authority import SqliteAuthorityStore
 from .conformance import AdapterConformanceHarness, ConformanceReport
 from .coordinator_store import CoordinatorStore
@@ -28,6 +28,7 @@ __all__ = [
     "AssignmentStatus",
     "Availability",
     "Capability",
+    "CommunicationLossHandler",
     "AuthorityLease",
     "ConformanceReport",
     "CoordinatorStore",

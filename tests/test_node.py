@@ -15,6 +15,7 @@ from ump.models import (
     Safety,
 )
 from ump.node import ParticipantService, load_adapter
+from ump.transport import make_envelope
 
 
 class Adapter:
@@ -82,6 +83,19 @@ class MutableAvailabilityAdapter(Adapter):
                     self.availability,
                 ),
             ),
+        )
+
+
+class CommunicationPolicyAdapter(Adapter):
+    def __init__(self):
+        self.communication_events = []
+
+    def communication_lost(self, stale_peer_ids, observed_at_ms):
+        self.communication_events.append(("lost", stale_peer_ids, observed_at_ms))
+
+    def communication_restored(self, restored_peer_ids, observed_at_ms):
+        self.communication_events.append(
+            ("restored", restored_peer_ids, observed_at_ms)
         )
 
 
@@ -166,6 +180,76 @@ class ParticipantServiceTests(unittest.TestCase):
     def test_service_rejects_adapter_network_identity_mismatch(self):
         with self.assertRaisesRegex(ValueError, "identities differ"):
             ParticipantService(Adapter(), Bus("robot-2"), Resource(), Resource())
+
+    def test_required_peers_require_manufacturer_communication_policy(self):
+        with self.assertRaisesRegex(TypeError, "CommunicationLossHandler"):
+            ParticipantService(
+                Adapter(),
+                Bus(),
+                Resource(),
+                Resource(),
+                required_peer_ids=("peer-1",),
+            )
+
+    def test_required_peer_loss_and_restoration_reach_adapter_policy(self):
+        adapter = CommunicationPolicyAdapter()
+        bus = Bus()
+        service = ParticipantService(
+            adapter,
+            bus,
+            Resource(),
+            Resource(),
+            required_peer_ids=("peer-1",),
+            communication_check_interval_s=60.0,
+            clock_ms=lambda: 1_000,
+        )
+        service.start()
+        self.assertEqual(
+            adapter.communication_events,
+            [("lost", ("peer-1",), 1_000)],
+        )
+        bus.publish(
+            make_envelope(
+                "manifest",
+                "peer-1",
+                "peer-session",
+                1,
+                1_000,
+                {
+                    "robot_id": "peer-1",
+                    "manufacturer": "Peer Manufacturer",
+                    "model": "P1",
+                    "robot_class": "mobile_robot",
+                    "adapter_version": "1.0.0",
+                    "capabilities": [],
+                },
+            )
+        )
+        bus.publish(
+            make_envelope(
+                "state",
+                "peer-1",
+                "peer-session",
+                2,
+                1_000,
+                {
+                    "robot_id": "peer-1",
+                    "mode": "idle",
+                    "safety": "normal",
+                    "activity": "Waiting",
+                    "intent": "Publish state",
+                    "progress": 0.0,
+                    "summary": "Peer one is available.",
+                    "fresh_for_ms": 100,
+                },
+            )
+        )
+        self.assertEqual(service.evaluate_communication(1_050), ())
+        service.close()
+        self.assertEqual(
+            adapter.communication_events[-1],
+            ("restored", ("peer-1",), 1_050),
+        )
 
     def test_safety_transition_uses_priority_stream_before_operational_state(self):
         adapter = MutableSafetyAdapter()

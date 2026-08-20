@@ -27,6 +27,13 @@ An implementation supplies four methods:
 `RobotAdapter` is a structural protocol; adapters do not need to inherit from a
 UMP base class. This keeps vendor SDK ownership and process architecture local.
 
+Deployments that declare required peers also require the optional
+`CommunicationLossHandler` protocol. Its `communication_lost()` and
+`communication_restored()` callbacks receive exact peer IDs and receiver-local
+observation time. The adapter defines the local response; callback exceptions are
+recorded and retried on the next watchdog evaluation rather than treated as a
+successful policy transition.
+
 ## Start read-only
 
 Begin hardware integration with an empty capability tuple. The robot can publish

@@ -8,11 +8,11 @@ from pathlib import Path
 from threading import Event
 import time
 
-from .adapter import RobotAdapter
+from .adapter import CommunicationLossHandler, RobotAdapter
 from .authority import AssignmentAuthorizer
 from .journal import AssignmentJournal
 from .network import TlsNetworkBus
-from .runtime import Participant
+from .runtime import CommunicationWatchdog, Participant, Registry
 
 
 def load_adapter(
@@ -48,6 +48,8 @@ class ParticipantService:
         execution_workers: int = 0,
         clock_ms: Callable[[], int] | None = None,
         health_check: Callable[[], None] | None = None,
+        required_peer_ids: tuple[str, ...] = (),
+        communication_check_interval_s: float = 0.25,
     ) -> None:
         if not 1.0 <= state_hz <= 10.0:
             raise ValueError("state_hz must be between 1 and 10")
@@ -59,6 +61,22 @@ class ParticipantService:
         self._clock_ms = clock_ms or (lambda: int(time.time() * 1_000))
         self._interval = 1.0 / state_hz
         self._health_check = health_check or (lambda: None)
+        self._registry = Registry(bus) if required_peer_ids else None
+        if required_peer_ids and not isinstance(adapter, CommunicationLossHandler):
+            raise TypeError(
+                "adapter must implement CommunicationLossHandler when required peers are configured"
+            )
+        self._communication_watchdog = (
+            CommunicationWatchdog(
+                self._registry,
+                required_peer_ids,
+                adapter,
+                clock_ms=self._clock_ms,
+                check_interval_s=communication_check_interval_s,
+            )
+            if self._registry is not None
+            else None
+        )
         self._participant = Participant(
             adapter,
             bus,
@@ -66,6 +84,8 @@ class ParticipantService:
             authorizer=authorizer,
             clock_ms=self._clock_ms,
             execution_workers=execution_workers,
+            communication_watchdog=self._communication_watchdog,
+            start_communication_watchdog=False,
         )
         self._started = False
         self._closed = False
@@ -83,6 +103,7 @@ class ParticipantService:
             self._participant.announce(
                 self._clock_ms(), manifest=manifest, state=state
             )
+            self._participant.start_communication_watchdog()
         except BaseException:
             self.bus.stop()
             raise
@@ -99,6 +120,11 @@ class ParticipantService:
             now_ms = self._clock_ms()
             self._participant.publish_manifest(now_ms, manifest=manifest)
             self._participant.publish_state(now_ms, state=state)
+
+    def evaluate_communication(self, now_ms: int | None = None) -> tuple[str, ...]:
+        if self._communication_watchdog is None:
+            return ()
+        return self._communication_watchdog.evaluate(now_ms)
 
     def close(self) -> None:
         if self._closed:

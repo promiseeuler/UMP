@@ -448,6 +448,8 @@ def node_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--credential-directory", required=True)
     parser.add_argument("--state-hz", type=float, default=2.0)
     parser.add_argument("--execution-workers", type=int, default=0)
+    parser.add_argument("--required-peer", action="append", default=[])
+    parser.add_argument("--communication-check-interval", type=float, default=0.25)
     arguments = parser.parse_args(argv)
     service = None
     credentials = None
@@ -461,7 +463,19 @@ def node_main(argv: list[str] | None = None) -> int:
             raise ValueError("state_hz must be between 1 and 10")
         if not 0 <= arguments.execution_workers <= 32:
             raise ValueError("execution_workers must be between 0 and 32")
+        if len(arguments.required_peer) != len(set(arguments.required_peer)):
+            raise ValueError("required peers must be unique")
+        if not 0.05 <= arguments.communication_check_interval <= 60.0:
+            raise ValueError(
+                "communication check interval must be between 0.05 and 60 seconds"
+            )
         config = load_network_config(arguments.network)
+        configured_peer_ids = {peer.robot_id for peer in config.peers}
+        unknown_required_peers = set(arguments.required_peer) - configured_peer_ids
+        if unknown_required_peers:
+            raise ValueError(
+                f"required peers are not configured: {sorted(unknown_required_peers)}"
+            )
         adapter = load_adapter(arguments.adapter, arguments.adapter_config)
         adapter_report = AdapterConformanceHarness().inspect(adapter)
         if not adapter_report.passed:
@@ -500,6 +514,8 @@ def node_main(argv: list[str] | None = None) -> int:
                 config.private_key_path,
                 config.ca_path,
             ),
+            required_peer_ids=tuple(arguments.required_peer),
+            communication_check_interval_s=arguments.communication_check_interval,
         )
 
         def request_stop(_signal_number, _frame) -> None:

@@ -26,3 +26,18 @@ class RobotAdapter(Protocol):
     def cancel(self, assignment_id: str, reason: str) -> tuple[bool, str]:
         """Ask native software to cancel; return its authoritative decision."""
         ...
+
+
+@runtime_checkable
+class CommunicationLossHandler(Protocol):
+    """Optional native policy invoked when required semantic state becomes stale."""
+
+    def communication_lost(
+        self, stale_peer_ids: tuple[str, ...], observed_at_ms: int
+    ) -> None:
+        ...
+
+    def communication_restored(
+        self, restored_peer_ids: tuple[str, ...], observed_at_ms: int
+    ) -> None:
+        ...

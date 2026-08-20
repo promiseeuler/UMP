@@ -5,13 +5,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from threading import Event, RLock, Thread
 import time
-from typing import Protocol
 from uuid import uuid4
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
 
-from .adapter import RobotAdapter
+from .adapter import CommunicationLossHandler, RobotAdapter
 from .authority import (
     AssignmentAuthorizer,
     AuthorizationError,
@@ -167,16 +166,6 @@ class Registry:
             )
 
 
-class CommunicationLossHandler(Protocol):
-    def communication_lost(
-        self, stale_peer_ids: tuple[str, ...], observed_at_ms: int
-    ) -> None: ...
-
-    def communication_restored(
-        self, restored_peer_ids: tuple[str, ...], observed_at_ms: int
-    ) -> None: ...
-
-
 class CommunicationWatchdog:
     """Invokes manufacturer policy when required peer state becomes stale."""
 
@@ -270,6 +259,7 @@ class Participant:
         clock_ms: Callable[[], int] | None = None,
         execution_workers: int = 0,
         communication_watchdog: CommunicationWatchdog | None = None,
+        start_communication_watchdog: bool = True,
     ) -> None:
         if not 0 <= execution_workers <= 32:
             raise ValueError("execution_workers must be between 0 and 32")
@@ -296,6 +286,10 @@ class Participant:
         bus.subscribe("assignment", self._assignment)
         bus.subscribe("assignment_query", self._assignment_query)
         bus.subscribe("cancellation_request", self._cancellation_request)
+        if self._communication_watchdog is not None and start_communication_watchdog:
+            self._communication_watchdog.start()
+
+    def start_communication_watchdog(self) -> None:
         if self._communication_watchdog is not None:
             self._communication_watchdog.start()
 

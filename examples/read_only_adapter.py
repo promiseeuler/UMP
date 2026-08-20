@@ -19,6 +19,7 @@ from ump import (
 
 class ReadOnlyAdapter:
     def __init__(self) -> None:
+        self._stale_required_peers: tuple[str, ...] = ()
         self._manifest = RobotManifest(
             robot_id="manufacturer-robot-1",
             manufacturer="Example Manufacturer",
@@ -33,14 +34,31 @@ class ReadOnlyAdapter:
 
     def state(self) -> RobotState:
         # Replace these values with bounded semantic data from the native API.
+        blocked = bool(self._stale_required_peers)
         return RobotState(
             robot_id=self._manifest.robot_id,
             mode=Mode.IDLE,
             safety=Safety.NORMAL,
-            activity="Waiting for native work",
-            intent="Publish semantic state only",
+            activity=(
+                "Waiting for required peer communication"
+                if blocked
+                else "Waiting for native work"
+            ),
+            intent=(
+                "Remain read-only until required peers recover"
+                if blocked
+                else "Publish semantic state only"
+            ),
             progress=0.0,
-            summary="The robot is idle and is not accepting UMP assignments.",
+            summary=(
+                "The robot is read-only and required peer communication is stale."
+                if blocked
+                else "The robot is idle and is not accepting UMP assignments."
+            ),
+            blockers=tuple(
+                f"required_peer_stale:{peer_id}"
+                for peer_id in self._stale_required_peers
+            ),
         )
 
     def accept(self, assignment: Assignment) -> Outcome:
@@ -55,6 +73,18 @@ class ReadOnlyAdapter:
     def cancel(self, assignment_id: str, reason: str) -> tuple[bool, str]:
         del assignment_id, reason
         return False, "Read-only adapter has no native UMP work to cancel"
+
+    def communication_lost(
+        self, stale_peer_ids: tuple[str, ...], observed_at_ms: int
+    ) -> None:
+        del observed_at_ms
+        self._stale_required_peers = stale_peer_ids
+
+    def communication_restored(
+        self, restored_peer_ids: tuple[str, ...], observed_at_ms: int
+    ) -> None:
+        del restored_peer_ids, observed_at_ms
+        self._stale_required_peers = ()
 
 
 def create_adapter(config_path: Path | None = None) -> ReadOnlyAdapter:

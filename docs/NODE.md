@@ -17,6 +17,7 @@ ump-node \
   --authority-database /var/lib/ump/authority.sqlite3 \
   --credential-database /var/lib/ump/credentials.sqlite3 \
   --credential-directory /var/lib/ump/credentials \
+  --required-peer robot-quadruped-1 \
   --state-hz 2
 ```
 
@@ -41,6 +42,15 @@ The node also reads the manifest once per cycle. A changed capability set,
 schema, description, adapter version, or availability is published before that
 cycle's state; unchanged manifests are suppressed. This lets peers stop planning
 against a capability that becomes busy, degraded, or unavailable.
+
+Each `--required-peer` must also appear in the network configuration. When at
+least one is configured, the adapter must implement `CommunicationLossHandler`.
+The node derives loss and restoration from received semantic-state freshness and
+invokes the manufacturer callback on each edge. `--communication-check-interval`
+is bounded to 0.05–60 seconds and defaults to 0.25 seconds. Callback behavior is
+native policy: it may pause or reject high-level work, update semantic blockers,
+or invoke another manufacturer-approved local response, but it must not treat UMP
+transport as an emergency-stop channel.
 
 The network certificate, private key, and CA paths must exactly match the active
 generation in the robot-local credential store. Peer revocations are checked on
