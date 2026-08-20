@@ -232,6 +232,11 @@ class ParticipantServiceTests(unittest.TestCase):
             root = Path(directory)
             (root / "issued").mkdir()
             arguments, network_databases = self.preflight_fixture(root)
+            inspector_database = root / "inspector.sqlite3"
+            arguments[arguments.index("--preflight"):arguments.index("--preflight")] = [
+                "--inspector-database",
+                str(inspector_database),
+            ]
             output = StringIO()
             with redirect_stdout(output):
                 status = node_main(arguments)
@@ -240,9 +245,12 @@ class ParticipantServiceTests(unittest.TestCase):
             report = json.loads(output.getvalue())
             self.assertTrue(report["valid"])
             self.assertEqual(report["mode"], "preflight")
-            self.assertEqual(len(report["checks"]), 9)
+            self.assertEqual(len(report["checks"]), 10)
+            self.assertIn("inspector", report["database_roles"])
+            self.assertIn("protocol_event_recording", report["checks"])
             self.assertFalse((root / "assignments.sqlite3").exists())
             self.assertFalse((root / "authority.sqlite3").exists())
+            self.assertFalse(inspector_database.exists())
             self.assertTrue(all(not path.exists() for path in network_databases.values()))
 
     def test_node_preflight_rejects_database_collision_and_loose_private_key(self):
@@ -253,6 +261,20 @@ class ParticipantServiceTests(unittest.TestCase):
             assignment_index = arguments.index("--assignment-database") + 1
             authority_index = arguments.index("--authority-database") + 1
             arguments[authority_index] = arguments[assignment_index]
+            errors = StringIO()
+            with redirect_stderr(errors):
+                status = node_main(arguments)
+            self.assertEqual(status, 2)
+            self.assertIn("unique by role", errors.getvalue())
+
+            arguments, _ = self.preflight_fixture(root)
+            assignment_database = arguments[
+                arguments.index("--assignment-database") + 1
+            ]
+            arguments[arguments.index("--preflight"):arguments.index("--preflight")] = [
+                "--inspector-database",
+                assignment_database,
+            ]
             errors = StringIO()
             with redirect_stderr(errors):
                 status = node_main(arguments)
@@ -291,6 +313,8 @@ class ParticipantServiceTests(unittest.TestCase):
                 credential_database,
                 "--credential-directory",
                 credential_directory,
+                "--inspector-database",
+                str(root / "coordinator-inspector.sqlite3"),
             ]
             output = StringIO()
             with redirect_stdout(output):
@@ -299,8 +323,11 @@ class ParticipantServiceTests(unittest.TestCase):
             report = json.loads(output.getvalue())
             self.assertTrue(report["valid"])
             self.assertEqual(report["coordinator_id"], "benchmark-client")
-            self.assertEqual(len(report["checks"]), 6)
+            self.assertEqual(len(report["checks"]), 7)
+            self.assertIn("inspector", report["database_roles"])
+            self.assertIn("protocol_event_recording", report["checks"])
             self.assertFalse(coordinator_database.exists())
+            self.assertFalse((root / "coordinator-inspector.sqlite3").exists())
             self.assertTrue(all(not path.exists() for path in network_databases.values()))
 
             arguments[arguments.index("--database") + 1] = credential_database

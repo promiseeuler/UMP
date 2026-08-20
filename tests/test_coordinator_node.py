@@ -562,6 +562,36 @@ class CoordinatorServiceTests(unittest.TestCase):
         self.assertFalse(any(message.message_type == "goal" for message in bus.trace))
         service.close()
 
+    def test_wait_rechecks_runtime_health(self):
+        bus = ServiceBus()
+        registry = Registry(bus)
+        coordinator = Coordinator(
+            bus.robot_id,
+            bus,
+            registry,
+            authority_lease_ids={"missing-robot": "lease-1"},
+        )
+        checks = []
+
+        def health_check():
+            checks.append("checked")
+            if len(checks) > 1:
+                raise RuntimeError("runtime health failed")
+
+        service = CoordinatorService(
+            bus,
+            coordinator,
+            registry,
+            clock_ms=lambda: 1_100,
+            poll_interval_s=0.01,
+            health_check=health_check,
+        )
+        service.start()
+        with self.assertRaisesRegex(RuntimeError, "runtime health failed"):
+            service.wait_for_participants(("missing-robot",), timeout_s=1.0)
+        self.assertEqual(checks, ["checked", "checked"])
+        service.close()
+
     def test_authority_lease_arguments_are_unique_and_explicit(self):
         self.assertEqual(
             parse_authority_leases(["robot-1=lease-1", "robot-2=lease-2"]),

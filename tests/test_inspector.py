@@ -97,6 +97,24 @@ class InspectorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "loopback"):
             InspectorServer(self.store, "0.0.0.0", 0)
 
+    def test_recorder_failure_does_not_reclassify_message_delivery(self):
+        class FailingStore:
+            def record(self, _envelope):
+                raise OSError("recording disk unavailable")
+
+        bus = InMemoryBus()
+        delivered = []
+        bus.subscribe("manifest", delivered.append)
+        recorder = InspectorRecorder(bus, FailingStore())
+        manifest, _ = messages()
+
+        bus.publish(manifest)
+
+        self.assertEqual([item.message_id for item in delivered], [manifest.message_id])
+        self.assertEqual(delivered[0].payload["robot_id"], "robot-inspector-1")
+        with self.assertRaisesRegex(RuntimeError, "recording failed"):
+            recorder.require_healthy()
+
 
 if __name__ == "__main__":
     unittest.main()

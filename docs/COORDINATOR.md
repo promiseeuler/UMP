@@ -51,14 +51,21 @@ ump-coordinator preflight \
   --network /etc/ump/coordinator-network.json \
   --credential-database /var/lib/ump/coordinator-credentials.sqlite3 \
   --credential-directory /var/lib/ump/coordinator-credentials \
-  --database /var/lib/ump/coordinator.sqlite3
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --inspector-database /var/lib/ump/coordinator-inspector.sqlite3
 ```
 
 Preflight validates the network configuration, current active credential,
 certificate/key/CA compatibility, owner-only private-key permissions, writable
-storage parents, and distinct coordinator, credential, replay, inbox, and outbox
-database paths. It emits one JSON report and creates none of those runtime
-stores. Port availability and peer reachability remain runtime properties.
+storage parents, and distinct coordinator, credential, replay, inbox, outbox,
+and optional inspector database paths. It emits one JSON report and creates none
+of those runtime stores. Port availability and peer reachability remain runtime
+properties.
+
+Add the same optional `--inspector-database` argument to `submit`, `cancel`, or
+`reconcile` to retain the coordinator's local and authenticated remote protocol
+view. Runtime health checks include the recorder during participant, completion,
+and reconciliation waits. Serve that database separately with `ump-inspector`.
 
 ```sh
 ump-coordinator submit \

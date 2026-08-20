@@ -73,6 +73,7 @@ class CoordinatorService:
         stop = stop or Event()
         deadline = time.monotonic() + timeout_s
         while True:
+            self._health_check()
             now_ms = self._clock_ms()
             missing = self.registry.missing_context(participant_ids, now_ms)
             if not missing:
@@ -127,6 +128,7 @@ class CoordinatorService:
         stop = stop or Event()
         deadline = time.monotonic() + timeout_s
         while True:
+            self._health_check()
             snapshot = self.coordinator.snapshot(plan_id)
             if snapshot.status is not RunStatus.ACTIVE:
                 return snapshot
@@ -149,6 +151,7 @@ class CoordinatorService:
         stop = stop or Event()
         deadline = time.monotonic() + timeout_s
         while True:
+            self._health_check()
             snapshots = tuple(
                 self.coordinator.snapshot(plan_id) for plan_id in plan_ids
             )
@@ -177,6 +180,7 @@ class CoordinatorService:
         stop = stop or Event()
         deadline = time.monotonic() + timeout_s
         while True:
+            self._health_check()
             snapshot = self.coordinator.snapshot(plan_id)
             if snapshot.status in {
                 RunStatus.SUCCEEDED,

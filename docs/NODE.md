@@ -17,6 +17,7 @@ ump-node \
   --authority-database /var/lib/ump/authority.sqlite3 \
   --credential-database /var/lib/ump/credentials.sqlite3 \
   --credential-directory /var/lib/ump/credentials \
+  --inspector-database /var/lib/ump/inspector.sqlite3 \
   --required-peer robot-quadruped-1 \
   --state-hz 2
 ```
@@ -28,8 +29,8 @@ code execution to that package; use only owner- or manufacturer-approved builds.
 
 Before starting a deployment, append `--preflight` to the complete command. The
 preflight loads the trusted adapter and reads its manifest/state, but does not
-bind a network socket or create assignment, authority, replay, inbox, or outbox
-databases. It validates:
+bind a network socket or create assignment, authority, replay, inbox, outbox, or
+optional inspector databases. It validates:
 
 - network configuration and peer references;
 - read-only adapter conformance and robot identity;
@@ -37,7 +38,7 @@ databases. It validates:
 - the active managed credential generation and current validity window;
 - certificate, key, CA, and TLS context compatibility;
 - owner-only private-key permissions;
-- unique files for all six database roles; and
+- unique files for all seven database roles when recording is enabled; and
 - writable database parent directories.
 
 It emits one machine-readable JSON result. Successful preflight does not grant
@@ -89,6 +90,13 @@ Place all databases on persistent local storage owned by the UMP service account
 Do not share one database file between robots or copy a live database between
 identities. Assignment, authority, credential, replay, inbox, and outbox roles
 must each use a distinct resolved path; startup rejects collisions.
+
+`--inspector-database` is optional. When present, the node records every locally
+published or authenticated inbound UMP envelope. Recording uses a separate
+append-only WAL store and is included in preflight path, parent-permission, and
+role-isolation checks. A recording failure does not turn an already handled
+inbound message into a dead letter; it is latched as a node health failure and
+stops subsequent normal operation.
 
 Monitor durable delivery health while the node runs with
 `ump-network-diagnostics --network /etc/ump/network.json`. The command is

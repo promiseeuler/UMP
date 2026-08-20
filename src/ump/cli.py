@@ -58,7 +58,7 @@ from .goal import (
     shared_goal_from_document,
     shared_goals_from_document,
 )
-from .inspector import InspectorServer, InspectorStore
+from .inspector import InspectorRecorder, InspectorServer, InspectorStore
 from .journal import SqliteAssignmentJournal
 from .lan_evidence import (
     LanEvidenceValidationError,
@@ -587,6 +587,7 @@ def node_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--authority-database", required=True)
     parser.add_argument("--credential-database", required=True)
     parser.add_argument("--credential-directory", required=True)
+    parser.add_argument("--inspector-database")
     parser.add_argument("--state-hz", type=float, default=2.0)
     parser.add_argument("--execution-workers", type=int, default=0)
     parser.add_argument("--required-peer", action="append", default=[])
@@ -602,6 +603,8 @@ def node_main(argv: list[str] | None = None) -> int:
     journal = None
     authority = None
     bus = None
+    inspector_store = None
+    inspector_recorder = None
     stop = Event()
     previous_handlers = {}
     try:
@@ -624,6 +627,8 @@ def node_main(argv: list[str] | None = None) -> int:
             "inbox": config.inbox_database_path.resolve(),
             "outbox": config.outbox_database_path.resolve(),
         }
+        if arguments.inspector_database is not None:
+            database_paths["inspector"] = Path(arguments.inspector_database).resolve()
         _validate_database_roles(database_paths)
         configured_peer_ids = {peer.robot_id for peer in config.peers}
         unknown_required_peers = set(arguments.required_peer) - configured_peer_ids
@@ -688,6 +693,11 @@ def node_main(argv: list[str] | None = None) -> int:
                             "private_key_permissions",
                             "database_role_isolation",
                             "storage_parent_permissions",
+                            *(
+                                ["protocol_event_recording"]
+                                if arguments.inspector_database is not None
+                                else []
+                            ),
                         ],
                     },
                     sort_keys=True,
@@ -709,6 +719,19 @@ def node_main(argv: list[str] | None = None) -> int:
         bus = TlsNetworkBus.from_config(
             config, certificate_revoked=credentials.is_revoked
         )
+        if arguments.inspector_database is not None:
+            inspector_store = InspectorStore(arguments.inspector_database)
+            inspector_recorder = InspectorRecorder(bus, inspector_store)
+
+        def require_runtime_health() -> None:
+            credentials.require_active_bundle(
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            )
+            if inspector_recorder is not None:
+                inspector_recorder.require_healthy()
+
         service = ParticipantService(
             adapter,
             bus,
@@ -716,11 +739,7 @@ def node_main(argv: list[str] | None = None) -> int:
             authority,
             state_hz=arguments.state_hz,
             execution_workers=arguments.execution_workers,
-            health_check=lambda: credentials.require_active_bundle(
-                config.certificate_path,
-                config.private_key_path,
-                config.ca_path,
-            ),
+            health_check=require_runtime_health,
             required_peer_ids=tuple(arguments.required_peer),
             communication_check_interval_s=arguments.communication_check_interval,
         )
@@ -741,6 +760,7 @@ def node_main(argv: list[str] | None = None) -> int:
                     "host": host,
                     "port": port,
                     "state_hz": arguments.state_hz,
+                    "inspector_recording": inspector_store is not None,
                 },
                 sort_keys=True,
             ),
@@ -765,6 +785,8 @@ def node_main(argv: list[str] | None = None) -> int:
                 authority.close()
         if credentials is not None:
             credentials.close()
+        if inspector_store is not None:
+            inspector_store.close()
 
 
 def network_config_main(argv: list[str] | None = None) -> int:
@@ -898,11 +920,13 @@ def coordinator_parser() -> argparse.ArgumentParser:
     submit = commands.add_parser(
         "submit", help="Submit one shared goal over the secure UMP network"
     )
+
     def add_network_runtime(command) -> None:
         command.add_argument("--network", required=True)
         command.add_argument("--database", required=True)
         command.add_argument("--credential-database", required=True)
         command.add_argument("--credential-directory", required=True)
+        command.add_argument("--inspector-database")
 
     add_network_runtime(submit)
     submit.add_argument("--planner", required=True, help="Trusted module:factory")
@@ -981,6 +1005,8 @@ def coordinator_main(argv: list[str] | None = None) -> int:
     credentials = None
     store = None
     bus = None
+    inspector_store = None
+    inspector_recorder = None
     stop = Event()
     previous_handlers = {}
     plan_id: str | None = None
@@ -994,6 +1020,8 @@ def coordinator_main(argv: list[str] | None = None) -> int:
             "inbox": config.inbox_database_path.resolve(),
             "outbox": config.outbox_database_path.resolve(),
         }
+        if arguments.inspector_database is not None:
+            database_paths["inspector"] = Path(arguments.inspector_database).resolve()
         _validate_database_roles(database_paths)
         _validate_storage_parents(database_paths)
         _validate_private_key_permissions(config.private_key_path)
@@ -1031,6 +1059,11 @@ def coordinator_main(argv: list[str] | None = None) -> int:
                             "private_key_permissions",
                             "database_role_isolation",
                             "storage_parent_permissions",
+                            *(
+                                ["protocol_event_recording"]
+                                if arguments.inspector_database is not None
+                                else []
+                            ),
                         ],
                     },
                     sort_keys=True,
@@ -1075,6 +1108,9 @@ def coordinator_main(argv: list[str] | None = None) -> int:
         bus = TlsNetworkBus.from_config(
             config, certificate_revoked=credentials.is_revoked
         )
+        if arguments.inspector_database is not None:
+            inspector_store = InspectorStore(arguments.inspector_database)
+            inspector_recorder = InspectorRecorder(bus, inspector_store)
         registry = Registry(bus)
         store = CoordinatorStore(
             arguments.database,
@@ -1097,15 +1133,21 @@ def coordinator_main(argv: list[str] | None = None) -> int:
             store=store,
             authority_lease_ids=authority_leases,
         )
+
+        def require_runtime_health() -> None:
+            credentials.require_active_bundle(
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            )
+            if inspector_recorder is not None:
+                inspector_recorder.require_healthy()
+
         service = CoordinatorService(
             bus,
             coordinator,
             registry,
-            health_check=lambda: credentials.require_active_bundle(
-                config.certificate_path,
-                config.private_key_path,
-                config.ca_path,
-            ),
+            health_check=require_runtime_health,
         )
 
         def request_stop(_signal_number, _frame) -> None:
@@ -1123,6 +1165,7 @@ def coordinator_main(argv: list[str] | None = None) -> int:
                     "coordinator_id": config.robot_id,
                     "host": host,
                     "port": port,
+                    "inspector_recording": inspector_store is not None,
                 },
                 sort_keys=True,
             ),
@@ -1269,6 +1312,8 @@ def coordinator_main(argv: list[str] | None = None) -> int:
                 store.close()
         if credentials is not None:
             credentials.close()
+        if inspector_store is not None:
+            inspector_store.close()
 
 
 def pilot_main(argv: list[str] | None = None) -> int:

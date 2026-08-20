@@ -125,7 +125,26 @@ class InspectorStore:
 class InspectorRecorder:
     def __init__(self, bus: MessageBus, store: InspectorStore) -> None:
         self.store = store
-        bus.subscribe("*", self.store.record)
+        self._lock = RLock()
+        self._error: Exception | None = None
+        bus.subscribe("*", self._record)
+
+    def _record(self, envelope: Envelope) -> None:
+        with self._lock:
+            if self._error is not None:
+                return
+        try:
+            self.store.record(envelope)
+        except Exception as error:
+            with self._lock:
+                if self._error is None:
+                    self._error = error
+
+    def require_healthy(self) -> None:
+        with self._lock:
+            error = self._error
+        if error is not None:
+            raise RuntimeError(f"protocol event recording failed: {error}") from error
 
 
 class InspectorServer:

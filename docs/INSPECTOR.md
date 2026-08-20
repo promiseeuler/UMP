@@ -7,7 +7,19 @@ cancellation, authority changes, or native robot commands.
 
 ## Record events
 
-Attach one recorder to the same `MessageBus` used by the runtime:
+Supported owner services can attach the recorder directly:
+
+```sh
+ump-node ... --inspector-database /var/lib/ump/node-inspector.sqlite3
+ump-coordinator submit ... \
+  --inspector-database /var/lib/ump/coordinator-inspector.sqlite3
+```
+
+The path must be unique from every other runtime database role. Participant and
+coordinator preflight validate it without creating the file. The ready event
+reports `inspector_recording: true` when capture is active.
+
+Embedded runtimes may attach one recorder to the same `MessageBus`:
 
 ```python
 from ump.inspector import InspectorRecorder, InspectorStore
@@ -19,6 +31,11 @@ recorder = InspectorRecorder(bus, store)
 The recorder subscribes to all message types and writes canonical envelopes to
 an append-only SQLite WAL database. Repeated message IDs and repeated
 source/session sequence values are ignored.
+
+Recorder write failures are latched instead of propagating through the message
+handler that already processed an inbound envelope. Supported owner services
+include that latch in recurring runtime health checks and fail visibly after a
+recording fault.
 
 ## Serve the UI
 
@@ -42,7 +59,7 @@ cache, referrer, and content-type headers.
 
 ## Operational limits
 
-The inspector is observational, not a complete audit system. A process must
-attach the recorder to capture traffic, host access still follows local machine
+The inspector is observational, not a complete audit system. Recording must be
+enabled to capture traffic, host access still follows local machine
 permissions, and database retention or export policy remains the deployer's
 responsibility.
