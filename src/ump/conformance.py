@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 from importlib.metadata import packages_distributions, version
+from importlib.resources import files
 import inspect
 import json
 from pathlib import Path
@@ -34,6 +35,15 @@ class ConformanceReport:
     @property
     def passed(self) -> bool:
         return bool(self.checks) and all(check.passed for check in self.checks)
+
+
+class AdapterEvidenceValidationError(ValueError):
+    pass
+
+
+def adapter_evidence_schema() -> dict[str, Any]:
+    resource = files("ump").joinpath("adapter_evidence_data/v1/schema.json")
+    return json.loads(resource.read_text(encoding="utf-8"))
 
 
 def _check(check_id: str, operation) -> ConformanceCheck:
@@ -204,6 +214,72 @@ def inspect_adapter_evidence(
             "platform": platform.platform(),
             "executable": sys.executable,
         },
+    }
+
+
+def validate_adapter_evidence(
+    report_path: str | Path,
+    *,
+    implementation_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Validate a retained read-only adapter report and optional source binding."""
+    path = Path(report_path)
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise AdapterEvidenceValidationError(
+            f"adapter evidence cannot be read: {error}"
+        ) from error
+    if not isinstance(document, dict):
+        raise AdapterEvidenceValidationError("adapter evidence must be a JSON object")
+    errors = sorted(
+        Draft202012Validator(adapter_evidence_schema()).iter_errors(document),
+        key=lambda item: list(item.path),
+    )
+    if errors:
+        error = errors[0]
+        location = ".".join(str(item) for item in error.absolute_path) or "document"
+        raise AdapterEvidenceValidationError(f"{location}: {error.message}")
+
+    checks = document["checks"]
+    expected_checks = {"adapter.manifest", "adapter.state", "adapter.identity"}
+    check_ids = [check["id"] for check in checks]
+    if len(check_ids) != len(set(check_ids)) or set(check_ids) != expected_checks:
+        raise AdapterEvidenceValidationError(
+            "adapter evidence must contain each read-only check exactly once"
+        )
+    checks_passed = all(check["passed"] for check in checks)
+    if document["passed"] is not checks_passed:
+        raise AdapterEvidenceValidationError(
+            "adapter evidence summary disagrees with its checks"
+        )
+    source_verified = False
+    if implementation_path is not None:
+        source = Path(implementation_path)
+        try:
+            actual_digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        except OSError as error:
+            raise AdapterEvidenceValidationError(
+                f"adapter implementation cannot be read: {error}"
+            ) from error
+        expected_digest = document["adapter"]["implementation"]["sha256"]
+        if actual_digest != expected_digest:
+            raise AdapterEvidenceValidationError(
+                "adapter implementation digest does not match the report"
+            )
+        source_verified = True
+    return {
+        "valid": True,
+        "passed": checks_passed,
+        "validation_scope": "report_structure_and_optional_source_binding",
+        "profile": document["profile"],
+        "subject": document["subject"],
+        "robot_id": (
+            document["robot"]["robot_id"] if document["robot"] is not None else None
+        ),
+        "implementation_sha256": document["adapter"]["implementation"]["sha256"],
+        "implementation_source_verified": source_verified,
+        "checks_verified": len(checks),
     }
 
 

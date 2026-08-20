@@ -17,6 +17,7 @@ class PublicApiTests(unittest.TestCase):
         self.assertIs(ump.RobotAdapter, RobotAdapter)
         for public_name in (
             "AdapterConformanceHarness",
+            "AdapterEvidenceValidationError",
             "Assignment",
             "AssignmentStatus",
             "Availability",
@@ -42,6 +43,7 @@ class PublicApiTests(unittest.TestCase):
             "ReviewValidationError",
             "StepStatus",
             "standard_capabilities",
+            "adapter_evidence_schema",
             "standard_capability",
             "load_adapter",
             "inspect_adapter_evidence",
@@ -53,6 +55,7 @@ class PublicApiTests(unittest.TestCase):
             "validate_pilot_bundle",
             "validate_lan_evidence_bundle",
             "validate_plan",
+            "validate_adapter_evidence",
             "validate_ros2_smoke_report",
             "validate_review_bundle",
         ):

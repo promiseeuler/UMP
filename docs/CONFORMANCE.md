@@ -48,6 +48,20 @@ to `--output`. Exit status `0` means all checks pass, `1` means a report was
 produced with failed checks, and `2` means the adapter or report could not be
 loaded or generated.
 
+Review retained evidence independently, optionally rebinding it to the exact
+implementation file supplied by the manufacturer:
+
+```sh
+ump-adapter-conformance verify adapter-conformance.json \
+  --implementation acme_ump/adapter.py
+ump-adapter-conformance schema
+```
+
+Verification requires the exact three read-only checks, rejects duplicate or
+contradictory summaries, and recomputes the source digest when
+`--implementation` is supplied. Use
+`schemas/ump-adapter-conformance-v1.schema.json` from non-Python tooling.
+
 Adapter factories are trusted local code and may initialize a vendor SDK merely
 by being loaded. Run this command only with reviewed manufacturer packages. The
 CLI deliberately exposes no native-execution switch. Retain the report in a

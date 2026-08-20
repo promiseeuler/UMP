@@ -98,6 +98,14 @@ ump-adapter-conformance inspect \
   --output adapter-conformance.json
 ```
 
+Provide the exact implementation file with the report so a reviewer can bind
+the retained result back to source:
+
+```sh
+ump-adapter-conformance verify adapter-conformance.json \
+  --implementation your_package/adapter.py
+```
+
 Execution fixtures require an explicit gate:
 
 ```python

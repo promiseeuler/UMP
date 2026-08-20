@@ -54,6 +54,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 ump = [
+  "adapter_evidence_data/**/*.json",
   "inspector_static/*.html",
   "inspector_static/*.css",
   "inspector_static/*.js",

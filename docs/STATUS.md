@@ -94,6 +94,8 @@ qualification matrix remains fail-closed with eight pending external gates.
   explicit opt-in gate before any native capability execution.
 - Manufacturer CLI for retainable read-only adapter conformance reports bound to
   implementation-file digests, package versions, robot metadata, and environment.
+- Public adapter-evidence schema and retained-report verifier with optional
+  implementation-source digest rebinding.
 - Documented manufacturer-facing adapter protocol, supported package-root imports,
   and a runnable zero-capability read-only hardware integration starting point.
 - Owner-facing `ump-node` service with trusted adapter factories, durable assignment

@@ -3,9 +3,12 @@
 from .adapter import CommunicationLossHandler, RobotAdapter
 from .authority import SqliteAuthorityStore
 from .conformance import (
+    AdapterEvidenceValidationError,
     AdapterConformanceHarness,
     ConformanceReport,
+    adapter_evidence_schema,
     inspect_adapter_evidence,
+    validate_adapter_evidence,
 )
 from .collaboration import Coordinator, PlanValidationError, validate_plan
 from .coordinator_store import (
@@ -52,6 +55,7 @@ from .vocabulary import standard_capabilities, standard_capability
 
 __all__ = [
     "AdapterConformanceHarness",
+    "AdapterEvidenceValidationError",
     "Assignment",
     "AssignmentStatus",
     "Availability",
@@ -87,6 +91,7 @@ __all__ = [
     "SqliteAuthorityStore",
     "StepStatus",
     "standard_capabilities",
+    "adapter_evidence_schema",
     "standard_capability",
     "load_adapter",
     "inspect_adapter_evidence",
@@ -98,6 +103,7 @@ __all__ = [
     "validate_pilot_bundle",
     "validate_lan_evidence_bundle",
     "validate_plan",
+    "validate_adapter_evidence",
     "validate_ros2_smoke_report",
     "validate_review_bundle",
 ]

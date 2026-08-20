@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schemas/ump-adapter-conformance-v1.schema.json",
+  "title": "UMP Read-Only Adapter Conformance Evidence",
+  "type": "object",
+  "required": ["profile", "mode", "observed_at_ms", "adapter", "robot", "subject", "passed", "checks", "environment"],
+  "properties": {
+    "profile": {"const": "ump.adapter-conformance/v1"},
+    "mode": {"const": "read_only"},
+    "observed_at_ms": {"type": "integer", "minimum": 1},
+    "adapter": {
+      "type": "object",
+      "required": ["specification", "implementation", "module", "class", "distributions"],
+      "properties": {
+        "specification": {"type": "string", "minLength": 3, "maxLength": 1024},
+        "implementation": {
+          "type": "object",
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          },
+          "additionalProperties": false
+        },
+        "module": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "class": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "distributions": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "required": ["name", "version"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1, "maxLength": 256},
+              "version": {"type": "string", "minLength": 1, "maxLength": 256}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "robot": {
+      "type": ["object", "null"],
+      "required": ["robot_id", "manufacturer", "model", "robot_class", "adapter_version", "capabilities"],
+      "properties": {
+        "robot_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "manufacturer": {"type": "string", "minLength": 1, "maxLength": 256},
+        "model": {"type": "string", "minLength": 1, "maxLength": 256},
+        "robot_class": {"type": "string", "minLength": 1, "maxLength": 128},
+        "adapter_version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "capabilities": {"type": "array", "maxItems": 256, "items": {"type": "string"}, "uniqueItems": true}
+      },
+      "additionalProperties": false
+    },
+    "subject": {"type": "string", "minLength": 1, "maxLength": 128},
+    "passed": {"type": "boolean"},
+    "checks": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["id", "passed", "description"],
+        "properties": {
+          "id": {"enum": ["adapter.manifest", "adapter.state", "adapter.identity"]},
+          "passed": {"type": "boolean"},
+          "description": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "additionalProperties": false
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": ["python", "implementation", "platform", "executable"],
+      "properties": {
+        "python": {"type": "string", "minLength": 1, "maxLength": 128},
+        "implementation": {"type": "string", "minLength": 1, "maxLength": 128},
+        "platform": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "executable": {"type": "string", "minLength": 1, "maxLength": 4096}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

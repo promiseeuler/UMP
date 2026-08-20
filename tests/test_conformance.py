@@ -12,8 +12,11 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from ump.cli import adapter_conformance_main, conformance_main
 from ump.conformance import (
+    AdapterEvidenceValidationError,
     AdapterConformanceHarness,
+    adapter_evidence_schema,
     inspect_adapter_evidence,
+    validate_adapter_evidence,
     validate_vector_suite,
 )
 from ump.models import Assignment, PlanStep, RobotManifest
@@ -160,6 +163,69 @@ class AdapterHarnessTests(unittest.TestCase):
             )
         self.assertEqual(status, 2)
         self.assertIn("cannot be loaded", errors.getvalue())
+
+    def test_retained_evidence_verifies_structure_and_source_digest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "adapter.json"
+            document = inspect_adapter_evidence(
+                self.adapter, "tests.test_conformance:create_invalid_adapter"
+            )
+            report_path.write_text(json.dumps(document))
+            implementation = document["adapter"]["implementation"]["path"]
+            result = validate_adapter_evidence(
+                report_path, implementation_path=implementation
+            )
+
+            self.assertTrue(result["valid"])
+            self.assertTrue(result["passed"])
+            self.assertTrue(result["implementation_source_verified"])
+
+    def test_retained_evidence_rejects_tampering_and_summary_disagreement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "adapter.json"
+            document = inspect_adapter_evidence(
+                self.adapter, "tests.test_conformance:create_invalid_adapter"
+            )
+            document["checks"][0]["id"] = "adapter.state"
+            report_path.write_text(json.dumps(document))
+            with self.assertRaisesRegex(AdapterEvidenceValidationError, "exactly once"):
+                validate_adapter_evidence(report_path)
+
+            document = inspect_adapter_evidence(
+                self.adapter, "tests.test_conformance:create_invalid_adapter"
+            )
+            document["passed"] = False
+            report_path.write_text(json.dumps(document))
+            with self.assertRaisesRegex(AdapterEvidenceValidationError, "disagrees"):
+                validate_adapter_evidence(report_path)
+
+            source = Path(directory) / "adapter.py"
+            source.write_text("tampered")
+            document["passed"] = True
+            report_path.write_text(json.dumps(document))
+            with self.assertRaisesRegex(AdapterEvidenceValidationError, "digest"):
+                validate_adapter_evidence(report_path, implementation_path=source)
+
+    def test_verify_cli_preserves_failed_report_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "adapter.json"
+            document = inspect_adapter_evidence(
+                InvalidIdentityAdapter(self.manifest),
+                "tests.test_conformance:create_invalid_adapter",
+            )
+            report_path.write_text(json.dumps(document))
+            output = StringIO()
+            with redirect_stdout(output):
+                status = adapter_conformance_main(["verify", str(report_path)])
+            self.assertEqual(status, 1)
+            self.assertTrue(json.loads(output.getvalue())["valid"])
+            self.assertFalse(json.loads(output.getvalue())["passed"])
+
+    def test_public_and_packaged_adapter_evidence_schemas_match(self):
+        public = json.loads(
+            (ROOT / "schemas" / "ump-adapter-conformance-v1.schema.json").read_text()
+        )
+        self.assertEqual(public, adapter_evidence_schema())
 
 
 if __name__ == "__main__":

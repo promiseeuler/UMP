@@ -22,8 +22,11 @@ from .benchmark import (
 )
 from .collaboration import Coordinator
 from .conformance import (
+    AdapterEvidenceValidationError,
     AdapterConformanceHarness,
+    adapter_evidence_schema,
     inspect_adapter_evidence,
+    validate_adapter_evidence,
     validate_vector_suite,
 )
 from .coordinator_node import (
@@ -368,8 +371,22 @@ def adapter_conformance_main(argv: list[str] | None = None) -> int:
     inspect_command.add_argument("--adapter", required=True)
     inspect_command.add_argument("--adapter-config")
     inspect_command.add_argument("--output")
+    verify = commands.add_parser("verify", help="Verify one retained report")
+    verify.add_argument("report")
+    verify.add_argument("--implementation")
+    commands.add_parser("schema", help="Print the adapter evidence JSON Schema")
     arguments = parser.parse_args(argv)
     try:
+        if arguments.command == "schema":
+            print(json.dumps(adapter_evidence_schema(), sort_keys=True))
+            return 0
+        if arguments.command == "verify":
+            result = validate_adapter_evidence(
+                arguments.report,
+                implementation_path=arguments.implementation,
+            )
+            print(json.dumps(result, sort_keys=True))
+            return 0 if result["passed"] else 1
         adapter = load_adapter(arguments.adapter, arguments.adapter_config)
         result = inspect_adapter_evidence(adapter, arguments.adapter)
         encoded = json.dumps(result, sort_keys=True)
@@ -394,7 +411,7 @@ def adapter_conformance_main(argv: list[str] | None = None) -> int:
                     temporary_path.unlink(missing_ok=True)
         print(encoded)
         return 0 if result["passed"] else 1
-    except (OSError, TypeError, ValueError) as error:
+    except (AdapterEvidenceValidationError, OSError, TypeError, ValueError) as error:
         print(f"ump-adapter-conformance: {error}", file=sys.stderr)
         return 2
 
