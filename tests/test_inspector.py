@@ -1,4 +1,8 @@
+from contextlib import redirect_stderr
+from hashlib import sha256
+from io import StringIO
 import json
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -7,7 +11,14 @@ from urllib.request import urlopen
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from ump.inspector import InspectorRecorder, InspectorServer, InspectorStore
+from ump.cli import inspector_main
+from ump.inspector import (
+    InspectorRecorder,
+    InspectorServer,
+    InspectorStore,
+    InspectorStoreError,
+    ReadOnlyInspectorStore,
+)
 from ump.models import Mode, RobotManifest, RobotState, Safety, payload
 from ump.transport import InMemoryBus, make_envelope
 
@@ -114,6 +125,53 @@ class InspectorTests(unittest.TestCase):
         self.assertEqual(delivered[0].payload["robot_id"], "robot-inspector-1")
         with self.assertRaisesRegex(RuntimeError, "recording failed"):
             recorder.require_healthy()
+
+    def test_read_only_store_serves_existing_data_without_mutation(self):
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name)
+            path = directory / "events.sqlite3"
+            writer = InspectorStore(path)
+            for item in messages():
+                writer.record(item)
+            writer.close()
+            before = sha256(path.read_bytes()).hexdigest()
+            files_before = sorted(item.name for item in directory.iterdir())
+
+            reader = ReadOnlyInspectorStore(path)
+            snapshot = reader.snapshot()
+            with self.assertRaisesRegex(InspectorStoreError, "cannot record"):
+                reader.record(messages()[0])
+            reader.close()
+
+            self.assertEqual(snapshot["event_count"], 2)
+            self.assertEqual(before, sha256(path.read_bytes()).hexdigest())
+            self.assertEqual(
+                files_before, sorted(item.name for item in directory.iterdir())
+            )
+
+    def test_read_only_store_rejects_missing_and_incompatible_databases(self):
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name)
+            missing = directory / "missing" / "events.sqlite3"
+            with self.assertRaisesRegex(InspectorStoreError, "does not exist"):
+                ReadOnlyInspectorStore(missing)
+            self.assertFalse(missing.parent.exists())
+
+            incompatible = directory / "incompatible.sqlite3"
+            connection = sqlite3.connect(incompatible)
+            connection.execute("CREATE TABLE protocol_events (message_id TEXT)")
+            connection.close()
+            with self.assertRaisesRegex(InspectorStoreError, "missing columns"):
+                ReadOnlyInspectorStore(incompatible)
+
+    def test_inspector_cli_fails_closed_without_creating_database(self):
+        with tempfile.TemporaryDirectory() as name:
+            path = Path(name) / "absent" / "events.sqlite3"
+            errors = StringIO()
+            with redirect_stderr(errors):
+                self.assertEqual(inspector_main(["--database", str(path)]), 2)
+            self.assertIn("does not exist", errors.getvalue())
+            self.assertFalse(path.parent.exists())
 
 
 if __name__ == "__main__":

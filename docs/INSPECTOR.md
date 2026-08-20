@@ -57,6 +57,13 @@ run while another process appends to the database. The server accepts only
 `127.0.0.1`, `::1`, or `localhost` in v0.1 and sends restrictive content security,
 cache, referrer, and content-type headers.
 
+`ump-inspector` requires an existing compatible recorder database and opens it
+with SQLite `mode=ro` and `query_only`. It validates the read-model columns before
+binding the HTTP listener. A missing, mistyped, unreadable, or incompatible path
+returns exit status `2`; the command does not create a parent directory, database,
+table, or protocol event. Schema creation remains confined to the explicitly
+enabled participant/coordinator recording path or an embedded `InspectorStore`.
+
 ## Operational limits
 
 The inspector is observational, not a complete audit system. Recording must be

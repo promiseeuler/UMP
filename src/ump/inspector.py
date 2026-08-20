@@ -13,6 +13,25 @@ from urllib.parse import parse_qs, urlparse
 from .transport import Envelope, MessageBus, encode_envelope
 
 
+INSPECTOR_COLUMNS = frozenset(
+    {
+        "event_order",
+        "message_id",
+        "message_type",
+        "source_id",
+        "session_id",
+        "sequence",
+        "timestamp_ms",
+        "correlation_id",
+        "envelope",
+    }
+)
+
+
+class InspectorStoreError(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class InspectorAddress:
     host: str
@@ -120,6 +139,48 @@ class InspectorStore:
     def close(self) -> None:
         with self._lock:
             self._connection.close()
+
+
+class ReadOnlyInspectorStore(InspectorStore):
+    """Existing inspector read model opened without schema or data mutation."""
+
+    def __init__(self, path: str | Path) -> None:
+        database_path = Path(path).resolve()
+        if not database_path.is_file():
+            raise InspectorStoreError(
+                f"inspector database does not exist: {database_path}"
+            )
+        self._lock = RLock()
+        try:
+            self._connection = sqlite3.connect(
+                f"{database_path.as_uri()}?mode=ro",
+                uri=True,
+                isolation_level=None,
+                check_same_thread=False,
+            )
+            self._connection.execute("PRAGMA query_only = ON")
+            columns = {
+                row[1]
+                for row in self._connection.execute(
+                    "PRAGMA table_info(protocol_events)"
+                )
+            }
+        except sqlite3.Error as error:
+            if hasattr(self, "_connection"):
+                self._connection.close()
+            raise InspectorStoreError(
+                f"inspector database cannot be opened read-only: {error}"
+            ) from error
+        missing = sorted(INSPECTOR_COLUMNS - columns)
+        if missing:
+            self._connection.close()
+            raise InspectorStoreError(
+                f"inspector database schema is missing columns: {missing}"
+            )
+
+    def record(self, envelope: Envelope) -> bool:
+        del envelope
+        raise InspectorStoreError("read-only inspector store cannot record events")
 
 
 class InspectorRecorder:

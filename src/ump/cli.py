@@ -58,7 +58,13 @@ from .goal import (
     shared_goal_from_document,
     shared_goals_from_document,
 )
-from .inspector import InspectorRecorder, InspectorServer, InspectorStore
+from .inspector import (
+    InspectorRecorder,
+    InspectorServer,
+    InspectorStore,
+    InspectorStoreError,
+    ReadOnlyInspectorStore,
+)
 from .journal import SqliteAssignmentJournal
 from .lan_evidence import (
     LanEvidenceValidationError,
@@ -1471,9 +1477,10 @@ def inspector_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     arguments = parser.parse_args(argv)
-    store = InspectorStore(arguments.database)
+    store = None
     server = None
     try:
+        store = ReadOnlyInspectorStore(arguments.database)
         server = InspectorServer(store, arguments.host, arguments.port)
         address = server.address
         print(f"UMP Inspector: http://{address.host}:{address.port}", flush=True)
@@ -1482,13 +1489,14 @@ def inspector_main(argv: list[str] | None = None) -> int:
         except KeyboardInterrupt:
             return 0
         return 0
-    except (OSError, ValueError) as error:
+    except (InspectorStoreError, OSError, sqlite3.Error, ValueError) as error:
         print(f"ump-inspector: {error}", file=sys.stderr)
         return 2
     finally:
         if server is not None:
             server.close()
-        store.close()
+        if store is not None:
+            store.close()
 
 
 def main(argv: list[str] | None = None) -> int:

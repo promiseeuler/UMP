@@ -134,7 +134,8 @@ qualification matrix remains fail-closed with eight pending external gates.
   loss/restoration contract with freshness-derived, edge-triggered callbacks.
 - Optional participant/coordinator-integrated append-only SQLite protocol
   recording with isolated failure health, plus a loopback-only read-only
-  inspector UI for robot state, capabilities, and correlated protocol events.
+  inspector UI backed by a validated SQLite query-only connection for robot
+  state, capabilities, and correlated protocol events.
 - Reproducible reference-runtime benchmark for canonical in-memory state
   propagation, throughput, message size, and incremental idle Python heap.
 - End-to-end mutual-TLS loopback benchmark covering fresh connection setup,

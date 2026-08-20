@@ -28,6 +28,7 @@ from .goal import (
     shared_goal_from_document,
     shared_goals_from_document,
 )
+from .inspector import InspectorStoreError, ReadOnlyInspectorStore
 from .lan_evidence import (
     LanEvidenceValidationError,
     lan_evidence_schema,
@@ -82,6 +83,7 @@ __all__ = [
     "CoordinatorStore",
     "Mode",
     "LanEvidenceValidationError",
+    "InspectorStoreError",
     "NetworkDiagnosticsError",
     "Outcome",
     "Plan",
@@ -92,6 +94,7 @@ __all__ = [
     "Participant",
     "ParticipantService",
     "Registry",
+    "ReadOnlyInspectorStore",
     "RobotAdapter",
     "RobotManifest",
     "RobotState",
