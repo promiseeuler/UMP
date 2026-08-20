@@ -585,12 +585,14 @@ def _run_snapshot_document(snapshot: RunSnapshot) -> dict[str, object]:
     }
 
 
-def _load_shared_goal(path: str) -> SharedGoal:
+def _load_json_document(path: str):
     if path == "-":
-        document = json.load(sys.stdin)
-    else:
-        with Path(path).open(encoding="utf-8") as stream:
-            document = json.load(stream)
+        return json.load(sys.stdin)
+    with Path(path).open(encoding="utf-8") as stream:
+        return json.load(stream)
+
+
+def _shared_goal(document) -> SharedGoal:
     if not isinstance(document, dict):
         raise ValueError("goal document must be a JSON object")
     constraints = document.get("constraints", {})
@@ -603,6 +605,19 @@ def _load_shared_goal(path: str) -> SharedGoal:
         constraints=constraints,
         deadline_ms=document.get("deadline_ms"),
     )
+
+
+def _load_shared_goal(path: str) -> SharedGoal:
+    return _shared_goal(_load_json_document(path))
+
+
+def _load_shared_goals(path: str) -> tuple[SharedGoal, ...]:
+    document = _load_json_document(path)
+    if not isinstance(document, list):
+        raise ValueError("goal batch document must be a JSON array")
+    if not 1 <= len(document) <= 256:
+        raise ValueError("goal batch requires 1 to 256 goals")
+    return tuple(_shared_goal(item) for item in document)
 
 
 def coordinator_parser() -> argparse.ArgumentParser:
@@ -623,7 +638,9 @@ def coordinator_parser() -> argparse.ArgumentParser:
     add_network_runtime(submit)
     submit.add_argument("--planner", required=True, help="Trusted module:factory")
     submit.add_argument("--planner-config")
-    submit.add_argument("--goal", required=True, help="Goal JSON path, or - for stdin")
+    goal_input = submit.add_mutually_exclusive_group(required=True)
+    goal_input.add_argument("--goal", help="One goal JSON path, or - for stdin")
+    goal_input.add_argument("--goals", help="Goal array JSON path, or - for stdin")
     submit.add_argument(
         "--authority-lease",
         action="append",
@@ -670,16 +687,27 @@ def coordinator_main(argv: list[str] | None = None) -> int:
     stop = Event()
     previous_handlers = {}
     plan_id: str | None = None
+    plan_ids: tuple[str, ...] = ()
     try:
         config = load_network_config(arguments.network)
         goal = None
+        goals = None
         planner = None
         authority_leases = {}
         if arguments.command == "submit":
-            goal = _load_shared_goal(arguments.goal)
+            if arguments.goal is not None:
+                goal = _load_shared_goal(arguments.goal)
+                goals = (goal,)
+            else:
+                goals = _load_shared_goals(arguments.goals)
             planner = load_planner(arguments.planner, arguments.planner_config)
             authority_leases = parse_authority_leases(arguments.authority_lease)
-            unknown_participants = set(goal.participant_ids) - {
+            participant_ids = {
+                participant_id
+                for item in goals
+                for participant_id in item.participant_ids
+            }
+            unknown_participants = participant_ids - {
                 peer.robot_id for peer in config.peers
             }
             if unknown_participants:
@@ -808,7 +836,45 @@ def coordinator_main(argv: list[str] | None = None) -> int:
                 flush=True,
             )
             return 0
-        assert goal is not None and planner is not None
+        assert goals is not None and planner is not None
+        if arguments.goals is not None:
+            plans = service.submit_many(
+                goals,
+                planner,
+                participant_timeout_s=arguments.participant_timeout,
+                stop=stop,
+            )
+            plan_ids = tuple(plan.plan_id for plan in plans)
+            snapshots = tuple(coordinator.snapshot(item) for item in plan_ids)
+            print(
+                json.dumps(
+                    {
+                        "event": "submitted_batch",
+                        "runs": [_run_snapshot_document(item) for item in snapshots],
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            snapshots = service.wait_for_completions(
+                plan_ids, arguments.completion_timeout, stop
+            )
+            print(
+                json.dumps(
+                    {
+                        "event": "completed_batch",
+                        "runs": [_run_snapshot_document(item) for item in snapshots],
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            return (
+                0
+                if all(item.status is RunStatus.SUCCEEDED for item in snapshots)
+                else 1
+            )
+        assert goal is not None
         plan = service.submit(
             goal,
             planner,
@@ -816,6 +882,7 @@ def coordinator_main(argv: list[str] | None = None) -> int:
             stop=stop,
         )
         plan_id = plan.plan_id
+        plan_ids = (plan.plan_id,)
         snapshot = coordinator.snapshot(plan.plan_id)
         print(
             json.dumps(
@@ -833,6 +900,11 @@ def coordinator_main(argv: list[str] | None = None) -> int:
         detail: dict[str, object] = {"error": str(error)}
         if plan_id is not None and service is not None:
             detail["run"] = _run_snapshot_document(service.coordinator.snapshot(plan_id))
+        elif plan_ids and service is not None:
+            detail["runs"] = [
+                _run_snapshot_document(service.coordinator.snapshot(item))
+                for item in plan_ids
+            ]
         print(json.dumps(detail, sort_keys=True), file=sys.stderr, flush=True)
         return 3
     except Exception as error:

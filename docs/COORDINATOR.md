@@ -50,6 +50,30 @@ The command waits up to 30 seconds for a manifest and fresh semantic state from
 every participant before invoking the planner. It then waits up to five minutes
 for a terminal durable run result. Both limits are configurable.
 
+## Goal Batches
+
+To submit a list of tasks, place 1–256 goal objects in a JSON array and replace
+`--goal` with `--goals`:
+
+```sh
+ump-coordinator submit \
+  --network /etc/ump/coordinator-network.json \
+  --credential-database /var/lib/ump/coordinator-credentials.sqlite3 \
+  --credential-directory /var/lib/ump/coordinator-credentials \
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --planner owner_planner:create_planner \
+  --goals /etc/ump/goals/shift-tasks.json \
+  --authority-lease robot-humanoid-1=lease-humanoid \
+  --authority-lease robot-quadruped-1=lease-quadruped
+```
+
+Goal IDs must be unique. The coordinator waits for the union of declared
+participants and validates every proposed plan before journaling or publishing
+any run. This prevents a partly accepted batch when one proposal is invalid.
+Runs then progress independently under one bounded completion deadline. JSON
+events use `submitted_batch` and `completed_batch`, with one durable run snapshot
+per goal. Exit status is successful only when every run succeeds.
+
 Exit status is `0` for successful completion, `1` for a terminal non-successful
 run, `2` for configuration/validation failure, and `3` for timeout or
 interruption. A timeout or signal never fabricates a

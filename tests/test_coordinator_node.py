@@ -187,6 +187,61 @@ def participants(bus):
 
 
 class CoordinatorServiceTests(unittest.TestCase):
+    def test_submits_and_waits_for_a_goal_batch(self):
+        bus = ServiceBus()
+        registry = Registry(bus)
+        coordinator = Coordinator(
+            bus.robot_id,
+            bus,
+            registry,
+            authority_lease_ids={
+                "robot-humanoid-1": "lease-humanoid",
+                "robot-quadruped-1": "lease-quadruped",
+                "robot-mobile-arm-1": "lease-arm",
+            },
+        )
+        service = CoordinatorService(
+            bus, coordinator, registry, clock_ms=lambda: 1_100
+        )
+        robots = participants(bus)
+        for robot in robots:
+            robot.announce(1_000)
+        participant_ids = tuple(registry.peers)
+        goals = (
+            SharedGoal(
+                "goal-batch-1",
+                "Move the first package to storage",
+                participant_ids,
+                deadline_ms=60_000,
+            ),
+            SharedGoal(
+                "goal-batch-2",
+                "Move the second package to storage",
+                participant_ids,
+                deadline_ms=60_000,
+            ),
+        )
+        service.start()
+
+        plans = service.submit_many(
+            goals, WarehousePlanner(), participant_timeout_s=0.1
+        )
+        snapshots = service.wait_for_completions(
+            tuple(plan.plan_id for plan in plans), timeout_s=0.1
+        )
+
+        self.assertEqual(len(plans), 2)
+        self.assertEqual(
+            tuple(snapshot.goal_id for snapshot in snapshots),
+            ("goal-batch-1", "goal-batch-2"),
+        )
+        self.assertTrue(
+            all(snapshot.status is RunStatus.SUCCEEDED for snapshot in snapshots)
+        )
+        service.close()
+        for robot in robots:
+            robot.close()
+
     def test_service_queries_unknown_work_and_waits_for_known_resolution(self):
         bus = ServiceBus()
         registry = Registry(bus)

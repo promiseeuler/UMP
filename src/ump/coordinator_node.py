@@ -97,6 +97,25 @@ class CoordinatorService:
         self._health_check()
         return self.coordinator.submit(goal, planner, self._clock_ms())
 
+    def submit_many(
+        self,
+        goals: tuple[SharedGoal, ...],
+        planner: Planner,
+        *,
+        participant_timeout_s: float = 30.0,
+        stop: Event | None = None,
+    ) -> tuple[Plan, ...]:
+        participant_ids = tuple(
+            dict.fromkeys(
+                participant_id
+                for goal in goals
+                for participant_id in goal.participant_ids
+            )
+        )
+        self.wait_for_participants(participant_ids, participant_timeout_s, stop)
+        self._health_check()
+        return self.coordinator.submit_many(goals, planner, self._clock_ms())
+
     def wait_for_completion(
         self,
         plan_id: str,
@@ -116,6 +135,35 @@ class CoordinatorService:
                 raise RunCompletionTimeout(f"plan remains active: {plan_id}")
             if stop.wait(min(self._poll_interval_s, remaining)):
                 raise InterruptedError("coordinator wait interrupted")
+
+    def wait_for_completions(
+        self,
+        plan_ids: tuple[str, ...],
+        timeout_s: float,
+        stop: Event | None = None,
+    ) -> tuple[RunSnapshot, ...]:
+        if not plan_ids or len(plan_ids) != len(set(plan_ids)):
+            raise ValueError("completion wait requires unique plan identifiers")
+        if timeout_s <= 0:
+            raise ValueError("completion timeout must be positive")
+        stop = stop or Event()
+        deadline = time.monotonic() + timeout_s
+        while True:
+            snapshots = tuple(
+                self.coordinator.snapshot(plan_id) for plan_id in plan_ids
+            )
+            active = tuple(
+                snapshot.plan_id
+                for snapshot in snapshots
+                if snapshot.status is RunStatus.ACTIVE
+            )
+            if not active:
+                return snapshots
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RunCompletionTimeout(f"plans remain active: {active}")
+            if stop.wait(min(self._poll_interval_s, remaining)):
+                raise InterruptedError("coordinator batch wait interrupted")
 
     def wait_for_resolution(
         self,

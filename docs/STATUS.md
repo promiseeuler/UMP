@@ -92,6 +92,8 @@
   and authority stores, bounded 1–10 Hz state publication, and signal shutdown.
 - Owner-facing `ump-coordinator` workflow with trusted planner loading, bounded
   participant readiness, durable goal submission, completion waiting, and status.
+- Owner CLI support for validation-atomic 1–256 goal batches with union participant
+  readiness, independent durable runs, and one bounded completion deadline.
 - Owner cancellation command with permanent coordinator-journal identity binding,
   restart-uncertain cancellation requests, and terminal evidence waiting.
 - Owner coordinator reconciliation command with fresh-context gating,

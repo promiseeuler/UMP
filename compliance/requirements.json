@@ -13,7 +13,7 @@
     {"id":"CAP-03","status":"implemented","evidence":["src/ump/models.py","schemas/ump-v0.schema.json"],"note":"Availability has available, busy, degraded, and unavailable values."},
     {"id":"CAP-04","status":"implemented","evidence":["src/ump/runtime.py","tests/test_protocol.py"],"note":"Participant validates capability inputs before adapter invocation."},
     {"id":"CAP-05","status":"implemented","evidence":["src/ump/runtime.py","src/ump/ros2.py"],"note":"Native adapters return explicit rejection outcomes."},
-    {"id":"COL-01","status":"implemented","evidence":["src/ump/collaboration.py","tests/test_protocol.py"],"note":"Coordinator supports one goal or a bounded unique batch, with every proposal validated before any batch publication."},
+    {"id":"COL-01","status":"implemented","evidence":["src/ump/coordinator_node.py","src/ump/cli.py","tests/test_coordinator_node.py","tests/test_protocol.py"],"note":"The owner service and CLI support one goal or a bounded unique batch, with every proposal validated before any batch publication."},
     {"id":"COL-02","status":"implemented","evidence":["src/ump/planner.py","tests/test_planner.py"],"note":"Planner is a public transport-independent protocol with a trusted replaceable factory contract."},
     {"id":"COL-03","status":"implemented","evidence":["src/ump/collaboration.py","src/ump/network.py","tests/test_coordinator_node.py"],"note":"Planner context is limited to goal participants after peer disclosure filtering; the complete authorized awareness-to-outcome path is exercised over mutual TLS."},
     {"id":"COL-04","status":"implemented","evidence":["src/ump/collaboration.py","tests/test_protocol.py"],"note":"Every planner proposal passes local validation before publication or dispatch."},
