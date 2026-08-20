@@ -71,10 +71,28 @@ class Ros2PackagingTests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "ros2.yml").read_text()
         self.assertIn("image: ubuntu:noble", workflow)
         self.assertIn("required-ros-distributions: jazzy", workflow)
-        self.assertIn("target-ros2-distro: jazzy", workflow)
+        self.assertIn("source /opt/ros/jazzy/setup.bash", workflow)
         self.assertIn("ros-tooling/setup-ros@v0.7", workflow)
-        self.assertIn("ros-tooling/action-ros-ci@v0.3", workflow)
+        self.assertIn("ros-jazzy-ros-gz-sim", workflow)
+        self.assertIn("colcon test-result --verbose", workflow)
+        self.assertIn("timeout 180s bash ros2_ws/smoke.sh", workflow)
         self.assertNotIn("@main", workflow)
+
+    def test_runtime_smoke_covers_world_and_action_lifecycle(self):
+        smoke = (ROOT / "ros2_ws" / "smoke.sh").read_text()
+        self.assertIn("gz sim -s -r", smoke)
+        self.assertIn("/world/ump_conformance/control", smoke)
+        self.assertEqual(smoke.count("--expect succeeded"), 2)
+        self.assertEqual(smoke.count("--expect cancelled"), 1)
+        self.assertEqual(smoke.count("--expect rejected"), 1)
+
+    def test_python_package_uses_exported_build_type_not_rosdep_key(self):
+        package = ET.parse(ROS / "ump_gazebo_demo" / "package.xml").getroot()
+        build_tools = {item.text for item in package.findall("buildtool_depend")}
+        self.assertNotIn("ament_python", build_tools)
+        export = package.find("export")
+        assert export is not None
+        self.assertEqual(export.findtext("build_type"), "ament_python")
 
 
 if __name__ == "__main__":

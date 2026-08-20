@@ -17,17 +17,32 @@ jobs:
       - uses: ros-tooling/setup-ros@v0.7
         with:
           required-ros-distributions: jazzy
-      - uses: ros-tooling/action-ros-ci@v0.3
-        with:
-          package-name: ump_interfaces ump_gazebo_demo
-          target-ros2-distro: jazzy
-          colcon-defaults: |
-            {
-              "build": {
-                "symlink-install": true,
-                "event-handlers": ["console_cohesion+"]
-              },
-              "test": {
-                "event-handlers": ["console_direct+"]
-              }
-            }
+      - name: Install Gazebo integration
+        run: |
+          apt-get update
+          apt-get install -y ros-jazzy-ros-gz-sim
+      - name: Resolve dependencies
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          rosdep install --from-paths ros2_ws/src --ignore-src -r -y
+      - name: Build and test packages
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          cd ros2_ws
+          colcon build --symlink-install --event-handlers console_direct+
+          source install/setup.bash
+          colcon test --event-handlers console_direct+
+          colcon test-result --verbose
+      - name: Run headless runtime smoke
+        shell: bash
+        env:
+          ROS_AUTOMATIC_DISCOVERY_RANGE: LOCALHOST
+          ROS_DOMAIN_ID: "73"
+          ROS2CLI_NO_DAEMON: "1"
+          GZ_IP: 127.0.0.1
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source ros2_ws/install/setup.bash
+          timeout 180s bash ros2_ws/smoke.sh

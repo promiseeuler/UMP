@@ -15,6 +15,7 @@ setup(
         (f"share/{package_name}/worlds", glob("worlds/*.sdf")),
     ],
     install_requires=["setuptools"],
+    tests_require=["pytest"],
     zip_safe=True,
     maintainer="Promise Euler",
     maintainer_email="promiseeuler@users.noreply.github.com",
@@ -23,6 +24,7 @@ setup(
     entry_points={
         "console_scripts": [
             "proxy_action_server = ump_gazebo_demo.proxy_action_server:main",
+            "action_smoke_client = ump_gazebo_demo.action_smoke_client:main",
         ],
     },
 )

@@ -72,6 +72,8 @@
   world with three cancellable proxy capability servers.
 - Pinned Ubuntu Noble / ROS 2 Jazzy package build-and-test workflow for the
   reference interfaces and Gazebo fixture.
+- Container-verified Jazzy interface generation and package build, plus a native
+  Noble headless smoke gate for world startup and ROS action lifecycle behavior.
 - Versioned, byte-exact valid and invalid wire vectors with SHA-256 integrity
   checks and a machine-readable `ump-conformance` report.
 - Adapter conformance harness with read-only manifest/state inspection and an

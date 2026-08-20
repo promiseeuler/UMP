@@ -28,6 +28,8 @@ class ReleasePackagingTests(unittest.TestCase):
             "recursive-include schemas *.json",
         ):
             self.assertIn(required, manifest)
+        for generated in ("build", "install", "log"):
+            self.assertIn(f"prune ros2_ws/{generated}", manifest)
 
     def test_release_workflow_validates_installed_wheel_and_source_archive(self):
         workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text()

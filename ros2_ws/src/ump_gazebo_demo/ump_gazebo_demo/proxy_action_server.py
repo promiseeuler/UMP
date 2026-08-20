@@ -9,6 +9,18 @@ from rclpy.node import Node
 from ump_interfaces.action import ExecuteCapability
 
 
+def valid_goal_request(
+    expected_capability, assignment_id, capability, inputs_json
+):
+    if capability != expected_capability or not assignment_id:
+        return False
+    try:
+        inputs = json.loads(inputs_json)
+    except (TypeError, json.JSONDecodeError):
+        return False
+    return isinstance(inputs, dict)
+
+
 class ProxyCapabilityServer(Node):
     """Cancellable lifecycle fixture; it does not model physical capability."""
 
@@ -31,13 +43,12 @@ class ProxyCapabilityServer(Node):
         )
 
     def goal(self, request):
-        if request.capability != self._capability:
-            return GoalResponse.REJECT
-        try:
-            inputs = json.loads(request.inputs_json)
-        except json.JSONDecodeError:
-            return GoalResponse.REJECT
-        if not request.assignment_id or not isinstance(inputs, dict):
+        if not valid_goal_request(
+            self._capability,
+            request.assignment_id,
+            request.capability,
+            request.inputs_json,
+        ):
             return GoalResponse.REJECT
         return GoalResponse.ACCEPT
 

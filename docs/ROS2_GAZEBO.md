@@ -9,15 +9,24 @@ identifies Harmonic as its recommended Gazebo release. The UMP core remains
 middleware-neutral and does not import ROS.
 
 `.github/workflows/ros2.yml` builds and tests both ROS packages against Jazzy
-using pinned official ROS tooling actions. This verifies package metadata,
-interface generation, imports, and declared dependencies. It is not evidence of
-robot dynamics or physical work.
+using a pinned official setup action, then runs a bounded headless lifecycle
+smoke test on native Noble. Static proxy geometry and lifecycle success are not
+evidence of robot dynamics or physical work.
 
-This repository currently provides the tested manufacturer adapter boundary and
-the concrete `rclpy` action backend. It also contains a ROS interface package,
-three cancellable proxy action servers, and a Gazebo world fixture. ROS 2 and
-Gazebo are not installed in the development environment used for the core test
-suite, so simulator launch and physics behavior are not yet claimed as verified.
+This repository provides the tested manufacturer adapter boundary and concrete
+`rclpy` action backend. It also contains a generated ROS action interface, three
+cancellable proxy action servers, and a Gazebo world fixture. Both ROS packages
+have been built successfully with `colcon` against ROS 2 Jazzy and Gazebo Sim
+8.11.0 in a Linux amd64 container. The package entry points and generated action
+types load successfully there.
+
+Cross-process DDS discovery and Gazebo Transport cannot run under the current
+Apple Silicon host's amd64/qemu Docker network emulation: both fail during
+network-interface discovery before processing UMP behavior. The native Ubuntu
+Noble workflow therefore owns runtime evidence. Its bounded headless smoke test
+requires the Gazebo world service, three action servers, successful goals,
+capability rejection, and cancellation. Until that workflow result is inspected,
+simulator runtime and physics behavior remain unverified.
 
 ## Why ROS actions
 

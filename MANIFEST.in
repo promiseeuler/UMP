@@ -7,6 +7,9 @@ recursive-include config *.json
 recursive-include conformance *.json *.hex
 recursive-include docs *.md
 graft ros2_ws
+prune ros2_ws/build
+prune ros2_ws/install
+prune ros2_ws/log
 recursive-include schemas *.json
 recursive-include tests *.py
 global-exclude __pycache__ *.py[cod] .DS_Store
