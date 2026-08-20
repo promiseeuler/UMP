@@ -71,6 +71,9 @@ qualification matrix remains fail-closed with eight pending external gates.
   issuer filtering, and robot-bound event inspection for owners.
 - Durable externally issued credential enrollment, staged rotation, activation,
   local fingerprint revocation, and handshake-time revocation enforcement.
+- Read-only bounded credential inventory with receiver-time effective status,
+  exact generation lookup, active-generation inspection, and robot-scoped audit
+  events with fail-closed legacy ownership migration.
 - Robot-local evidence-based resolution of unknown assignments with immutable
   outcome, resolver identity, evidence audit, and safe resource release.
 - Bounded structured outcome payloads validated against advertised capability

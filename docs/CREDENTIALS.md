@@ -28,11 +28,10 @@ ump-credentials --robot-id robot-1 \
 ```
 
 Activation retires the prior generation and activates the selected generation in
-one durable transaction. `active` prints the exact paths to place in the network
-configuration. Restart the UMP network bus after local activation because Python
-TLS contexts load the local certificate and key at construction time. Keep the
-prior generation available during a planned overlap window so peers can receive
-the new fingerprint before activation.
+one durable transaction. Restart the UMP network bus after local activation
+because Python TLS contexts load the local certificate and key at construction
+time. Keep the prior generation available during a planned overlap window so
+peers can receive the new fingerprint before activation.
 
 Participant and coordinator health checks compare receiver-local time with the
 active generation on startup and during operation. A generation that becomes
@@ -68,7 +67,29 @@ OCSP/CRL policy remain the responsibility of the deployment PKI and TLS terminus
 
 ## Audit and recovery
 
-`events` emits the append-only enrollment, activation, and revocation history.
+Inventory and audit commands open the existing database in SQLite read-only and
+query-only mode. They do not require `--directory`, create missing paths, or
+change the database:
+
+```sh
+ump-credentials --robot-id robot-1 --database var/credentials.db list --limit 100
+ump-credentials --robot-id robot-1 --database var/credentials.db list --status active
+ump-credentials --robot-id robot-1 --database var/credentials.db show --generation 2
+ump-credentials --robot-id robot-1 --database var/credentials.db active
+ump-credentials --robot-id robot-1 --database var/credentials.db events --limit 100
+```
+
+`list --status` filters on effective status: `staged`, `active`, `retired`,
+`not_yet_valid`, `expired`, or `revoked`. Effective status is evaluated against
+receiver-local time before the result limit is applied. The stored lifecycle
+status remains in each result so operators can distinguish, for example, a
+stored-active generation whose certificate has expired.
+
+`events` emits the bounded, robot-scoped append-only enrollment, activation, and
+revocation history. When a legacy database is opened for mutation, UMP migrates
+events only if their robot ownership can be derived unambiguously from existing
+credential records; otherwise migration rolls back and fails closed.
+
 The SQLite store uses WAL and full synchronous durability. Database and managed
 credential directory must be backed up together. Missing files, an invalid
 validity window, identity mismatch, key mismatch, duplicate fingerprint, or an

@@ -47,6 +47,7 @@ jobs:
           (cd /tmp && /tmp/ump-release/bin/ump-adapter-conformance --help)
           (cd /tmp && /tmp/ump-release/bin/ump-adapter-conformance schema)
           (cd /tmp && /tmp/ump-release/bin/ump-authority --help)
+          (cd /tmp && /tmp/ump-release/bin/ump-credentials --help)
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --samples 10 --participants 2)
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --profile tls-loopback --samples 10)
           (cd /tmp && /tmp/ump-release/bin/ump-lan-benchmark --help)

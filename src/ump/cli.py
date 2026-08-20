@@ -56,7 +56,12 @@ from .coordinator_store import (
 from .credentials import (
     CredentialError,
     CredentialGeneration,
+    CredentialGenerationSummary,
+    EFFECTIVE_CREDENTIAL_STATUSES,
     SqliteCredentialStore,
+    read_credential_events,
+    read_credential_generation,
+    read_credential_generations,
     read_active_credential,
 )
 from .goal import (
@@ -279,7 +284,7 @@ def credentials_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--robot-id", required=True)
     parser.add_argument("--database", required=True)
-    parser.add_argument("--directory", required=True)
+    parser.add_argument("--directory")
     commands = parser.add_subparsers(dest="command", required=True)
     enroll = commands.add_parser("enroll", help="Validate and stage an issued credential")
     enroll.add_argument("--certificate", required=True)
@@ -290,8 +295,14 @@ def credentials_parser() -> argparse.ArgumentParser:
     revoke = commands.add_parser("revoke", help="Locally revoke a certificate fingerprint")
     revoke.add_argument("--fingerprint", required=True)
     revoke.add_argument("--reason", required=True)
-    commands.add_parser("active", help="Print the active generation")
-    commands.add_parser("events", help="Print the credential audit history")
+    commands.add_parser("active", help="Print the stored active generation")
+    events = commands.add_parser("events", help="Print credential audit history")
+    events.add_argument("--limit", type=int, default=1_000)
+    generations = commands.add_parser("list", help="List bounded credential inventory")
+    generations.add_argument("--status", choices=sorted(EFFECTIVE_CREDENTIAL_STATUSES))
+    generations.add_argument("--limit", type=int, default=100)
+    show = commands.add_parser("show", help="Print one exact credential generation")
+    show.add_argument("--generation", type=int, required=True)
     return parser
 
 
@@ -311,15 +322,36 @@ def _credential_document(generation: CredentialGeneration | None) -> object:
     }
 
 
+def _credential_summary_document(
+    summary: CredentialGenerationSummary,
+) -> dict[str, object]:
+    document = _credential_document(summary.generation)
+    assert isinstance(document, dict)
+    return {
+        **document,
+        "stored_status": summary.generation.status,
+        "effective_status": summary.effective_status,
+        "revoked": summary.revoked,
+        "created_at_ms": summary.created_at_ms,
+        "activated_at_ms": summary.activated_at_ms,
+    }
+
+
 def credentials_main(argv: list[str] | None = None) -> int:
     arguments = credentials_parser().parse_args(argv)
     now_ms = int(time.time() * 1_000)
     store: SqliteCredentialStore | None = None
     try:
-        store = SqliteCredentialStore(
-            arguments.robot_id, arguments.database, arguments.directory
-        )
+        if arguments.command in {"enroll", "activate", "revoke"}:
+            if arguments.directory is None:
+                raise CredentialError(
+                    "--directory is required for credential mutation commands"
+                )
+            store = SqliteCredentialStore(
+                arguments.robot_id, arguments.database, arguments.directory
+            )
         if arguments.command == "enroll":
+            assert store is not None
             result: object = _credential_document(
                 store.enroll(
                     arguments.certificate,
@@ -329,14 +361,47 @@ def credentials_main(argv: list[str] | None = None) -> int:
                 )
             )
         elif arguments.command == "activate":
+            assert store is not None
             result = _credential_document(store.activate(arguments.generation, now_ms))
         elif arguments.command == "revoke":
+            assert store is not None
             store.revoke(arguments.fingerprint, arguments.reason, now_ms)
             result = {"fingerprint_sha256": arguments.fingerprint.lower(), "status": "revoked"}
         elif arguments.command == "active":
-            result = _credential_document(store.active())
+            summaries = read_credential_generations(
+                arguments.database,
+                arguments.robot_id,
+                now_ms,
+                stored_status="active",
+                limit=1,
+            )
+            result = _credential_summary_document(summaries[0]) if summaries else None
+        elif arguments.command == "show":
+            result = _credential_summary_document(
+                read_credential_generation(
+                    arguments.database,
+                    arguments.robot_id,
+                    arguments.generation,
+                    now_ms,
+                )
+            )
+        elif arguments.command == "list":
+            result = [
+                _credential_summary_document(summary)
+                for summary in read_credential_generations(
+                    arguments.database,
+                    arguments.robot_id,
+                    now_ms,
+                    effective_status=arguments.status,
+                    limit=arguments.limit,
+                )
+            ]
         else:
-            result = store.events()
+            result = read_credential_events(
+                arguments.database,
+                arguments.robot_id,
+                limit=arguments.limit,
+            )
         print(json.dumps(result, sort_keys=True))
         return 0
     except (CredentialError, OSError, sqlite3.Error) as error:

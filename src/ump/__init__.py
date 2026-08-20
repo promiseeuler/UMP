@@ -27,6 +27,12 @@ from .coordinator_store import (
     read_run_summaries,
 )
 from .coordinator_node import CoordinatorService
+from .credentials import (
+    CredentialGenerationSummary,
+    read_credential_events,
+    read_credential_generation,
+    read_credential_generations,
+)
 from .journal import SqliteAssignmentJournal
 from .goal import (
     goal_batch_schema,
@@ -90,6 +96,7 @@ __all__ = [
     "AuthorityLease",
     "ConformanceReport",
     "CoordinatorStore",
+    "CredentialGenerationSummary",
     "Mode",
     "LanEvidenceValidationError",
     "InspectorStoreError",
@@ -134,6 +141,9 @@ __all__ = [
     "read_authority_events",
     "read_authority_lease",
     "read_authority_leases",
+    "read_credential_events",
+    "read_credential_generation",
+    "read_credential_generations",
     "shared_goal_from_document",
     "shared_goals_from_document",
     "review_schema",

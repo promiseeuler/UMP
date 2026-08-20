@@ -33,6 +33,212 @@ class CredentialGeneration:
     status: str
 
 
+@dataclass(frozen=True)
+class CredentialGenerationSummary:
+    generation: CredentialGeneration
+    effective_status: str
+    revoked: bool
+    created_at_ms: int
+    activated_at_ms: int | None
+
+
+EFFECTIVE_CREDENTIAL_STATUSES = frozenset(
+    {"active", "staged", "retired", "not_yet_valid", "expired", "revoked"}
+)
+CREDENTIAL_GENERATION_COLUMNS = frozenset(
+    {
+        "generation",
+        "robot_id",
+        "fingerprint_sha256",
+        "certificate_path",
+        "private_key_path",
+        "ca_path",
+        "not_before_ms",
+        "not_after_ms",
+        "status",
+        "created_at_ms",
+        "activated_at_ms",
+    }
+)
+REVOKED_CERTIFICATE_COLUMNS = frozenset(
+    {"fingerprint_sha256", "reason", "revoked_at_ms"}
+)
+CREDENTIAL_EVENT_COLUMNS = frozenset(
+    {"sequence", "robot_id", "event_type", "occurred_at_ms", "detail_json"}
+)
+
+
+def _open_credentials_read_only(database: str | Path) -> sqlite3.Connection:
+    path = Path(database).resolve()
+    if not path.is_file():
+        raise CredentialError(f"credential database does not exist: {path}")
+    try:
+        connection = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA query_only = ON")
+        tables = {
+            "credential_generations": CREDENTIAL_GENERATION_COLUMNS,
+            "revoked_certificates": REVOKED_CERTIFICATE_COLUMNS,
+            "credential_events": CREDENTIAL_EVENT_COLUMNS,
+        }
+        for table, expected in tables.items():
+            columns = {
+                row[1] for row in connection.execute(f"PRAGMA table_info({table})")
+            }
+            if missing := sorted(expected - columns):
+                raise CredentialError(
+                    f"credential database {table} is missing columns: {missing}"
+                )
+        return connection
+    except (sqlite3.Error, CredentialError) as error:
+        if "connection" in locals():
+            connection.close()
+        if isinstance(error, CredentialError):
+            raise
+        raise CredentialError(
+            f"credential database cannot be opened read-only: {error}"
+        ) from error
+
+
+def _generation_summary(row: sqlite3.Row) -> CredentialGenerationSummary:
+    try:
+        generation = SqliteCredentialStore._generation(row)
+        return CredentialGenerationSummary(
+            generation=generation,
+            effective_status=row["effective_status"],
+            revoked=bool(row["revoked"]),
+            created_at_ms=row["created_at_ms"],
+            activated_at_ms=row["activated_at_ms"],
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise CredentialError(f"credential generation row is invalid: {error}") from error
+
+
+def _credential_inventory_query() -> str:
+    return (
+        "SELECT inventory.* FROM (SELECT generations.*, "
+        "CASE WHEN revoked.fingerprint_sha256 IS NOT NULL THEN 1 ELSE 0 END AS revoked, "
+        "CASE WHEN revoked.fingerprint_sha256 IS NOT NULL THEN 'revoked' "
+        "WHEN generations.not_before_ms > ? THEN 'not_yet_valid' "
+        "WHEN generations.not_after_ms <= ? THEN 'expired' "
+        "ELSE generations.status END AS effective_status "
+        "FROM credential_generations AS generations LEFT JOIN revoked_certificates AS revoked "
+        "ON revoked.fingerprint_sha256 = generations.fingerprint_sha256) AS inventory"
+    )
+
+
+def read_credential_generations(
+    database: str | Path,
+    robot_id: str,
+    now_ms: int,
+    *,
+    effective_status: str | None = None,
+    stored_status: str | None = None,
+    limit: int = 100,
+) -> tuple[CredentialGenerationSummary, ...]:
+    """List bounded credential generations without mutating inventory state."""
+    if not isinstance(robot_id, str) or not robot_id.strip():
+        raise CredentialError("robot_id is required")
+    if type(now_ms) is not int or now_ms < 0:
+        raise CredentialError("now_ms must be a non-negative integer")
+    if (
+        effective_status is not None
+        and effective_status not in EFFECTIVE_CREDENTIAL_STATUSES
+    ):
+        raise CredentialError("effective credential status is invalid")
+    if stored_status is not None and stored_status not in {"staged", "active", "retired"}:
+        raise CredentialError("stored credential status is invalid")
+    if type(limit) is not int or not 1 <= limit <= 1_000:
+        raise CredentialError("credential limit must be between 1 and 1000")
+    connection = _open_credentials_read_only(database)
+    try:
+        clauses = ["robot_id = ?"]
+        parameters: list[object] = [now_ms, now_ms, robot_id]
+        if effective_status is not None:
+            clauses.append("effective_status = ?")
+            parameters.append(effective_status)
+        if stored_status is not None:
+            clauses.append("status = ?")
+            parameters.append(stored_status)
+        rows = connection.execute(
+            _credential_inventory_query()
+            + " WHERE "
+            + " AND ".join(clauses)
+            + " ORDER BY generation DESC LIMIT ?",
+            (*parameters, limit),
+        ).fetchall()
+        return tuple(_generation_summary(row) for row in rows)
+    except sqlite3.Error as error:
+        raise CredentialError(f"credential inventory cannot be read: {error}") from error
+    finally:
+        connection.close()
+
+
+def read_credential_generation(
+    database: str | Path,
+    robot_id: str,
+    generation: int,
+    now_ms: int,
+) -> CredentialGenerationSummary:
+    if type(generation) is not int or generation < 1:
+        raise CredentialError("generation must be a positive integer")
+    if not isinstance(robot_id, str) or not robot_id.strip():
+        raise CredentialError("robot_id is required")
+    if type(now_ms) is not int or now_ms < 0:
+        raise CredentialError("now_ms must be a non-negative integer")
+    connection = _open_credentials_read_only(database)
+    try:
+        row = connection.execute(
+            _credential_inventory_query()
+            + " WHERE robot_id = ? AND generation = ?",
+            (now_ms, now_ms, robot_id, generation),
+        ).fetchone()
+        if row is None:
+            raise CredentialError("credential generation does not exist")
+        return _generation_summary(row)
+    except sqlite3.Error as error:
+        raise CredentialError(f"credential generation cannot be read: {error}") from error
+    finally:
+        connection.close()
+
+
+def read_credential_events(
+    database: str | Path,
+    robot_id: str,
+    *,
+    limit: int = 1_000,
+) -> tuple[dict[str, object], ...]:
+    if not isinstance(robot_id, str) or not robot_id.strip():
+        raise CredentialError("robot_id is required")
+    if type(limit) is not int or not 1 <= limit <= 1_000:
+        raise CredentialError("event limit must be between 1 and 1000")
+    connection = _open_credentials_read_only(database)
+    try:
+        rows = connection.execute(
+            "SELECT sequence, event_type, occurred_at_ms, detail_json FROM ("
+            "SELECT sequence, event_type, occurred_at_ms, detail_json "
+            "FROM credential_events WHERE robot_id = ? "
+            "ORDER BY sequence DESC LIMIT ?) ORDER BY sequence",
+            (robot_id, limit),
+        ).fetchall()
+        try:
+            return tuple(
+                {
+                    "sequence": row[0],
+                    "event_type": row[1],
+                    "occurred_at_ms": row[2],
+                    "detail": json.loads(row[3]),
+                }
+                for row in rows
+            )
+        except (TypeError, json.JSONDecodeError) as error:
+            raise CredentialError(f"credential event row is invalid: {error}") from error
+    except sqlite3.Error as error:
+        raise CredentialError(f"credential events cannot be read: {error}") from error
+    finally:
+        connection.close()
+
+
 def read_active_credential(
     database: str | Path,
     robot_id: str,
@@ -152,12 +358,60 @@ class SqliteCredentialStore:
             );
             CREATE TABLE IF NOT EXISTS credential_events (
                 sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                robot_id TEXT NOT NULL,
                 event_type TEXT NOT NULL,
                 occurred_at_ms INTEGER NOT NULL,
                 detail_json TEXT NOT NULL
             );
             """
         )
+        self._migrate_event_robot_ids()
+
+    def _migrate_event_robot_ids(self) -> None:
+        columns = {
+            row[1] for row in self._connection.execute("PRAGMA table_info(credential_events)")
+        }
+        if "robot_id" in columns:
+            return
+        self._connection.execute("BEGIN IMMEDIATE")
+        try:
+            self._connection.execute("ALTER TABLE credential_events ADD COLUMN robot_id TEXT")
+            rows = self._connection.execute(
+                "SELECT sequence, detail_json FROM credential_events"
+            ).fetchall()
+            for row in rows:
+                try:
+                    detail = json.loads(row["detail_json"])
+                except (TypeError, json.JSONDecodeError) as error:
+                    raise CredentialError(
+                        f"legacy credential event {row['sequence']} is invalid"
+                    ) from error
+                owner = None
+                if "generation" in detail:
+                    owner_row = self._connection.execute(
+                        "SELECT robot_id FROM credential_generations WHERE generation = ?",
+                        (detail["generation"],),
+                    ).fetchone()
+                    owner = owner_row[0] if owner_row is not None else None
+                elif "fingerprint_sha256" in detail:
+                    owners = self._connection.execute(
+                        "SELECT DISTINCT robot_id FROM credential_generations "
+                        "WHERE fingerprint_sha256 = ?",
+                        (detail["fingerprint_sha256"],),
+                    ).fetchall()
+                    owner = owners[0][0] if len(owners) == 1 else None
+                if owner is None:
+                    raise CredentialError(
+                        f"legacy credential event {row['sequence']} ownership is unknown"
+                    )
+                self._connection.execute(
+                    "UPDATE credential_events SET robot_id = ? WHERE sequence = ?",
+                    (owner, row["sequence"]),
+                )
+            self._connection.execute("COMMIT")
+        except BaseException:
+            self._connection.execute("ROLLBACK")
+            raise
 
     def enroll(
         self,
@@ -312,7 +566,9 @@ class SqliteCredentialStore:
     def events(self) -> tuple[dict[str, object], ...]:
         with self._lock:
             rows = self._connection.execute(
-                "SELECT sequence, event_type, occurred_at_ms, detail_json FROM credential_events ORDER BY sequence"
+                "SELECT sequence, event_type, occurred_at_ms, detail_json "
+                "FROM credential_events WHERE robot_id = ? ORDER BY sequence",
+                (self.robot_id,),
             ).fetchall()
         return tuple(
             {"sequence": row[0], "event_type": row[1], "occurred_at_ms": row[2], "detail": json.loads(row[3])}
@@ -376,8 +632,14 @@ class SqliteCredentialStore:
 
     def _event(self, event_type: str, occurred_at_ms: int, detail: dict[str, object]) -> None:
         self._connection.execute(
-            "INSERT INTO credential_events(event_type, occurred_at_ms, detail_json) VALUES (?, ?, ?)",
-            (event_type, occurred_at_ms, json.dumps(detail, separators=(",", ":"), sort_keys=True)),
+            "INSERT INTO credential_events"
+            "(robot_id, event_type, occurred_at_ms, detail_json) VALUES (?, ?, ?, ?)",
+            (
+                self.robot_id,
+                event_type,
+                occurred_at_ms,
+                json.dumps(detail, separators=(",", ":"), sort_keys=True),
+            ),
         )
 
     @staticmethod
