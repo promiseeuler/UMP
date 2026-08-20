@@ -48,6 +48,7 @@ transport, and placement steps from one shared goal.
 - `docs/READINESS.md`: executable PRD requirement traceability policy.
 - `docs/VERSIONING.md`: package versioning and release-artifact verification.
 - `docs/INSPECTOR.md`: read-only local protocol inspector setup.
+- `docs/HARDWARE_PILOT.md`: physical-pilot evidence profile and verifier.
 - `docs/STATUS.md`: implemented behavior and explicit production gaps.
 - `conformance/v0.1`: byte-exact valid and invalid protocol vectors.
 - `schemas/ump-v0.schema.json`: canonical JSON Schema for wire messages.

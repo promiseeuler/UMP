@@ -94,6 +94,8 @@
   participant readiness, durable goal submission, completion waiting, and status.
 - Four-identity mutual-TLS loopback integration covering authorized awareness,
   three dependency-ordered assignments, outcomes, and terminal run durability.
+- Integrity-bound hardware-pilot bundle verifier enforcing the PRD topology and
+  supervised-phase evidence gates without claiming physical validation.
 - Participant-node enforcement of the active managed credential generation,
   handshake-time peer revocation, and runtime local-credential revocation checks.
 - Participant-node detection of semantic safety transitions with single-snapshot,

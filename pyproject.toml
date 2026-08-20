@@ -37,6 +37,7 @@ ump-credentials = "ump.cli:credentials_main"
 ump-inspector = "ump.cli:inspector_main"
 ump-lan-benchmark = "ump.cli:lan_benchmark_main"
 ump-node = "ump.cli:node_main"
+ump-pilot = "ump.cli:pilot_main"
 ump-reconcile = "ump.cli:reconcile_main"
 ump-readiness = "ump.cli:readiness_main"
 ump-vocabulary = "ump.cli:vocabulary_main"
@@ -53,4 +54,5 @@ ump = [
   "inspector_static/*.css",
   "inspector_static/*.js",
   "vocabulary_data/**/*.json",
+  "pilot_data/**/*.json",
 ]

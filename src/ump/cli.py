@@ -35,6 +35,7 @@ from .models import AssignmentStatus, AuthorityLease, SharedGoal, payload
 from .network import TlsNetworkBus, load_network_config
 from .node import ParticipantService, load_adapter
 from .planner import load_planner
+from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .readiness import load_readiness_report
 from .runtime import Registry
 from .vocabulary import standard_capability, vocabulary_document
@@ -758,6 +759,29 @@ def coordinator_main(argv: list[str] | None = None) -> int:
                 store.close()
         if credentials is not None:
             credentials.close()
+
+
+def pilot_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-pilot",
+        description="Validate an integrity-bound UMP hardware pilot evidence bundle.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    validate = commands.add_parser("validate", help="Validate one pilot manifest")
+    validate.add_argument("manifest")
+    commands.add_parser("schema", help="Print the hardware pilot JSON Schema")
+    arguments = parser.parse_args(argv)
+    try:
+        result = (
+            pilot_schema()
+            if arguments.command == "schema"
+            else validate_pilot_bundle(arguments.manifest)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except PilotValidationError as error:
+        print(f"ump-pilot: {error}", file=sys.stderr)
+        return 2
 
 
 def readiness_main(argv: list[str] | None = None) -> int:

@@ -29,6 +29,7 @@ class PublicApiTests(unittest.TestCase):
             "Planner",
             "PlanStep",
             "PlanValidationError",
+            "PilotValidationError",
             "ParticipantService",
             "RobotManifest",
             "RobotState",
@@ -40,6 +41,8 @@ class PublicApiTests(unittest.TestCase):
             "standard_capability",
             "load_adapter",
             "load_planner",
+            "pilot_schema",
+            "validate_pilot_bundle",
             "validate_plan",
         ):
             self.assertIn(public_name, ump.__all__)

@@ -24,6 +24,7 @@ from .models import (
 )
 from .node import ParticipantService, load_adapter
 from .planner import Planner, load_planner
+from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .runtime import Participant, Registry
 from .vocabulary import standard_capabilities, standard_capability
 
@@ -45,6 +46,7 @@ __all__ = [
     "Planner",
     "PlanStep",
     "PlanValidationError",
+    "PilotValidationError",
     "Participant",
     "ParticipantService",
     "Registry",
@@ -62,5 +64,7 @@ __all__ = [
     "standard_capability",
     "load_adapter",
     "load_planner",
+    "pilot_schema",
+    "validate_pilot_bundle",
     "validate_plan",
 ]
