@@ -525,6 +525,23 @@ class CoordinatorServiceTests(unittest.TestCase):
                 )
             self.assertEqual(exit_code, 0)
             self.assertEqual(json.loads(output.getvalue())["status"], "succeeded")
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = coordinator_main(
+                    [
+                        "runs",
+                        "--database",
+                        str(Path(directory) / "coordinator.sqlite3"),
+                        "--status",
+                        "succeeded",
+                        "--limit",
+                        "10",
+                    ]
+                )
+            self.assertEqual(exit_code, 0)
+            history = json.loads(output.getvalue())
+            self.assertEqual([item["plan_id"] for item in history], [plan.plan_id])
+            self.assertEqual(history[0]["created_at_ms"], 1_100)
 
     def test_missing_participant_context_times_out_before_planning(self):
         bus = ServiceBus()

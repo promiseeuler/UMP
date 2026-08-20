@@ -56,6 +56,54 @@ class RunSnapshot:
     steps: dict[str, StepStatus]
 
 
+@dataclass(frozen=True)
+class RunSummary:
+    plan_id: str
+    goal_id: str
+    status: RunStatus
+    created_at_ms: int
+    updated_at_ms: int
+
+
+def read_run_summaries(
+    path: str | Path,
+    *,
+    status: RunStatus | None = None,
+    limit: int = 100,
+) -> tuple[RunSummary, ...]:
+    """Read bounded run history without modifying or recovering the journal."""
+    if not 1 <= limit <= 1_000:
+        raise ValueError("run history limit must be between 1 and 1000")
+    database = Path(path).resolve()
+    connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+    try:
+        query = (
+            "SELECT plan_id, goal_id, status, created_at_ms, updated_at_ms "
+            "FROM runs"
+        )
+        parameters: tuple[object, ...]
+        if status is None:
+            parameters = (limit,)
+        else:
+            query += " WHERE status = ?"
+            parameters = (status.value, limit)
+        query += " ORDER BY created_at_ms DESC, plan_id DESC LIMIT ?"
+        return tuple(
+            RunSummary(
+                plan_id,
+                goal_id,
+                RunStatus(run_status),
+                created_at_ms,
+                updated_at_ms,
+            )
+            for plan_id, goal_id, run_status, created_at_ms, updated_at_ms in (
+                connection.execute(query, parameters)
+            )
+        )
+    finally:
+        connection.close()
+
+
 def read_run_snapshot(path: str | Path, plan_id: str) -> RunSnapshot:
     """Read one run through a SQLite read-only connection without recovery."""
     database = Path(path).resolve()

@@ -31,7 +31,9 @@ from .coordinator_store import (
     CoordinatorStore,
     RunSnapshot,
     RunStatus,
+    RunSummary,
     read_run_snapshot,
+    read_run_summaries,
 )
 from .credentials import CredentialError, CredentialGeneration, SqliteCredentialStore
 from .inspector import InspectorServer, InspectorStore
@@ -585,6 +587,16 @@ def _run_snapshot_document(snapshot: RunSnapshot) -> dict[str, object]:
     }
 
 
+def _run_summary_document(summary: RunSummary) -> dict[str, object]:
+    return {
+        "plan_id": summary.plan_id,
+        "goal_id": summary.goal_id,
+        "status": summary.status.value,
+        "created_at_ms": summary.created_at_ms,
+        "updated_at_ms": summary.updated_at_ms,
+    }
+
+
 def _load_json_document(path: str):
     if path == "-":
         return json.load(sys.stdin)
@@ -666,6 +678,10 @@ def coordinator_parser() -> argparse.ArgumentParser:
     status = commands.add_parser("status", help="Read one run from the durable journal")
     status.add_argument("--database", required=True)
     status.add_argument("--plan-id", required=True)
+    runs = commands.add_parser("runs", help="List bounded durable run history")
+    runs.add_argument("--database", required=True)
+    runs.add_argument("--status", choices=tuple(item.value for item in RunStatus))
+    runs.add_argument("--limit", type=int, default=100)
     return parser
 
 
@@ -677,6 +693,26 @@ def coordinator_main(argv: list[str] | None = None) -> int:
             print(json.dumps(_run_snapshot_document(snapshot), sort_keys=True))
             return 0
         except (KeyError, OSError, sqlite3.Error, ValueError) as error:
+            print(f"ump-coordinator: {type(error).__name__}: {error}", file=sys.stderr)
+            return 2
+    if arguments.command == "runs":
+        try:
+            selected_status = (
+                RunStatus(arguments.status) if arguments.status is not None else None
+            )
+            summaries = read_run_summaries(
+                arguments.database,
+                status=selected_status,
+                limit=arguments.limit,
+            )
+            print(
+                json.dumps(
+                    [_run_summary_document(summary) for summary in summaries],
+                    sort_keys=True,
+                )
+            )
+            return 0
+        except (OSError, sqlite3.Error, ValueError) as error:
             print(f"ump-coordinator: {type(error).__name__}: {error}", file=sys.stderr)
             return 2
 

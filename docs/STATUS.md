@@ -27,6 +27,7 @@
 - Payload-hash idempotency conflicts and restart-to-unknown behavior.
 - Explicit assignment acknowledgements and terminal outcome statuses.
 - SQLite WAL coordinator journal with immutable goals, plans, and stable assignments.
+- Read-only, status-filtered, bounded owner discovery of durable coordinator runs.
 - Event-driven dependency progression for delayed acknowledgements and outcomes.
 - Opt-in bounded concurrent native assignment execution with ordered envelope
   publication and exception-to-unknown safety behavior.

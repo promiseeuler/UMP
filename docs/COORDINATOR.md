@@ -121,6 +121,18 @@ ump-coordinator status \
   --plan-id PLAN_ID
 ```
 
+List recent runs newest first, optionally filtered by durable status:
+
+```sh
+ump-coordinator runs \
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --status active \
+  --limit 100
+```
+
+Run history is also read-only. The limit must be between 1 and 1,000, and each
+entry includes the plan ID, goal ID, status, creation time, and update time.
+
 For restart-uncertain work, use `ump-coordinator reconcile` as documented in
 `RECONCILIATION.md`. Recovery requires fresh context from all declared
 participants and fingerprint-bound terminal evidence; assignments are never

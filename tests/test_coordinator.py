@@ -13,6 +13,7 @@ from ump.coordinator_store import (
     RunStatus,
     StepStatus,
     read_run_snapshot,
+    read_run_summaries,
 )
 from ump.demo import WarehousePlanner, build_demo
 from ump.models import (
@@ -86,6 +87,35 @@ def robot_reply(bus, assignment, status, sequence):
 
 
 class CoordinatorLifecycleTests(unittest.TestCase):
+    def test_read_only_run_history_is_bounded_filtered_and_newest_first(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "coordinator.sqlite3"
+            bus, registry, goal = awareness_only_network()
+            coordinator = Coordinator(
+                "coordinator",
+                bus,
+                registry,
+                store=CoordinatorStore(database),
+                require_authority=False,
+            )
+            first = coordinator.submit(goal, WarehousePlanner(), 1_100)
+            second_goal = replace(
+                goal,
+                goal_id="goal-async-2",
+                description="Move another package",
+            )
+            second = coordinator.submit(second_goal, WarehousePlanner(), 1_200)
+
+            summaries = read_run_summaries(
+                database, status=RunStatus.ACTIVE, limit=1
+            )
+
+            self.assertEqual(len(summaries), 1)
+            self.assertEqual(summaries[0].plan_id, second.plan_id)
+            self.assertEqual(summaries[0].created_at_ms, 1_200)
+            self.assertNotEqual(summaries[0].plan_id, first.plan_id)
+            coordinator.close()
+
     def test_durable_journal_is_bound_to_one_coordinator_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "coordinator.sqlite3"

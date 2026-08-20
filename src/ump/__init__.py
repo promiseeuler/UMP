@@ -4,7 +4,14 @@ from .adapter import CommunicationLossHandler, RobotAdapter
 from .authority import SqliteAuthorityStore
 from .conformance import AdapterConformanceHarness, ConformanceReport
 from .collaboration import Coordinator, PlanValidationError, validate_plan
-from .coordinator_store import CoordinatorStore, RunSnapshot, RunStatus, StepStatus
+from .coordinator_store import (
+    CoordinatorStore,
+    RunSnapshot,
+    RunStatus,
+    RunSummary,
+    StepStatus,
+    read_run_summaries,
+)
 from .coordinator_node import CoordinatorService
 from .journal import SqliteAssignmentJournal
 from .models import (
@@ -55,6 +62,7 @@ __all__ = [
     "RobotState",
     "RunSnapshot",
     "RunStatus",
+    "RunSummary",
     "Safety",
     "SharedGoal",
     "SqliteAssignmentJournal",
@@ -64,6 +72,7 @@ __all__ = [
     "standard_capability",
     "load_adapter",
     "load_planner",
+    "read_run_summaries",
     "pilot_schema",
     "validate_pilot_bundle",
     "validate_plan",
