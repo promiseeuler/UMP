@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from ump.collaboration import Coordinator, PlanValidationError, validate_plan
 from ump.demo import WarehousePlanner, build_demo
-from ump.models import Assignment, PlanStep, RobotState, SharedGoal
+from ump.models import Assignment, PlanStep, RobotState, Safety, SharedGoal
 from ump.transport import (
     ProtocolDecodeError,
     SAFETY_STREAM,
@@ -126,6 +126,25 @@ class ProtocolTests(unittest.TestCase):
         participant.publish_state(2_001)
         self.assertEqual(self.bus.trace[-1].stream, "operational")
         self.assertEqual(self.bus.trace[-1].sequence, 3)
+
+    def test_participant_rejects_supplied_state_for_another_robot(self):
+        participant = self.participants[0]
+        foreign_state = replace(participant.adapter.state(), robot_id="robot-other")
+        with self.assertRaisesRegex(ValueError, "identity differs"):
+            participant.publish_state(2_000, state=foreign_state)
+
+    def test_operational_publication_emits_changed_safety_on_priority_stream_first(self):
+        participant = self.participants[0]
+        changed = replace(
+            participant.adapter.state(), safety=Safety.PROTECTIVE_STOP
+        )
+        participant.publish_state(2_000, state=changed)
+        safety, operational = self.bus.trace[-2:]
+        self.assertEqual(safety.stream, SAFETY_STREAM)
+        self.assertEqual(operational.stream, "operational")
+        self.assertEqual(safety.payload, operational.payload)
+        self.assertEqual(safety.sequence, 1)
+        self.assertEqual(operational.sequence, 3)
 
     def test_safety_stream_rejects_non_state_messages(self):
         envelope = make_envelope(

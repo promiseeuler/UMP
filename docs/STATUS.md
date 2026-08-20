@@ -88,6 +88,8 @@
   and authority stores, bounded 1–10 Hz state publication, and signal shutdown.
 - Participant-node enforcement of the active managed credential generation,
   handshake-time peer revocation, and runtime local-credential revocation checks.
+- Participant-node detection of semantic safety transitions with single-snapshot,
+  safety-stream-first publication and independent sequence ordering.
 - Append-only SQLite protocol recorder and loopback-only, read-only inspector UI
   for robot state, capabilities, and correlated protocol events.
 - Reproducible reference-runtime benchmark for canonical in-memory state

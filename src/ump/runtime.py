@@ -278,6 +278,7 @@ class Participant:
         self.robot_id = adapter.manifest().robot_id
         self._sequences = {OPERATIONAL_STREAM: 0, SAFETY_STREAM: 0}
         self._publication_lock = RLock()
+        self._last_published_safety = None
         self.session_id = str(uuid4())
         self.journal = journal or MemoryAssignmentJournal()
         self.authorizer = authorizer or DenyAllAuthorizer()
@@ -320,23 +321,58 @@ class Participant:
                 )
             )
 
-    def announce(self, now_ms: int) -> None:
-        self._send("manifest", self.adapter.manifest(), now_ms)
-        self.publish_state(now_ms)
+    def _state_snapshot(self, state: RobotState | None) -> RobotState:
+        snapshot = self.adapter.state() if state is None else state
+        if not isinstance(snapshot, RobotState):
+            raise TypeError("adapter state must be RobotState")
+        if snapshot.robot_id != self.robot_id:
+            raise ValueError("adapter state robot identity differs")
+        return snapshot
 
-    def publish_state(self, now_ms: int, correlation_id: str | None = None) -> None:
-        self._send("state", self.adapter.state(), now_ms, correlation_id)
+    def announce(self, now_ms: int, *, state: RobotState | None = None) -> None:
+        self._send("manifest", self.adapter.manifest(), now_ms)
+        self.publish_state(now_ms, state=state)
+
+    def publish_state(
+        self,
+        now_ms: int,
+        correlation_id: str | None = None,
+        *,
+        state: RobotState | None = None,
+    ) -> None:
+        snapshot = self._state_snapshot(state)
+        with self._publication_lock:
+            if (
+                self._last_published_safety is not None
+                and snapshot.safety is not self._last_published_safety
+            ):
+                self._send(
+                    "state",
+                    snapshot,
+                    now_ms,
+                    correlation_id,
+                    SAFETY_STREAM,
+                )
+            self._last_published_safety = snapshot.safety
+            self._send("state", snapshot, now_ms, correlation_id)
 
     def publish_safety_state(
-        self, now_ms: int, correlation_id: str | None = None
+        self,
+        now_ms: int,
+        correlation_id: str | None = None,
+        *,
+        state: RobotState | None = None,
     ) -> None:
-        self._send(
-            "state",
-            self.adapter.state(),
-            now_ms,
-            correlation_id,
-            SAFETY_STREAM,
-        )
+        snapshot = self._state_snapshot(state)
+        with self._publication_lock:
+            self._last_published_safety = snapshot.safety
+            self._send(
+                "state",
+                snapshot,
+                now_ms,
+                correlation_id,
+                SAFETY_STREAM,
+            )
 
     def close(self) -> None:
         if self._communication_watchdog is not None:

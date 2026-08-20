@@ -78,7 +78,8 @@ class ParticipantService:
         self._health_check()
         endpoint = self.bus.start()
         try:
-            self._participant.announce(self._clock_ms())
+            state = self.adapter.state()
+            self._participant.announce(self._clock_ms(), state=state)
         except BaseException:
             self.bus.stop()
             raise
@@ -90,7 +91,9 @@ class ParticipantService:
             raise RuntimeError("participant service must be started before run")
         while not stop.wait(self._interval):
             self._health_check()
-            self._participant.publish_state(self._clock_ms())
+            state = self.adapter.state()
+            now_ms = self._clock_ms()
+            self._participant.publish_state(now_ms, state=state)
 
     def close(self) -> None:
         if self._closed:

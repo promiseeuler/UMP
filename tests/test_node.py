@@ -36,6 +36,24 @@ class Adapter:
         return False, "No active UMP assignment"
 
 
+class MutableSafetyAdapter(Adapter):
+    def __init__(self):
+        self.safety = Safety.NORMAL
+        self.state_reads = 0
+
+    def state(self):
+        self.state_reads += 1
+        return RobotState(
+            "robot-1",
+            Mode.IDLE,
+            self.safety,
+            "Waiting",
+            "Publish awareness",
+            0.0,
+            f"Robot one safety state is {self.safety.value}.",
+        )
+
+
 class Resource:
     def __init__(self):
         self.closed = False
@@ -117,6 +135,25 @@ class ParticipantServiceTests(unittest.TestCase):
     def test_service_rejects_adapter_network_identity_mismatch(self):
         with self.assertRaisesRegex(ValueError, "identities differ"):
             ParticipantService(Adapter(), Bus("robot-2"), Resource(), Resource())
+
+    def test_safety_transition_uses_priority_stream_before_operational_state(self):
+        adapter = MutableSafetyAdapter()
+        bus = Bus()
+        service = ParticipantService(adapter, bus, Resource(), Resource())
+        service.start()
+        adapter.safety = Safety.PROTECTIVE_STOP
+        service.run(BoundedStop(1))
+        service.close()
+
+        states = [message for message in bus.messages if message.message_type == "state"]
+        self.assertEqual(
+            [message.stream for message in states],
+            ["operational", "safety", "operational"],
+        )
+        self.assertEqual(states[1].payload["safety"], "protective_stop")
+        self.assertEqual(states[1].sequence, 1)
+        self.assertEqual(states[2].sequence, 3)
+        self.assertEqual(adapter.state_reads, 2)
 
     def test_service_checks_credential_health_at_start_and_before_publication(self):
         checks = []
