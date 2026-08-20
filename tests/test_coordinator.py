@@ -80,6 +80,28 @@ def robot_reply(bus, assignment, status, sequence):
 
 
 class CoordinatorLifecycleTests(unittest.TestCase):
+    def test_observer_open_does_not_apply_restart_recovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bus, registry, goal = awareness_only_network()
+            database = Path(directory) / "coordinator.sqlite3"
+            coordinator = Coordinator(
+                "coordinator",
+                bus,
+                registry,
+                store=CoordinatorStore(database),
+                require_authority=False,
+            )
+            plan = coordinator.submit(goal, WarehousePlanner(), 1_100)
+
+            observer = CoordinatorStore(database, recover_interrupted=False)
+            observed = observer.snapshot(plan.plan_id)
+            observer.close()
+
+            self.assertEqual(observed.status, RunStatus.ACTIVE)
+            self.assertEqual(observed.steps["inspect-route"], StepStatus.DISPATCHED)
+            self.assertEqual(coordinator.snapshot(plan.plan_id).status, RunStatus.ACTIVE)
+            coordinator.close()
+
     def test_coordinator_requires_authority_lease_mapping_by_default(self):
         bus, registry, goal = awareness_only_network()
         coordinator = Coordinator("coordinator", bus, registry)

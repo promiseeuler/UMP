@@ -57,8 +57,8 @@ cancellation; the printed run remains available for operator reconciliation.
 
 ## Status
 
-Status is read directly from the durable journal and does not require network
-credentials:
+Status is read without applying restart recovery or modifying the durable journal
+and does not require network credentials:
 
 ```sh
 ump-coordinator status \

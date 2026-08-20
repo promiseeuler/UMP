@@ -115,7 +115,9 @@ def _decode_plan(encoded: str) -> Plan:
 class CoordinatorStore:
     """SQLite journal for plans and coordinator-side assignment lifecycle."""
 
-    def __init__(self, path: str | Path = ":memory:") -> None:
+    def __init__(
+        self, path: str | Path = ":memory:", *, recover_interrupted: bool = True
+    ) -> None:
         if str(path) != ":memory:":
             store_path = Path(path)
             store_path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,7 +155,8 @@ class CoordinatorStore:
             CREATE INDEX IF NOT EXISTS run_steps_plan ON run_steps(plan_id);
             """
         )
-        self._recover_interrupted_runs()
+        if recover_interrupted:
+            self._recover_interrupted_runs()
 
     def _recover_interrupted_runs(self) -> None:
         with self._lock:

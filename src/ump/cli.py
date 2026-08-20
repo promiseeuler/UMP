@@ -634,7 +634,7 @@ def coordinator_main(argv: list[str] | None = None) -> int:
     if arguments.command == "status":
         store: CoordinatorStore | None = None
         try:
-            store = CoordinatorStore(arguments.database)
+            store = CoordinatorStore(arguments.database, recover_interrupted=False)
             snapshot = store.snapshot(arguments.plan_id)
             print(json.dumps(_run_snapshot_document(snapshot), sort_keys=True))
             return 0
