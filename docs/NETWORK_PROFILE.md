@@ -135,8 +135,9 @@ storage. `maximum_pending_deliveries` sets the bounded backpressure limit and
 peer explicitly configures
 `allowed_message_types` and `allowed_capabilities`. Credential paths may be
 absolute or relative to the configuration file. Private keys should be readable
-only by the UMP service account and should use a hardware-backed key store where
-the platform supports one.
+only by the UMP service account; participant and coordinator startup reject group-
+or world-accessible key files. Use a hardware-backed key store where the platform
+supports one.
 
 ```python
 from ump.network import TlsNetworkBus, load_network_config

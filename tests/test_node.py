@@ -10,7 +10,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from ump.benchmark import _benchmark_credentials
-from ump.cli import node_main
+from ump.cli import coordinator_main, node_main
 from ump.credentials import SqliteCredentialStore
 from ump.models import (
     Assignment,
@@ -267,6 +267,48 @@ class ParticipantServiceTests(unittest.TestCase):
                 status = node_main(arguments)
             self.assertEqual(status, 2)
             self.assertIn("group/world", errors.getvalue())
+
+    def test_coordinator_preflight_is_non_mutating_and_rejects_collisions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "issued").mkdir()
+            node_arguments, network_databases = self.preflight_fixture(root)
+            network = node_arguments[node_arguments.index("--network") + 1]
+            credential_database = node_arguments[
+                node_arguments.index("--credential-database") + 1
+            ]
+            credential_directory = node_arguments[
+                node_arguments.index("--credential-directory") + 1
+            ]
+            coordinator_database = root / "coordinator.sqlite3"
+            arguments = [
+                "preflight",
+                "--network",
+                network,
+                "--database",
+                str(coordinator_database),
+                "--credential-database",
+                credential_database,
+                "--credential-directory",
+                credential_directory,
+            ]
+            output = StringIO()
+            with redirect_stdout(output):
+                status = coordinator_main(arguments)
+            self.assertEqual(status, 0)
+            report = json.loads(output.getvalue())
+            self.assertTrue(report["valid"])
+            self.assertEqual(report["coordinator_id"], "benchmark-client")
+            self.assertEqual(len(report["checks"]), 6)
+            self.assertFalse(coordinator_database.exists())
+            self.assertTrue(all(not path.exists() for path in network_databases.values()))
+
+            arguments[arguments.index("--database") + 1] = credential_database
+            errors = StringIO()
+            with redirect_stderr(errors):
+                status = coordinator_main(arguments)
+            self.assertEqual(status, 2)
+            self.assertIn("unique by role", errors.getvalue())
 
     def test_service_announces_before_periodic_state_and_closes_resources(self):
         bus = Bus()

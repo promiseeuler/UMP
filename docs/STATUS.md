@@ -118,6 +118,8 @@ qualification matrix remains fail-closed with eight pending external gates.
 - Non-mutating participant preflight for adapter identity, current credential
   validity, TLS material, private-key permissions, storage permissions, and
   database-role isolation.
+- Non-mutating owner coordinator preflight with shared credential, TLS, storage,
+  and five-role database-isolation enforcement before planner or journal loading.
 - Participant-node detection of semantic safety transitions with single-snapshot,
   safety-stream-first publication and independent sequence ordering.
 - Change-only participant manifest refresh so capability and availability updates

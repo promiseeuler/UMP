@@ -536,6 +536,31 @@ def lan_benchmark_main(argv: list[str] | None = None) -> int:
     return 0 if report["passed"] else 1
 
 
+def _validate_database_roles(database_paths: dict[str, Path]) -> None:
+    paths_to_roles: dict[Path, list[str]] = {}
+    for role, path in database_paths.items():
+        paths_to_roles.setdefault(path.resolve(), []).append(role)
+    collisions = {
+        str(path): roles for path, roles in paths_to_roles.items() if len(roles) > 1
+    }
+    if collisions:
+        raise ValueError(f"database paths must be unique by role: {collisions}")
+
+
+def _validate_storage_parents(database_paths: dict[str, Path]) -> None:
+    for role, path in database_paths.items():
+        parent = path.resolve().parent
+        if not parent.is_dir() or not os.access(parent, os.W_OK):
+            raise ValueError(
+                f"{role} database parent is not a writable directory: {parent}"
+            )
+
+
+def _validate_private_key_permissions(path: Path) -> None:
+    if path.stat().st_mode & 0o077:
+        raise ValueError("network private key must not be group/world accessible")
+
+
 def node_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-node",
@@ -585,16 +610,7 @@ def node_main(argv: list[str] | None = None) -> int:
             "inbox": config.inbox_database_path.resolve(),
             "outbox": config.outbox_database_path.resolve(),
         }
-        paths_to_roles: dict[Path, list[str]] = {}
-        for role, path in database_paths.items():
-            paths_to_roles.setdefault(path, []).append(role)
-        collisions = {
-            str(path): roles
-            for path, roles in paths_to_roles.items()
-            if len(roles) > 1
-        }
-        if collisions:
-            raise ValueError(f"database paths must be unique by role: {collisions}")
+        _validate_database_roles(database_paths)
         configured_peer_ids = {peer.robot_id for peer in config.peers}
         unknown_required_peers = set(arguments.required_peer) - configured_peer_ids
         if unknown_required_peers:
@@ -618,15 +634,8 @@ def node_main(argv: list[str] | None = None) -> int:
             raise TypeError(
                 "adapter must implement CommunicationLossHandler when required peers are configured"
             )
-        for role, path in database_paths.items():
-            parent = path.parent
-            if not parent.is_dir() or not os.access(parent, os.W_OK):
-                raise ValueError(
-                    f"{role} database parent is not a writable directory: {parent}"
-                )
-        private_key_mode = config.private_key_path.stat().st_mode & 0o777
-        if private_key_mode & 0o077:
-            raise ValueError("network private key must not be group/world accessible")
+        _validate_storage_parents(database_paths)
+        _validate_private_key_permissions(config.private_key_path)
         if arguments.preflight:
             generation = read_active_credential(
                 arguments.credential_database,
@@ -841,6 +850,10 @@ def coordinator_parser() -> argparse.ArgumentParser:
     reconcile.add_argument("--plan-id", required=True)
     reconcile.add_argument("--participant-timeout", type=float, default=30.0)
     reconcile.add_argument("--completion-timeout", type=float, default=300.0)
+    preflight = commands.add_parser(
+        "preflight", help="Validate deployment inputs without starting a service"
+    )
+    add_network_runtime(preflight)
     status = commands.add_parser("status", help="Read one run from the durable journal")
     status.add_argument("--database", required=True)
     status.add_argument("--plan-id", required=True)
@@ -892,6 +905,56 @@ def coordinator_main(argv: list[str] | None = None) -> int:
     plan_ids: tuple[str, ...] = ()
     try:
         config = load_network_config(arguments.network)
+        database_paths = {
+            "coordinator": Path(arguments.database).resolve(),
+            "credential": Path(arguments.credential_database).resolve(),
+            "replay": config.replay_database_path.resolve(),
+            "inbox": config.inbox_database_path.resolve(),
+            "outbox": config.outbox_database_path.resolve(),
+        }
+        _validate_database_roles(database_paths)
+        _validate_storage_parents(database_paths)
+        _validate_private_key_permissions(config.private_key_path)
+        if arguments.command == "preflight":
+            generation = read_active_credential(
+                arguments.credential_database,
+                config.robot_id,
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            )
+            create_server_context(
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            )
+            create_client_context(
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            )
+            print(
+                json.dumps(
+                    {
+                        "valid": True,
+                        "mode": "preflight",
+                        "coordinator_id": config.robot_id,
+                        "credential_generation": generation.generation,
+                        "configured_peers": len(config.peers),
+                        "database_roles": sorted(database_paths),
+                        "checks": [
+                            "network_configuration",
+                            "active_credential_validity",
+                            "tls_contexts",
+                            "private_key_permissions",
+                            "database_role_isolation",
+                            "storage_parent_permissions",
+                        ],
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0
         goal = None
         goals = None
         planner = None

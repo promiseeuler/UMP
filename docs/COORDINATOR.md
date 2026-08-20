@@ -32,6 +32,23 @@ durable stores. Participant network policies must permit its identity to receive
 `manifest` and `state` and must permit the required collaboration messages in
 the reverse direction.
 
+Validate deployment inputs before loading a planner, opening the coordinator
+journal, or binding a listener:
+
+```sh
+ump-coordinator preflight \
+  --network /etc/ump/coordinator-network.json \
+  --credential-database /var/lib/ump/coordinator-credentials.sqlite3 \
+  --credential-directory /var/lib/ump/coordinator-credentials \
+  --database /var/lib/ump/coordinator.sqlite3
+```
+
+Preflight validates the network configuration, current active credential,
+certificate/key/CA compatibility, owner-only private-key permissions, writable
+storage parents, and distinct coordinator, credential, replay, inbox, and outbox
+database paths. It emits one JSON report and creates none of those runtime
+stores. Port availability and peer reachability remain runtime properties.
+
 ```sh
 ump-coordinator submit \
   --network /etc/ump/coordinator-network.json \
@@ -78,6 +95,10 @@ Exit status is `0` for successful completion, `1` for a terminal non-successful
 run, `2` for configuration/validation failure, and `3` for timeout or
 interruption. A timeout or signal never fabricates a
 cancellation; the printed run remains available for operator reconciliation.
+
+All networked coordinator commands enforce the same private-key, writable-parent,
+and database-role isolation checks as preflight. Read-only `status` and `runs`
+remain usable without network credentials and do not perform restart recovery.
 
 ## Cancel
 
