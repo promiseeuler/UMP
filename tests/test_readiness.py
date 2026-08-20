@@ -8,7 +8,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from ump.cli import readiness_main
-from ump.readiness import load_readiness_report
+from ump.readiness import _validate_qualification_result, load_readiness_report
 
 
 ROOT = Path(__file__).parents[1]
@@ -78,6 +78,89 @@ class ReadinessTests(unittest.TestCase):
                 json.dumps(document)
             )
             with self.assertRaisesRegex(ValueError, "lacks results"):
+                load_readiness_report(root, strict_evidence=False)
+
+    def test_qualification_evidence_paths_cannot_escape_project(self):
+        qualification = ROOT / "compliance" / "qualification.json"
+        document = json.loads(qualification.read_text())
+        document["gates"][0]["implementation_evidence"] = ["../outside.json"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "compliance").mkdir()
+            (root / "docs" / "PRD.md").write_text(
+                (ROOT / "docs" / "PRD.md").read_text()
+            )
+            (root / "compliance" / "requirements.json").write_text(
+                (ROOT / "compliance" / "requirements.json").read_text()
+            )
+            (root / "compliance" / "qualification.json").write_text(
+                json.dumps(document)
+            )
+            with self.assertRaisesRegex(ValueError, "escapes the project root"):
+                load_readiness_report(root, strict_evidence=False)
+
+    def test_passed_gate_uses_domain_verifier_and_gate_semantics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence = root / "evidence.json"
+            evidence.write_text("{}")
+
+            with patch(
+                "ump.readiness.validate_pilot_bundle",
+                return_value={"phase": "read_only"},
+            ):
+                with self.assertRaisesRegex(ValueError, "supervised assignment"):
+                    _validate_qualification_result(
+                        root, "QAL-HARDWARE-PILOT", "evidence.json"
+                    )
+
+            with patch(
+                "ump.readiness.validate_adapter_evidence",
+                return_value={"passed": True, "robot_id": None},
+            ):
+                with self.assertRaisesRegex(ValueError, "robot-bound"):
+                    _validate_qualification_result(
+                        root, "QAL-ADAPTER-CONFORMANCE", "evidence.json"
+                    )
+
+            with patch(
+                "ump.readiness.validate_review_bundle",
+                return_value={
+                    "passed": True,
+                    "review_type": "safety",
+                },
+            ):
+                with self.assertRaisesRegex(ValueError, "security review"):
+                    _validate_qualification_result(
+                        root, "QAL-SECURITY-REVIEW", "evidence.json"
+                    )
+
+    def test_passed_gate_rejects_unrelated_existing_result_file(self):
+        qualification = json.loads(
+            (ROOT / "compliance" / "qualification.json").read_text()
+        )
+        qualification["gates"][0]["status"] = "passed"
+        qualification["gates"][0]["result_evidence"] = ["evidence/result.json"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "compliance").mkdir()
+            (root / "evidence").mkdir()
+            (root / "docs" / "PRD.md").write_text(
+                (ROOT / "docs" / "PRD.md").read_text()
+            )
+            (root / "compliance" / "requirements.json").write_text(
+                (ROOT / "compliance" / "requirements.json").read_text()
+            )
+            (root / "compliance" / "qualification.json").write_text(
+                json.dumps(qualification)
+            )
+            (root / "evidence" / "result.json").write_text("{}")
+
+            with self.assertRaisesRegex(
+                ValueError, "invalid qualification result for QAL-ROS2-NATIVE"
+            ):
                 load_readiness_report(root, strict_evidence=False)
 
 

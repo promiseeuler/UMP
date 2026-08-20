@@ -6,6 +6,13 @@ from pathlib import Path
 import re
 from typing import Any
 
+from .conformance import validate_adapter_evidence
+from .lan_evidence import validate_lan_evidence_bundle
+from .pilot import validate_pilot_bundle
+from .release_evidence import validate_release_evidence_bundle
+from .review import validate_review_bundle
+from .ros2_evidence import validate_ros2_smoke_report
+
 
 REQUIREMENT_PATTERN = re.compile(r"`([A-Z]{3}-[0-9]{2})`")
 VALID_STATUSES = frozenset({"implemented", "partial", "missing"})
@@ -22,6 +29,11 @@ QUALIFICATION_GATE_IDS = frozenset(
         "QAL-RELEASE-ARTIFACT",
     }
 )
+REVIEW_GATE_TYPES = {
+    "QAL-SECURITY-REVIEW": "security",
+    "QAL-SAFETY-REVIEW": "safety",
+    "QAL-INTEROPERABILITY-REVIEW": "interoperability",
+}
 
 
 def _validate_paths(
@@ -35,11 +47,62 @@ def _validate_paths(
         raise ValueError(f"{description} must be a list")
     if any(not isinstance(path, str) or not path for path in paths):
         raise ValueError(f"{description} contains an invalid path")
+    resolved_root = root.resolve()
+    escaped = [
+        path
+        for path in paths
+        if not (resolved_root / path).resolve().is_relative_to(resolved_root)
+    ]
+    if escaped:
+        raise ValueError(f"{description} escapes the project root: {escaped}")
     if require_exists:
         absent = [path for path in paths if not (root / path).is_file()]
         if absent:
             raise ValueError(f"absent {description}: {absent}")
     return paths
+
+
+def _validate_qualification_result(
+    root: Path,
+    gate_id: str,
+    evidence_path: str,
+) -> dict[str, Any]:
+    path = root / evidence_path
+    if gate_id == "QAL-ROS2-NATIVE":
+        return validate_ros2_smoke_report(
+            path,
+            world_path=root
+            / "ros2_ws/src/ump_gazebo_demo/worlds/three_robot_world.sdf",
+        )
+    if gate_id == "QAL-LAN-TWO-HOST":
+        return validate_lan_evidence_bundle(path)
+    if gate_id == "QAL-HARDWARE-PILOT":
+        result = validate_pilot_bundle(path)
+        if result["phase"] != "supervised_assignment":
+            raise ValueError(
+                "hardware pilot qualification requires supervised assignment evidence"
+            )
+        return result
+    if gate_id == "QAL-ADAPTER-CONFORMANCE":
+        result = validate_adapter_evidence(path)
+        if result["passed"] is not True or result["robot_id"] is None:
+            raise ValueError(
+                "adapter qualification requires a passing robot-bound report"
+            )
+        return result
+    if gate_id in REVIEW_GATE_TYPES:
+        result = validate_review_bundle(path)
+        expected_type = REVIEW_GATE_TYPES[gate_id]
+        if result["review_type"] != expected_type:
+            raise ValueError(
+                f"{gate_id} requires a {expected_type} review bundle"
+            )
+        if result["passed"] is not True:
+            raise ValueError(f"{gate_id} review did not pass")
+        return result
+    if gate_id == "QAL-RELEASE-ARTIFACT":
+        return validate_release_evidence_bundle(path)
+    raise ValueError(f"qualification gate has no evidence verifier: {gate_id}")
 
 
 def _load_qualification(root: Path, *, strict_evidence: bool) -> dict[str, Any]:
@@ -84,6 +147,18 @@ def _load_qualification(root: Path, *, strict_evidence: bool) -> dict[str, Any]:
             f"result evidence for {gate_id}",
             require_exists=strict_evidence,
         )
+        validation_results = []
+        if status == "passed":
+            for result_path in results:
+                try:
+                    validation_results.append(
+                        _validate_qualification_result(root, gate_id, result_path)
+                    )
+                except (OSError, ValueError, json.JSONDecodeError) as error:
+                    raise ValueError(
+                        f"invalid qualification result for {gate_id}: {error}"
+                    ) from error
+        gate["validated_results"] = validation_results
         note = gate.get("note")
         if not isinstance(note, str) or not note.strip():
             raise ValueError(f"missing qualification note for {gate_id}")
@@ -123,10 +198,12 @@ def load_readiness_report(
         evidence = item.get("evidence")
         if not isinstance(evidence, list) or not evidence:
             raise ValueError(f"missing evidence for {item.get('id')}")
-        if strict_evidence:
-            absent = [path for path in evidence if not (root / path).is_file()]
-            if absent:
-                raise ValueError(f"absent evidence for {item.get('id')}: {absent}")
+        _validate_paths(
+            root,
+            evidence,
+            f"evidence for {item.get('id')}",
+            require_exists=strict_evidence,
+        )
         note = item.get("note")
         if not isinstance(note, str) or not note.strip():
             raise ValueError(f"missing assessment note for {item.get('id')}")
