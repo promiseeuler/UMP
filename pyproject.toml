@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "universal-machine-protocol"
+version = "0.1.0"
+description = "Manufacturer-neutral shared awareness and collaboration for robots"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "UMP Contributors" }]
+dependencies = ["cryptography>=43,<47", "jsonschema>=4.23,<5"]
+
+[project.scripts]
+ump-demo = "ump.demo:main"
+ump-authority = "ump.cli:authority_main"
+ump-benchmark = "ump.cli:benchmark_main"
+ump-conformance = "ump.cli:conformance_main"
+ump-credentials = "ump.cli:credentials_main"
+ump-inspector = "ump.cli:inspector_main"
+ump-readiness = "ump.cli:readiness_main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ump = ["inspector_static/*.html", "inspector_static/*.css", "inspector_static/*.js"]

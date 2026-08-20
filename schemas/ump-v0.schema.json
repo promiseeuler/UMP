@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schema/ump-v0.schema.json",
+  "title": "Universal Machine Protocol v0 Envelope",
+  "type": "object",
+  "required": ["protocol", "message_id", "message_type", "source_id", "session_id", "sequence", "timestamp_ms", "payload"],
+  "properties": {
+    "protocol": { "const": "ump/0.1" },
+    "message_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "message_type": {
+      "enum": ["manifest", "state", "goal", "plan", "assignment", "assignment_ack", "assignment_query", "assignment_snapshot", "cancellation_request", "cancellation_ack", "outcome"]
+    },
+    "source_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "session_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "stream": { "enum": ["operational", "safety"] },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "timestamp_ms": { "type": "integer", "minimum": 0 },
+    "correlation_id": { "type": ["string", "null"], "maxLength": 128 },
+    "payload": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "stream": { "const": "safety" } }, "required": ["stream"] },
+      "then": { "properties": { "message_type": { "const": "state" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "state" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/robotState" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "manifest" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/robotManifest" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "goal" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/sharedGoal" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "plan" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/plan" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "assignment" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/assignment" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "assignment_ack" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/assignmentAcknowledgement" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "assignment_query" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/assignmentQuery" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "assignment_snapshot" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/assignmentSnapshot" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "cancellation_request" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/cancellationRequest" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "cancellation_ack" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/cancellationAcknowledgement" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "outcome" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/outcome" } } }
+    }
+  ],
+  "$defs": {
+    "capability": {
+      "type": "object",
+      "required": ["name", "description", "input_schema", "output_schema", "availability"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+/v[0-9]+$" },
+        "description": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "input_schema": { "type": "object" },
+        "output_schema": { "type": "object" },
+        "availability": { "enum": ["available", "busy", "degraded", "unavailable"] }
+      },
+      "additionalProperties": true
+    },
+    "robotManifest": {
+      "type": "object",
+      "required": ["robot_id", "manufacturer", "model", "robot_class", "capabilities"],
+      "properties": {
+        "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "manufacturer": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "robot_class": { "enum": ["humanoid", "quadruped", "mobile_arm", "arm", "mobile_base", "drone", "sensor", "other"] },
+        "capabilities": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/capability" } }
+      },
+      "additionalProperties": true
+    },
+    "robotState": {
+      "type": "object",
+      "required": ["robot_id", "mode", "safety", "activity", "intent", "progress", "summary", "fresh_for_ms", "resources"],
+      "properties": {
+        "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "mode": { "enum": ["starting", "idle", "working", "waiting", "paused", "faulted", "offline"] },
+        "safety": { "enum": ["normal", "protective_stop", "emergency_stop", "recovery_required", "unknown"] },
+        "activity": { "type": "string", "maxLength": 1024 },
+        "intent": { "type": "string", "maxLength": 1024 },
+        "progress": { "type": "number", "minimum": 0, "maximum": 1 },
+        "blockers": { "type": "array", "maxItems": 32, "items": { "type": "string", "maxLength": 256 } },
+        "resources": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 128 } },
+        "assignment_id": { "type": ["string", "null"], "maxLength": 128 },
+        "pose": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/poseReference" }
+          ]
+        },
+        "sensor_references": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "$ref": "#/$defs/sensorReference" }
+        },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "fresh_for_ms": { "type": "integer", "minimum": 1, "maximum": 60000 }
+      },
+      "additionalProperties": true
+    },
+    "poseReference": {
+      "type": "object",
+      "required": ["frame_id", "position_m", "orientation_xyzw", "observed_at_ms"],
+      "properties": {
+        "frame_id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.\\/-]{0,127}$" },
+        "position_m": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "number" }
+        },
+        "orientation_xyzw": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "number", "minimum": -1, "maximum": 1 }
+        },
+        "observed_at_ms": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "sensorReference": {
+      "type": "object",
+      "required": ["uri", "media_type", "byte_length", "sha256", "observed_at_ms", "expires_at_ms", "frame_id"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "pattern": "^(?![dD][aA][tT][aA]:)[A-Za-z][A-Za-z0-9+.-]*:"
+        },
+        "media_type": { "type": "string", "pattern": "^[A-Za-z0-9!#$&^_.+\\-]+/[A-Za-z0-9!#$&^_.+\\-]+$" },
+        "byte_length": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "observed_at_ms": { "type": "integer", "minimum": 0 },
+        "expires_at_ms": { "type": ["integer", "null"], "minimum": 0 },
+        "frame_id": { "type": ["string", "null"], "pattern": "^[A-Za-z][A-Za-z0-9_.\\/-]{0,127}$" }
+      },
+      "additionalProperties": true
+    },
+    "sharedGoal": {
+      "type": "object",
+      "required": ["goal_id", "description", "participant_ids", "constraints", "deadline_ms"],
+      "properties": {
+        "goal_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "participant_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "constraints": { "type": "object" },
+        "deadline_ms": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "planStep": {
+      "type": "object",
+      "required": ["step_id", "description", "assigned_robot_id", "capability", "inputs", "completion_criteria", "depends_on", "resources", "not_before_ms", "deadline_ms"],
+      "properties": {
+        "step_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "assigned_robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "capability": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+/v[0-9]+$" },
+        "inputs": true,
+        "completion_criteria": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "depends_on": {
+          "type": "array",
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "resources": {
+          "type": "array",
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "not_before_ms": { "type": ["integer", "null"], "minimum": 0 },
+        "deadline_ms": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "plan": {
+      "type": "object",
+      "required": ["plan_id", "goal_id", "planner_id", "summary", "steps", "revision"],
+      "properties": {
+        "plan_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "goal_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "planner_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "steps": { "type": "array", "minItems": 1, "maxItems": 256, "items": { "$ref": "#/$defs/planStep" } },
+        "revision": { "type": "integer", "minimum": 1 },
+        "supersedes_plan_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "revision": { "minimum": 2 } }, "required": ["revision"] },
+          "then": { "required": ["supersedes_plan_id"], "properties": { "supersedes_plan_id": { "type": "string" } } }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "assignment": {
+      "type": "object",
+      "required": ["assignment_id", "goal_id", "plan_id", "step", "authority_lease_id"],
+      "properties": {
+        "assignment_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "goal_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "plan_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "authority_lease_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 },
+        "step": { "$ref": "#/$defs/planStep" }
+      },
+      "additionalProperties": true
+    },
+    "assignmentAcknowledgement": {
+      "type": "object",
+      "required": ["assignment_id", "robot_id", "status", "description"],
+      "properties": {
+        "assignment_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "status": { "enum": ["accepted", "succeeded", "failed", "rejected", "cancelled", "unknown"] },
+        "description": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      },
+      "additionalProperties": true
+    },
+    "assignmentQuery": {
+      "type": "object",
+      "required": ["assignment_id", "robot_id"],
+      "properties": {
+        "assignment_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+      },
+      "additionalProperties": false
+    },
+    "assignmentSnapshot": {
+      "type": "object",
+      "required": ["assignment_id", "robot_id", "status", "description", "fingerprint", "outcome"],
+      "properties": {
+        "assignment_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "status": { "enum": ["accepted", "succeeded", "failed", "rejected", "cancelled", "unknown"] },
+        "description": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "outcome": { "anyOf": [{ "$ref": "#/$defs/outcome" }, { "type": "null" }] }
+      },
+      "additionalProperties": false
+    },
+    "cancellationRequest": {
+      "type": "object",
+      "required": ["assignment_id", "robot_id", "reason"],
+      "properties": {
+        "assignment_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      },
+      "additionalProperties": false
+    },
+    "cancellationAcknowledgement": {
+      "type": "object",
+      "required": ["assignment_id", "robot_id", "status", "description"],
+      "properties": {
+        "assignment_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "status": { "enum": ["accepted", "rejected", "already_terminal", "unknown"] },
+        "description": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      },
+      "additionalProperties": false
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["assignment_id", "robot_id", "succeeded", "description", "status"],
+      "properties": {
+        "assignment_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "succeeded": { "type": "boolean" },
+        "description": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "status": { "enum": ["succeeded", "failed", "rejected", "cancelled", "unknown"] }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

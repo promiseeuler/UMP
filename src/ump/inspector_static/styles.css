@@ -1,0 +1,56 @@
+:root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #182026; background: #eef1f3; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+.topbar { height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #182026; color: #f8fafb; border-bottom: 3px solid #2aa876; }
+.topbar strong { font-size: 17px; }
+.protocol { margin-left: 10px; color: #aeb9c1; font-size: 12px; }
+.connection { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+#connection-dot { width: 8px; height: 8px; border-radius: 50%; background: #e0a229; }
+#connection-dot.online { background: #35c48d; }
+main { min-height: calc(100vh - 56px); display: grid; grid-template-columns: 240px minmax(0, 1fr); }
+aside { min-width: 0; background: #f8fafb; border-right: 1px solid #ccd4d9; }
+.section-title { height: 46px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; color: #5a6872; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+#robots button { width: 100%; min-height: 58px; padding: 9px 14px; border: 0; border-left: 3px solid transparent; border-top: 1px solid #e1e6e9; background: transparent; text-align: left; cursor: pointer; }
+#robots button:hover { background: #edf4f1; }
+#robots button.active { background: #e3f2ec; border-left-color: #23845f; }
+.robot-name { display: block; color: #182026; font-weight: 650; overflow-wrap: anywhere; }
+.robot-meta { display: block; margin-top: 3px; color: #697780; font-size: 12px; }
+.workspace { min-width: 0; padding: 18px; }
+.summary-band { min-height: 76px; display: grid; grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(100px, 1fr)); background: #fff; border: 1px solid #ccd4d9; border-radius: 6px; }
+.summary-band > div { padding: 14px 16px; border-right: 1px solid #e1e6e9; }
+.summary-band > div:last-child { border-right: 0; }
+.label { display: block; margin-bottom: 6px; color: #6d7981; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.summary-band strong { overflow-wrap: anywhere; }
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 14px; margin-top: 14px; }
+.detail-panel, .events-panel { min-width: 0; background: #fff; border: 1px solid #ccd4d9; border-radius: 6px; }
+.detail-panel { min-height: 210px; padding: 16px; }
+h2 { margin: 0; font-size: 14px; }
+dl { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; margin: 18px 0 0; font-size: 13px; }
+dt { color: #697780; }
+dd { margin: 0; overflow-wrap: anywhere; }
+.capabilities { margin-top: 12px; }
+.capability { padding: 10px 0; border-top: 1px solid #e1e6e9; }
+.capability:first-child { border-top: 0; }
+.capability strong, .capability span { display: block; overflow-wrap: anywhere; }
+.capability span { margin-top: 3px; color: #697780; font-size: 12px; }
+.events-panel { margin-top: 14px; overflow: hidden; }
+.events-heading { height: 48px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #d8dee2; }
+.events-heading span { color: #697780; font-size: 12px; }
+.table-wrap { overflow: auto; max-height: 420px; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+th, td { padding: 9px 12px; border-bottom: 1px solid #e5e9eb; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+th { position: sticky; top: 0; background: #f5f7f8; color: #5a6872; font-size: 11px; text-transform: uppercase; }
+th:nth-child(1) { width: 94px; } th:nth-child(2) { width: 140px; } th:nth-child(3) { width: 170px; } th:nth-child(4) { width: 170px; }
+.event-type { color: #176f9b; font-weight: 700; }
+.empty { color: #78858d; font-size: 13px; }
+@media (max-width: 760px) {
+  main { grid-template-columns: 1fr; }
+  aside { width: 100%; overflow: hidden; border-right: 0; border-bottom: 1px solid #ccd4d9; }
+  #robots { display: flex; width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+  #robots button { min-width: 190px; border-left: 0; border-bottom: 3px solid transparent; }
+  #robots button.active { border-bottom-color: #23845f; }
+  .workspace { padding: 10px; }
+  .summary-band { grid-template-columns: 1fr 1fr; }
+  .summary-band > div { border-bottom: 1px solid #e1e6e9; }
+  .detail-grid { grid-template-columns: 1fr; }
+}

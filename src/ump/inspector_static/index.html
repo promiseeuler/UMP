@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UMP Inspector</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <strong>UMP Inspector</strong>
+      <span class="protocol">ump/0.1</span>
+    </div>
+    <div class="connection"><span id="connection-dot"></span><span id="connection">Connecting</span></div>
+  </header>
+  <main>
+    <aside>
+      <div class="section-title"><span>Robots</span><span id="robot-count">0</span></div>
+      <nav id="robots" aria-label="Connected robots"></nav>
+    </aside>
+    <section class="workspace">
+      <div class="summary-band">
+        <div><span class="label">Selected robot</span><strong id="selected-name">No robot observed</strong></div>
+        <div><span class="label">Mode</span><strong id="selected-mode">-</strong></div>
+        <div><span class="label">Safety</span><strong id="selected-safety">-</strong></div>
+        <div><span class="label">Progress</span><strong id="selected-progress">-</strong></div>
+      </div>
+      <div class="detail-grid">
+        <section class="detail-panel">
+          <h2>Current state</h2>
+          <dl id="state-detail"></dl>
+        </section>
+        <section class="detail-panel">
+          <h2>Capabilities</h2>
+          <div id="capabilities" class="capabilities"></div>
+        </section>
+      </div>
+      <section class="events-panel">
+        <div class="events-heading"><h2>Protocol events</h2><span id="event-count">0 events</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Type</th><th>Source</th><th>Correlation</th><th>Summary</th></tr></thead>
+            <tbody id="events"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

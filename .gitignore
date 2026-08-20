@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+dist/
+build/
+*.egg-info/
+config/credentials/
+credentials/
+var/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+.DS_Store

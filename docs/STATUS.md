@@ -1,0 +1,96 @@
+# Implementation Status
+
+**Protocol version:** `ump/0.1`
+
+**Maturity:** Reference foundation, not production or physical-control ready
+
+## Implemented
+
+- Fresh product requirements and architecture boundaries.
+- Canonical JSON envelope encoding and decoding with a 64 KiB limit.
+- Robot manifests, versioned capabilities, and semantic state descriptions.
+- Frame-qualified SI-meter poses and bounded integrity-bound sensor metadata
+  references without embedded sensor payloads.
+- Recursively enforced robotics SI unit annotations and required coordinate-frame
+  properties for numeric manufacturer capability schemas.
+- Per-process session identity, monotonic sequences, replay rejection, and freshness.
+- Source identity agreement for manifest and state payloads.
+- Planner-neutral shared goals and dependency-based microtask plans.
+- Validation-atomic bounded goal batches and immutable plan revision lineage.
+- Plan validation for participants, freshness, capabilities, dependencies, cycles,
+  and deadlines.
+- Capability input validation using JSON Schema Draft 2020-12.
+- Duplicate assignment suppression with deterministic outcome replay.
+- SQLite WAL assignment journal with durable acceptance and terminal outcomes.
+- Payload-hash idempotency conflicts and restart-to-unknown behavior.
+- Explicit assignment acknowledgements and terminal outcome statuses.
+- SQLite WAL coordinator journal with immutable goals, plans, and stable assignments.
+- Event-driven dependency progression for delayed acknowledgements and outcomes.
+- Opt-in bounded concurrent native assignment execution with ordered envelope
+  publication and exception-to-unknown safety behavior.
+- Conservative coordinator restart recovery that marks in-flight work unknown.
+- Authenticated assignment query/snapshot reconciliation bound to the original
+  issuer, assigned robot, and canonical assignment fingerprint.
+- Terminal participant evidence can resolve coordinator unknown state and safely
+  resume successful dependencies; dual-unknown state remains blocked.
+- Durable plan cancellation with native adapter authority, authenticated issuer
+  binding, terminal cancelled outcomes, and restart-to-unknown recovery.
+- Coordinator validation that outcome sources match assigned robots.
+- TLS 1.3 network binding with mandatory client certificates and UMP ALPN.
+- Certificate URI robot identity bound to every network envelope source.
+- Optional SHA-256 certificate pinning from configured or discovered hints.
+- Bounded framing, malformed-frame rejection, and in-memory session replay checks.
+- Durable SQLite network replay protection for configured deployments, including
+  authenticated replay rejection across receiver restart.
+- Durable bounded per-peer outbox with FIFO restart recovery, capped exponential
+  retry, backpressure, delivery metrics, and concrete error history.
+- Durable ordered receiver inbox with receipt acknowledgements, idempotent exact
+  retries, crash-window staging, concurrent peer processing, and dead letters.
+- Protocol-safe safety-state priority stream with independent sequence/replay
+  floors, queue heads, sender locks, inbox ordering, and reserved outbox capacity.
+- Expiring UDP local-discovery hint encoding and transport.
+- File-based network and peer configuration.
+- Deny-by-default peer metadata disclosure with message-type allowlists and
+  capability-filtered manifests.
+- Deny-by-default participant and coordinator assignment authorization.
+- Durable robot-local capability leases with issuer, time, and clock bounds.
+- Revision-checked local grant, renewal, revocation, persistence, and audit history.
+- Durable externally issued credential enrollment, staged rotation, activation,
+  local fingerprint revocation, and handshake-time revocation enforcement.
+- Receiver-local lease evaluation resistant to sender timestamp backdating.
+- Required-peer communication watchdog with manufacturer-defined loss and
+  restoration callbacks derived from semantic-state freshness.
+- Opaque robot-local resource declarations with atomic durable reservations,
+  terminal release, contention rejection, and crash retention.
+- Local `ump-authority` owner CLI.
+- Deterministic three-robot simulation and correlated message trace.
+- Optional ROS 2 action-backed manufacturer adapter with lazy `rclpy` loading,
+  capability-specific codecs, cancellation, and uncertainty handling.
+- ROS 2 `ExecuteCapability` interface package and Gazebo Harmonic conformance
+  world with three cancellable proxy capability servers.
+- Pinned Ubuntu Noble / ROS 2 Jazzy package build-and-test workflow for the
+  reference interfaces and Gazebo fixture.
+- Versioned, byte-exact valid and invalid wire vectors with SHA-256 integrity
+  checks and a machine-readable `ump-conformance` report.
+- Adapter conformance harness with read-only manifest/state inspection and an
+  explicit opt-in gate before any native capability execution.
+- Append-only SQLite protocol recorder and loopback-only, read-only inspector UI
+  for robot state, capabilities, and correlated protocol events.
+- Reproducible reference-runtime benchmark for canonical in-memory state
+  propagation, throughput, message size, and incremental idle Python heap.
+- Executable traceability matrix covering all 41 named PRD functional
+  requirements with evidence-backed implemented, partial, or missing status.
+
+## Not yet implemented
+
+- Automated integration with deployment-specific CA enrollment protocols,
+  hardware security modules, and online OCSP/CRL services.
+- Physical/domain-specific resolution when no durable adapter outcome exists.
+- Runtime-verified ROS 2/Gazebo dynamics, Isaac Sim, Webots, or physical robot
+  adapters. The checked-in Gazebo proxies validate lifecycle, not physical work.
+- Healthy-LAN TLS benchmarks, independent adapter conformance results, or release
+  artifacts.
+- Independent security, safety, or interoperability review.
+
+The missing items are product work, not configuration switches. UMP must not be
+represented as production-ready until the relevant PRD gates have evidence.

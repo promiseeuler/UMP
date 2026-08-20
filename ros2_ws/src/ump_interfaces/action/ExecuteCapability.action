@@ -1,0 +1,15 @@
+string assignment_id
+string capability
+string inputs_json
+---
+uint8 SUCCEEDED=0
+uint8 FAILED=1
+uint8 REJECTED=2
+uint8 CANCELLED=3
+uint8 UNKNOWN=4
+uint8 status
+string description
+string outputs_json
+---
+float32 progress
+string summary

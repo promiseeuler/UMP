@@ -1,0 +1,33 @@
+name: ROS 2 Jazzy
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+      - uses: ros-tooling/action-ros-ci@v0.3
+        with:
+          package-name: ump_interfaces ump_gazebo_demo
+          target-ros2-distro: jazzy
+          colcon-defaults: |
+            {
+              "build": {
+                "symlink-install": true,
+                "event-handlers": ["console_cohesion+"]
+              },
+              "test": {
+                "event-handlers": ["console_direct+"]
+              }
+            }

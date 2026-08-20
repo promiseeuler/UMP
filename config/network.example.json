@@ -1,0 +1,24 @@
+{
+  "robot_id": "robot-humanoid-1",
+  "bind_host": "0.0.0.0",
+  "bind_port": 7443,
+  "certificate_path": "credentials/robot-humanoid-1.crt",
+  "private_key_path": "credentials/robot-humanoid-1.key",
+  "ca_path": "credentials/ump-site-ca.crt",
+  "replay_database_path": "state/network-replay.sqlite3",
+  "inbox_database_path": "state/network-inbox.sqlite3",
+  "outbox_database_path": "state/network-outbox.sqlite3",
+  "maximum_pending_deliveries": 10000,
+  "reserved_safety_deliveries": 64,
+  "timeout": 2.0,
+  "peers": [
+    {
+      "robot_id": "robot-quadruped-1",
+      "host": "192.0.2.21",
+      "port": 7443,
+      "certificate_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "allowed_message_types": ["manifest", "state"],
+      "allowed_capabilities": ["ump.material.carry/v1"]
+    }
+  ]
+}
