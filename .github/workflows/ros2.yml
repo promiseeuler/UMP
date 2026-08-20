@@ -10,6 +10,11 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     container:
       image: ubuntu:noble
     steps:
@@ -49,6 +54,11 @@ jobs:
           ump-ros2-evidence /tmp/ump-ros2-gazebo-smoke.json \
             --world ros2_ws/src/ump_gazebo_demo/worlds/three_robot_world.sdf \
             --revision "$GITHUB_SHA"
+      - name: Attest native smoke evidence
+        if: success() && github.event.repository.visibility == 'public'
+        uses: actions/attest@v4
+        with:
+          subject-path: /tmp/ump-ros2-gazebo-smoke.json
       - name: Retain native smoke evidence
         if: success()
         uses: actions/upload-artifact@v7
@@ -56,4 +66,4 @@ jobs:
           name: ros2-gazebo-smoke-${{ github.sha }}
           path: /tmp/ump-ros2-gazebo-smoke.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90

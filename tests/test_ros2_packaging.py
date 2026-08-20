@@ -79,7 +79,15 @@ class Ros2PackagingTests(unittest.TestCase):
         self.assertIn("timeout 180s bash ros2_ws/smoke.sh", workflow)
         self.assertIn("ump-ros2-evidence /tmp/ump-ros2-gazebo-smoke.json", workflow)
         self.assertIn("actions/upload-artifact@v7", workflow)
-        self.assertIn("retention-days: 30", workflow)
+        self.assertIn("retention-days: 90", workflow)
+        self.assertIn("actions/attest@v4", workflow)
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("attestations: write", workflow)
+        self.assertIn("artifact-metadata: write", workflow)
+        self.assertIn(
+            "github.event.repository.visibility == 'public'",
+            workflow,
+        )
         self.assertNotIn("@main", workflow)
 
     def test_runtime_smoke_covers_world_and_action_lifecycle(self):

@@ -27,6 +27,11 @@ release artifact integrity. Validation summaries are emitted as
 repository revision; readiness reports it as `qualified_revision` and rejects a
 mixture of evidence from different commits.
 
+The ROS 2 workflow attests native smoke reports when the repository is public.
+Readiness validates report contents and source binding, while operators must
+separately verify GitHub provenance with `gh attestation verify` (or an approved
+equivalent for private deployments) before marking the native gate passed.
+
 The production gates cover native ROS 2/Gazebo evidence, representative
 two-host LAN measurements, the supervised hardware pilot, independent adapter
 conformance, security review, safety review, interoperability review, and a

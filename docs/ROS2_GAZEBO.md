@@ -30,7 +30,9 @@ simulator runtime and physics behavior remain unverified.
 
 The smoke writes `/tmp/ump-ros2-gazebo-smoke.json` only after every lifecycle
 check succeeds. CI validates that report against the checked-in world digest and
-the exact repository revision, then retains it as a 30-day workflow artifact.
+the exact repository revision, then retains it as a 90-day workflow artifact.
+For public repositories, CI also creates GitHub build-provenance attestation for
+the exact report bytes before upload.
 Validate a downloaded or locally produced report with:
 
 ```sh
@@ -38,6 +40,18 @@ ump-ros2-evidence /tmp/ump-ros2-gazebo-smoke.json \
   --world ros2_ws/src/ump_gazebo_demo/worlds/three_robot_world.sdf \
   --revision COMMIT_SHA
 ```
+
+For a report downloaded from a public GitHub workflow, also verify its runner
+provenance before accepting it as qualification evidence:
+
+```sh
+gh attestation verify ump-ros2-gazebo-smoke.json --repo promiseeuler/UMP
+```
+
+GitHub artifact attestations for private repositories require an eligible
+Enterprise Cloud plan. A private workflow can still produce useful native smoke
+evidence, but UMP must not treat that report as provenance-verified unless the
+deployment supplies an equivalent approved signing and verification record.
 
 The validator requires Jazzy, all six readiness/lifecycle checks, and the exact
 success, adapter success, cancellation, and capability-rejection results. This
