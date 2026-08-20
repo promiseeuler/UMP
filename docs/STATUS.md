@@ -90,6 +90,8 @@
   and authority stores, bounded 1–10 Hz state publication, and signal shutdown.
 - Owner-facing `ump-coordinator` workflow with trusted planner loading, bounded
   participant readiness, durable goal submission, completion waiting, and status.
+- Four-identity mutual-TLS loopback integration covering authorized awareness,
+  three dependency-ordered assignments, outcomes, and terminal run durability.
 - Participant-node enforcement of the active managed credential generation,
   handshake-time peer revocation, and runtime local-credential revocation checks.
 - Participant-node detection of semantic safety transitions with single-snapshot,

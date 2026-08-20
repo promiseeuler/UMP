@@ -69,3 +69,9 @@ ump-coordinator status \
 Planner proposals remain untrusted and pass the checks in `PLANNER.md`. Each
 participant independently enforces its robot-local authority lease and native
 safety policy before accepting an assignment.
+
+The automated integration suite runs one coordinator and three participant
+identities through a complete dependency-ordered collaboration over mutual TLS
+TCP sockets, with CA identity checks, explicit disclosure policies, durable
+inboxes/outboxes, and zero failed deliveries. This is localhost transport
+evidence only; it does not replace the required two-host LAN or hardware pilot.

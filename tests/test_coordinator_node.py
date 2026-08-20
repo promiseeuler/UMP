@@ -2,6 +2,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 import json
 from pathlib import Path
+import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -16,10 +17,114 @@ from ump.coordinator_node import (
 from ump.coordinator_store import CoordinatorStore, RunStatus
 from ump.demo import WarehousePlanner
 from ump.models import RobotManifest, SharedGoal
+from ump.network import (
+    PeerEndpoint,
+    SqliteReplayProtector,
+    TlsNetworkBus,
+    create_client_context,
+    create_server_context,
+)
+from ump.delivery import SqliteOutbox
 from ump.runtime import Participant, Registry
 from ump.simulation import SimulatedRobot
 from ump.transport import InMemoryBus
 from ump.vocabulary import standard_capability
+
+
+def run_openssl(*arguments, directory):
+    subprocess.run(
+        ["openssl", *arguments],
+        cwd=directory,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def create_ca(directory: Path) -> tuple[Path, Path]:
+    key = directory / "ca.key"
+    certificate = directory / "ca.crt"
+    run_openssl(
+        "req",
+        "-x509",
+        "-newkey",
+        "rsa:2048",
+        "-nodes",
+        "-keyout",
+        str(key),
+        "-out",
+        str(certificate),
+        "-days",
+        "1",
+        "-sha256",
+        "-subj",
+        "/CN=UMP Coordinator Test CA",
+        directory=directory,
+    )
+    return certificate, key
+
+
+def create_leaf(
+    directory: Path, ca_certificate: Path, ca_key: Path, identity: str
+) -> tuple[Path, Path]:
+    key = directory / f"{identity}.key"
+    request = directory / f"{identity}.csr"
+    certificate = directory / f"{identity}.crt"
+    extensions = directory / f"{identity}.ext"
+    extensions.write_text(f"subjectAltName=URI:urn:ump:robot:{identity}\n")
+    run_openssl(
+        "req",
+        "-new",
+        "-newkey",
+        "rsa:2048",
+        "-nodes",
+        "-keyout",
+        str(key),
+        "-out",
+        str(request),
+        "-subj",
+        f"/CN={identity}",
+        directory=directory,
+    )
+    run_openssl(
+        "x509",
+        "-req",
+        "-in",
+        str(request),
+        "-CA",
+        str(ca_certificate),
+        "-CAkey",
+        str(ca_key),
+        "-CAcreateserial",
+        "-out",
+        str(certificate),
+        "-days",
+        "1",
+        "-sha256",
+        "-extfile",
+        str(extensions),
+        directory=directory,
+    )
+    return certificate, key
+
+
+def tls_bus(
+    directory: Path,
+    identity: str,
+    certificate: Path,
+    key: Path,
+    ca_certificate: Path,
+) -> TlsNetworkBus:
+    return TlsNetworkBus(
+        identity,
+        "127.0.0.1",
+        0,
+        create_server_context(certificate, key, ca_certificate),
+        create_client_context(certificate, key, ca_certificate),
+        replay_protector=SqliteReplayProtector(directory / f"{identity}-replay.sqlite3"),
+        inbox_path=directory / f"{identity}-inbox.sqlite3",
+        outbox=SqliteOutbox(directory / f"{identity}-outbox.sqlite3"),
+    )
 
 
 class ServiceBus(InMemoryBus):
@@ -74,6 +179,147 @@ def participants(bus):
 
 
 class CoordinatorServiceTests(unittest.TestCase):
+    def test_full_collaboration_completes_over_mutual_tls(self):
+        with TemporaryDirectory() as directory_name:
+            directory = Path(directory_name)
+            ca_certificate, ca_key = create_ca(directory)
+            identities = (
+                "owner-coordinator-1",
+                "robot-humanoid-1",
+                "robot-quadruped-1",
+                "robot-mobile-arm-1",
+            )
+            credentials = {
+                identity: create_leaf(directory, ca_certificate, ca_key, identity)
+                for identity in identities
+            }
+            buses = {
+                identity: tls_bus(
+                    directory,
+                    identity,
+                    *credentials[identity],
+                    ca_certificate,
+                )
+                for identity in identities
+            }
+            coordinator_bus = buses["owner-coordinator-1"]
+            registry = Registry(coordinator_bus)
+            store = CoordinatorStore(directory / "coordinator.sqlite3")
+            coordinator = Coordinator(
+                coordinator_bus.robot_id,
+                coordinator_bus,
+                registry,
+                store=store,
+                authority_lease_ids={
+                    identity: f"lease-{identity}" for identity in identities[1:]
+                },
+            )
+            now_ms = 1_100
+            service = CoordinatorService(
+                coordinator_bus,
+                coordinator,
+                registry,
+                clock_ms=lambda: now_ms,
+                poll_interval_s=0.01,
+            )
+            coordinator_host, coordinator_port = service.start()
+            robot_participants = []
+            robot_buses = []
+            manifests = (
+                RobotManifest(
+                    "robot-humanoid-1",
+                    "Example Humanoid Co",
+                    "H1",
+                    "humanoid",
+                    (standard_capability("ump.material.carry/v1"),),
+                ),
+                RobotManifest(
+                    "robot-quadruped-1",
+                    "Example Quadruped Co",
+                    "Q1",
+                    "quadruped",
+                    (standard_capability("ump.navigation.inspect-route/v1"),),
+                ),
+                RobotManifest(
+                    "robot-mobile-arm-1",
+                    "Example Manipulation Co",
+                    "A1",
+                    "mobile_arm",
+                    (standard_capability("ump.manipulation.place/v1"),),
+                ),
+            )
+            try:
+                for manifest in manifests:
+                    robot_bus = buses[manifest.robot_id]
+                    robot_host, robot_port = robot_bus.start()
+                    robot_buses.append(robot_bus)
+                    robot_bus.add_peer(
+                        PeerEndpoint(
+                            coordinator_bus.robot_id,
+                            coordinator_host,
+                            coordinator_port,
+                            allowed_message_types=(
+                                "manifest",
+                                "state",
+                                "assignment_ack",
+                                "outcome",
+                                "assignment_snapshot",
+                                "cancellation_ack",
+                            ),
+                            allowed_capabilities=tuple(
+                                capability.name for capability in manifest.capabilities
+                            ),
+                        )
+                    )
+                    coordinator_bus.add_peer(
+                        PeerEndpoint(
+                            manifest.robot_id,
+                            robot_host,
+                            robot_port,
+                            allowed_message_types=(
+                                "goal",
+                                "plan",
+                                "assignment",
+                                "assignment_query",
+                                "cancellation_request",
+                            ),
+                        )
+                    )
+                    participant = Participant(
+                        SimulatedRobot(manifest),
+                        robot_bus,
+                        authorizer=AllowAllAuthorizer(),
+                        clock_ms=lambda: now_ms,
+                    )
+                    robot_participants.append(participant)
+                    participant.announce(now_ms)
+
+                goal = SharedGoal(
+                    "goal-tls-1",
+                    "Move the sealed package to storage over the UMP network",
+                    tuple(manifest.robot_id for manifest in manifests),
+                    deadline_ms=60_000,
+                )
+                plan = service.submit(
+                    goal, WarehousePlanner(), participant_timeout_s=3.0
+                )
+                snapshot = service.wait_for_completion(plan.plan_id, timeout_s=5.0)
+
+                self.assertEqual(snapshot.status, RunStatus.SUCCEEDED)
+                self.assertTrue(
+                    all(
+                        bus.delivery_metrics.failed_attempts == 0
+                        for bus in buses.values()
+                    )
+                )
+                self.assertTrue(all(not bus.errors for bus in buses.values()))
+            finally:
+                service.close()
+                for robot_bus in robot_buses:
+                    robot_bus.stop()
+                for participant in robot_participants:
+                    participant.close()
+
     def test_submits_goal_and_reports_durable_terminal_run(self):
         with TemporaryDirectory() as directory:
             bus = ServiceBus()
