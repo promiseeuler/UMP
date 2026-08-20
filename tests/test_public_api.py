@@ -22,6 +22,7 @@ class PublicApiTests(unittest.TestCase):
             "Availability",
             "CommunicationLossHandler",
             "Coordinator",
+            "CoordinatorService",
             "Mode",
             "Outcome",
             "Plan",

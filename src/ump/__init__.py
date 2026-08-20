@@ -5,6 +5,7 @@ from .authority import SqliteAuthorityStore
 from .conformance import AdapterConformanceHarness, ConformanceReport
 from .collaboration import Coordinator, PlanValidationError, validate_plan
 from .coordinator_store import CoordinatorStore, RunSnapshot, RunStatus, StepStatus
+from .coordinator_node import CoordinatorService
 from .journal import SqliteAssignmentJournal
 from .models import (
     Assignment,
@@ -34,6 +35,7 @@ __all__ = [
     "Capability",
     "CommunicationLossHandler",
     "Coordinator",
+    "CoordinatorService",
     "AuthorityLease",
     "ConformanceReport",
     "CoordinatorStore",

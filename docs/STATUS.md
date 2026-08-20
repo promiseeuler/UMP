@@ -88,6 +88,8 @@
   and a runnable zero-capability read-only hardware integration starting point.
 - Owner-facing `ump-node` service with trusted adapter factories, durable assignment
   and authority stores, bounded 1–10 Hz state publication, and signal shutdown.
+- Owner-facing `ump-coordinator` workflow with trusted planner loading, bounded
+  participant readiness, durable goal submission, completion waiting, and status.
 - Participant-node enforcement of the active managed credential generation,
   handshake-time peer revocation, and runtime local-credential revocation checks.
 - Participant-node detection of semantic safety transitions with single-snapshot,

@@ -19,14 +19,24 @@ from .benchmark import (
     run_tls_network_benchmark,
     serve_tls_network_benchmark,
 )
+from .collaboration import Coordinator
 from .conformance import AdapterConformanceHarness, validate_vector_suite
+from .coordinator_node import (
+    CoordinatorService,
+    ParticipantContextTimeout,
+    RunCompletionTimeout,
+    parse_authority_leases,
+)
+from .coordinator_store import CoordinatorStore, RunSnapshot, RunStatus
 from .credentials import CredentialError, CredentialGeneration, SqliteCredentialStore
 from .inspector import InspectorServer, InspectorStore
 from .journal import SqliteAssignmentJournal
-from .models import AssignmentStatus, AuthorityLease, payload
+from .models import AssignmentStatus, AuthorityLease, SharedGoal, payload
 from .network import TlsNetworkBus, load_network_config
 from .node import ParticipantService, load_adapter
+from .planner import load_planner
 from .readiness import load_readiness_report
+from .runtime import Registry
 from .vocabulary import standard_capability, vocabulary_document
 
 
@@ -556,6 +566,196 @@ def node_main(argv: list[str] | None = None) -> int:
                 journal.close()
             if authority is not None:
                 authority.close()
+        if credentials is not None:
+            credentials.close()
+
+
+def _run_snapshot_document(snapshot: RunSnapshot) -> dict[str, object]:
+    return {
+        "plan_id": snapshot.plan_id,
+        "goal_id": snapshot.goal_id,
+        "status": snapshot.status.value,
+        "steps": {step_id: status.value for step_id, status in snapshot.steps.items()},
+    }
+
+
+def _load_shared_goal(path: str) -> SharedGoal:
+    if path == "-":
+        document = json.load(sys.stdin)
+    else:
+        with Path(path).open(encoding="utf-8") as stream:
+            document = json.load(stream)
+    if not isinstance(document, dict):
+        raise ValueError("goal document must be a JSON object")
+    constraints = document.get("constraints", {})
+    if not isinstance(constraints, dict):
+        raise ValueError("goal constraints must be a JSON object")
+    return SharedGoal(
+        goal_id=document["goal_id"],
+        description=document["description"],
+        participant_ids=tuple(document["participant_ids"]),
+        constraints=constraints,
+        deadline_ms=document.get("deadline_ms"),
+    )
+
+
+def coordinator_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="ump-coordinator",
+        description="Submit and inspect durable UMP collaborative runs.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    submit = commands.add_parser(
+        "submit", help="Submit one shared goal over the secure UMP network"
+    )
+    submit.add_argument("--network", required=True)
+    submit.add_argument("--planner", required=True, help="Trusted module:factory")
+    submit.add_argument("--planner-config")
+    submit.add_argument("--goal", required=True, help="Goal JSON path, or - for stdin")
+    submit.add_argument("--database", required=True)
+    submit.add_argument("--credential-database", required=True)
+    submit.add_argument("--credential-directory", required=True)
+    submit.add_argument(
+        "--authority-lease",
+        action="append",
+        default=[],
+        metavar="ROBOT_ID=LEASE_ID",
+    )
+    submit.add_argument("--participant-timeout", type=float, default=30.0)
+    submit.add_argument("--completion-timeout", type=float, default=300.0)
+    status = commands.add_parser("status", help="Read one run from the durable journal")
+    status.add_argument("--database", required=True)
+    status.add_argument("--plan-id", required=True)
+    return parser
+
+
+def coordinator_main(argv: list[str] | None = None) -> int:
+    arguments = coordinator_parser().parse_args(argv)
+    if arguments.command == "status":
+        store: CoordinatorStore | None = None
+        try:
+            store = CoordinatorStore(arguments.database)
+            snapshot = store.snapshot(arguments.plan_id)
+            print(json.dumps(_run_snapshot_document(snapshot), sort_keys=True))
+            return 0
+        except (KeyError, OSError, sqlite3.Error, ValueError) as error:
+            print(f"ump-coordinator: {type(error).__name__}: {error}", file=sys.stderr)
+            return 2
+        finally:
+            if store is not None:
+                store.close()
+
+    service = None
+    credentials = None
+    store = None
+    bus = None
+    stop = Event()
+    previous_handlers = {}
+    plan_id: str | None = None
+    try:
+        goal = _load_shared_goal(arguments.goal)
+        planner = load_planner(arguments.planner, arguments.planner_config)
+        authority_leases = parse_authority_leases(arguments.authority_lease)
+        config = load_network_config(arguments.network)
+        unknown_participants = set(goal.participant_ids) - {
+            peer.robot_id for peer in config.peers
+        }
+        if unknown_participants:
+            raise ValueError(
+                f"goal participants are not configured peers: {sorted(unknown_participants)}"
+            )
+        credentials = SqliteCredentialStore(
+            config.robot_id,
+            arguments.credential_database,
+            arguments.credential_directory,
+        )
+        credentials.require_active_bundle(
+            config.certificate_path,
+            config.private_key_path,
+            config.ca_path,
+        )
+        bus = TlsNetworkBus.from_config(
+            config, certificate_revoked=credentials.is_revoked
+        )
+        registry = Registry(bus)
+        store = CoordinatorStore(arguments.database)
+        coordinator = Coordinator(
+            config.robot_id,
+            bus,
+            registry,
+            store=store,
+            authority_lease_ids=authority_leases,
+        )
+        service = CoordinatorService(
+            bus,
+            coordinator,
+            registry,
+            health_check=lambda: credentials.require_active_bundle(
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            ),
+        )
+
+        def request_stop(_signal_number, _frame) -> None:
+            stop.set()
+
+        for signal_number in (signal.SIGINT, signal.SIGTERM):
+            previous_handlers[signal_number] = signal.signal(
+                signal_number, request_stop
+            )
+        host, port = service.start()
+        print(
+            json.dumps(
+                {
+                    "event": "ready",
+                    "coordinator_id": config.robot_id,
+                    "host": host,
+                    "port": port,
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        plan = service.submit(
+            goal,
+            planner,
+            participant_timeout_s=arguments.participant_timeout,
+            stop=stop,
+        )
+        plan_id = plan.plan_id
+        snapshot = coordinator.snapshot(plan.plan_id)
+        print(
+            json.dumps(
+                {"event": "submitted", **_run_snapshot_document(snapshot)},
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        snapshot = service.wait_for_completion(
+            plan.plan_id, arguments.completion_timeout, stop
+        )
+        print(json.dumps(_run_snapshot_document(snapshot), sort_keys=True), flush=True)
+        return 0 if snapshot.status is RunStatus.SUCCEEDED else 1
+    except (ParticipantContextTimeout, RunCompletionTimeout, InterruptedError) as error:
+        detail: dict[str, object] = {"error": str(error)}
+        if plan_id is not None and service is not None:
+            detail["run"] = _run_snapshot_document(service.coordinator.snapshot(plan_id))
+        print(json.dumps(detail, sort_keys=True), file=sys.stderr, flush=True)
+        return 3
+    except Exception as error:
+        print(f"ump-coordinator: {type(error).__name__}: {error}", file=sys.stderr)
+        return 2
+    finally:
+        for signal_number, handler in previous_handlers.items():
+            signal.signal(signal_number, handler)
+        if service is not None:
+            service.close()
+        else:
+            if bus is not None:
+                bus.stop()
+            if store is not None:
+                store.close()
         if credentials is not None:
             credentials.close()
 

@@ -36,6 +36,7 @@ transport, and placement steps from one shared goal.
 - `docs/NETWORK_PROFILE.md`: mutual-TLS and discovery alpha profile.
 - `docs/AUTHORITY.md`: robot-local assignment leases and owner CLI.
 - `docs/CREDENTIALS.md`: issued-certificate enrollment, rotation, and revocation.
+- `docs/COORDINATOR.md`: owner goal submission and durable run status workflow.
 - `docs/NODE.md`: owner-facing long-running participant service.
 - `docs/PLANNER.md`: reasoning-provider contract and validation boundary.
 - `docs/RECONCILIATION.md`: evidence-based resolution of uncertain native work.

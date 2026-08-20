@@ -165,6 +165,20 @@ class Registry:
                 and now_ms - peer.state_timestamp_ms <= peer.state.fresh_for_ms
             )
 
+    def missing_context(
+        self, participant_ids: tuple[str, ...], now_ms: int
+    ) -> tuple[str, ...]:
+        """Return participants lacking a manifest and fresh semantic state."""
+        with self._lock:
+            return tuple(
+                robot_id
+                for robot_id in participant_ids
+                if (peer := self.peers.get(robot_id)) is None
+                or peer.manifest is None
+                or peer.state is None
+                or now_ms - peer.state_timestamp_ms > peer.state.fresh_for_ms
+            )
+
 
 class CommunicationWatchdog:
     """Invokes manufacturer policy when required peer state becomes stale."""
