@@ -106,6 +106,12 @@ from .release_evidence import (
 from .ros2_evidence import Ros2EvidenceValidationError, validate_ros2_smoke_report
 from .review import ReviewValidationError, review_schema, validate_review_bundle
 from .runtime import Registry
+from .simulated_qualification import (
+    SimulatedQualificationError,
+    run_simulated_qualification,
+    simulated_qualification_schema,
+    validate_simulated_qualification,
+)
 from .vocabulary import standard_capability, vocabulary_document
 
 
@@ -1649,6 +1655,50 @@ def public_readiness_main(argv: list[str] | None = None) -> int:
     return 0 if report["ready"] else 1
 
 
+def simulated_qualification_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-simulate",
+        description="Run or validate the explicitly non-production UMP simulation suite.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    run = commands.add_parser("run", help="Run simulated qualification scenarios")
+    run.add_argument("--project-root", default=".")
+    run.add_argument("--tls-samples", type=int, default=25)
+    run.add_argument("--output")
+    validate = commands.add_parser("validate", help="Validate a retained report")
+    validate.add_argument("report")
+    commands.add_parser("schema", help="Print the report schema")
+    arguments = parser.parse_args(argv)
+    try:
+        if arguments.command == "schema":
+            result = simulated_qualification_schema()
+        elif arguments.command == "validate":
+            result = json.loads(Path(arguments.report).read_text(encoding="utf-8"))
+            validate_simulated_qualification(result)
+        else:
+            result = run_simulated_qualification(
+                arguments.project_root, tls_samples=arguments.tls_samples
+            )
+            if arguments.output:
+                output = Path(arguments.output)
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(
+                    json.dumps(result, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+        print(json.dumps(result, sort_keys=True))
+        return 0 if arguments.command != "run" or result["passed"] else 1
+    except (
+        SimulatedQualificationError,
+        OSError,
+        json.JSONDecodeError,
+        ValidationError,
+        ValueError,
+    ) as error:
+        print(f"ump-simulate: {error}", file=sys.stderr)
+        return 2
+
+
 def inspector_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-inspector",
@@ -1701,6 +1751,7 @@ def main(argv: list[str] | None = None) -> int:
         "vocabulary": vocabulary_main,
         "readiness": readiness_main,
         "public-readiness": public_readiness_main,
+        "simulate": simulated_qualification_main,
         "release-evidence": release_evidence_main,
         "ros2-evidence": ros2_evidence_main,
         "review": review_main,

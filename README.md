@@ -17,12 +17,15 @@ PYTHONPATH=src python3 -m ump.demo
 python3 -m unittest discover -s tests -v
 PYTHONPATH=src python3 -m ump.cli conformance conformance/v0.1
 PYTHONPATH=src python3 -m ump.cli benchmark
+PYTHONPATH=src python3 -m ump.cli simulate run --project-root .
 ```
 
 For two-host deployment measurements, see [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 Manufacturers can begin with the documented [adapter contract](docs/MANUFACTURER_ADAPTER.md)
 and the runnable read-only example in `examples/read_only_adapter.py`.
+Robot owners can follow the staged [deployment path](docs/ROBOT_DEPLOYMENT.md),
+starting with simulation and awareness-only operation before granting work.
 
 The demo connects three simulated robots from different manufacturers through
 an in-memory transport. A replaceable planner assigns route inspection,
@@ -41,6 +44,8 @@ transport, and placement steps from one shared goal.
 - `docs/PLANNER.md`: reasoning-provider contract and validation boundary.
 - `docs/RECONCILIATION.md`: evidence-based resolution of uncertain native work.
 - `docs/ROS2_GAZEBO.md`: manufacturer ROS action adapter and simulator profile.
+- `docs/SIMULATED_QUALIFICATION.md`: repeatable non-production simulation report.
+- `docs/ROBOT_DEPLOYMENT.md`: staged owner and manufacturer deployment path.
 - `docs/CONFORMANCE.md`: golden vectors and safe adapter validation workflow.
 - `docs/INTEROPERABILITY.md`: SI unit and coordinate-frame schema profile.
 - `docs/VOCABULARY.md`: versioned standard high-level capability contracts.

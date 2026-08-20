@@ -69,6 +69,11 @@ from .planner import Planner, load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .public_release import audit_public_release
 from .runtime import Participant, Registry
+from .simulated_qualification import (
+    run_simulated_qualification,
+    simulated_qualification_schema,
+    validate_simulated_qualification,
+)
 from .ros2_evidence import Ros2EvidenceValidationError, validate_ros2_smoke_report
 from .release_evidence import (
     ReleaseEvidenceValidationError,
@@ -111,6 +116,7 @@ __all__ = [
     "Participant",
     "ParticipantService",
     "Registry",
+    "run_simulated_qualification",
     "ReadOnlyInspectorStore",
     "RobotAdapter",
     "RobotManifest",
@@ -127,6 +133,7 @@ __all__ = [
     "SqliteAuthorityStore",
     "StepStatus",
     "standard_capabilities",
+    "simulated_qualification_schema",
     "adapter_evidence_schema",
     "audit_public_release",
     "standard_capability",
@@ -154,6 +161,7 @@ __all__ = [
     "validate_pilot_bundle",
     "validate_lan_evidence_bundle",
     "validate_network_config",
+    "validate_simulated_qualification",
     "validate_plan",
     "validate_adapter_evidence",
     "validate_ros2_smoke_report",
