@@ -1,0 +1,200 @@
+{
+  "checks": [
+    {
+      "description": "Every simulated robot observer received all manifests and semantic states.",
+      "id": "simulation.awareness.all-peers",
+      "passed": true
+    },
+    {
+      "description": "The shared goal completed across three heterogeneous participants.",
+      "id": "simulation.collaboration.completed",
+      "passed": true
+    },
+    {
+      "description": "Dependent assignments were dispatched only after prerequisite outcomes.",
+      "id": "simulation.collaboration.dependencies",
+      "passed": true
+    },
+    {
+      "description": "The trace contains an acknowledgement and outcome for every assignment.",
+      "id": "simulation.trace.correlated",
+      "passed": true
+    },
+    {
+      "description": "Assignments without robot-local authority leases were rejected.",
+      "id": "simulation.authority.deny-by-default",
+      "passed": true
+    },
+    {
+      "description": "A cyclic microtask plan was rejected before dispatch.",
+      "id": "simulation.plan.cycle-rejected",
+      "passed": true
+    },
+    {
+      "description": "Stale peer state invoked loss policy and fresh state invoked restoration.",
+      "id": "simulation.communication.loss-restoration",
+      "passed": true
+    },
+    {
+      "description": "Same-host TCP loopback messages passed mutual-TLS and latency checks.",
+      "id": "simulation.transport.mutual-tls-loopback",
+      "passed": true
+    },
+    {
+      "description": "All three simulated adapters passed read-only contract inspection.",
+      "id": "simulation.adapters.read-only-conformance",
+      "passed": true
+    }
+  ],
+  "environment": {
+    "implementation": "CPython",
+    "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+    "python": "3.14.2"
+  },
+  "generated_at": "2026-08-20T22:18:49.486801+00:00",
+  "passed": true,
+  "profile": "ump.simulated-qualification/v1",
+  "repository_revision": "4ad39cdd38eb37f29e1b20407bf4fd8abced9ac3",
+  "scenarios": {
+    "adapter_conformance": [
+      {
+        "checks": [
+          {
+            "id": "adapter.manifest",
+            "passed": true
+          },
+          {
+            "id": "adapter.state",
+            "passed": true
+          },
+          {
+            "id": "adapter.identity",
+            "passed": true
+          }
+        ],
+        "passed": true,
+        "robot_id": "robot-humanoid-1"
+      },
+      {
+        "checks": [
+          {
+            "id": "adapter.manifest",
+            "passed": true
+          },
+          {
+            "id": "adapter.state",
+            "passed": true
+          },
+          {
+            "id": "adapter.identity",
+            "passed": true
+          }
+        ],
+        "passed": true,
+        "robot_id": "robot-quadruped-1"
+      },
+      {
+        "checks": [
+          {
+            "id": "adapter.manifest",
+            "passed": true
+          },
+          {
+            "id": "adapter.state",
+            "passed": true
+          },
+          {
+            "id": "adapter.identity",
+            "passed": true
+          }
+        ],
+        "passed": true,
+        "robot_id": "robot-mobile-arm-1"
+      }
+    ],
+    "boundaries": {
+      "authority_without_lease": "rejected",
+      "communication_events": [
+        {
+          "event": "lost",
+          "observed_at_ms": 4000,
+          "peer_ids": [
+            "robot-humanoid-1"
+          ]
+        },
+        {
+          "event": "restored",
+          "observed_at_ms": 4100,
+          "peer_ids": [
+            "robot-humanoid-1"
+          ]
+        }
+      ],
+      "cyclic_plan": "rejected"
+    },
+    "collaboration": {
+      "final_state_summaries": {
+        "robot-humanoid-1": "humanoid robot-humanoid-1 completed carry the sealed package along the approved route and is available.",
+        "robot-mobile-arm-1": "mobile_arm robot-mobile-arm-1 completed place the sealed package on the storage shelf and is available.",
+        "robot-quadruped-1": "quadruped robot-quadruped-1 completed inspect the route from intake to storage and is available."
+      },
+      "goal_id": "goal-simulated-qualification",
+      "message_counts": {
+        "assignment": 3,
+        "assignment_ack": 3,
+        "goal": 1,
+        "manifest": 6,
+        "outcome": 3,
+        "plan": 1,
+        "state": 9
+      },
+      "participants": [
+        "robot-humanoid-1",
+        "robot-mobile-arm-1",
+        "robot-quadruped-1"
+      ],
+      "plan_id": "a2397b71-59cb-4db6-852b-3af6de149094",
+      "planner_id": "ump.reference.warehouse-planner/v1",
+      "robot_classes": [
+        "humanoid",
+        "mobile_arm",
+        "quadruped"
+      ],
+      "run_status": "succeeded"
+    },
+    "tls_loopback": {
+      "checks": {
+        "message_within_core_limit": true,
+        "round_trip_p95_within_reference_target": true
+      },
+      "environment": {
+        "executable": "/Users/computer/.pyenv/versions/3.14.2/bin/python3",
+        "implementation": "CPython",
+        "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+        "python": "3.14.2",
+        "transport": "TCP loopback; fresh mutual-TLS connection per message"
+      },
+      "maximum_message_bytes": 65536,
+      "message_bytes": 501,
+      "passed": true,
+      "profile": "ump.reference.tls-loopback/v1",
+      "round_trip_p50_ms": 1.823625,
+      "round_trip_p95_ms": 2.120417,
+      "round_trip_p99_ms": 2.455042,
+      "round_trips_per_second": 538.3594224462888,
+      "samples": 25,
+      "thresholds": {
+        "round_trip_p95_ms": 100.0
+      }
+    }
+  },
+  "scope": {
+    "environment": "simulation",
+    "limitations": [
+      "No physical robot dynamics or actuator behavior is exercised.",
+      "The mutual-TLS measurement uses one host and does not qualify a two-host LAN.",
+      "Adapters and reviewers are not independent manufacturers or external assessors."
+    ],
+    "qualification_substitute": false
+  }
+}
