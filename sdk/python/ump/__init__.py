@@ -1,2 +1,0 @@
-"""UMP Python SDK preview."""
-

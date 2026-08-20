@@ -1,4 +1,0 @@
-builtin_interfaces/Time source_time
-uint64 sequence
-float64 position_uncertainty_m
-float64 orientation_uncertainty_rad

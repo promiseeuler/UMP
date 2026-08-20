@@ -1,9 +1,0 @@
-/target/
-**/*.rs.bk
-.DS_Store
-.idea/
-.vscode/
-**/__pycache__/
-*.py[cod]
-/artifacts/
-/dist/
