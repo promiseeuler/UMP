@@ -21,6 +21,13 @@ from .coordinator_store import (
 )
 from .coordinator_node import CoordinatorService
 from .journal import SqliteAssignmentJournal
+from .goal import (
+    goal_batch_schema,
+    goal_schema,
+    goal_validation_report,
+    shared_goal_from_document,
+    shared_goals_from_document,
+)
 from .lan_evidence import (
     LanEvidenceValidationError,
     lan_evidence_schema,
@@ -95,11 +102,16 @@ __all__ = [
     "adapter_evidence_schema",
     "standard_capability",
     "load_adapter",
+    "goal_batch_schema",
+    "goal_schema",
+    "goal_validation_report",
     "inspect_adapter_evidence",
     "load_planner",
     "network_config_schema",
     "lan_evidence_schema",
     "read_run_summaries",
+    "shared_goal_from_document",
+    "shared_goals_from_document",
     "review_schema",
     "pilot_schema",
     "validate_pilot_bundle",

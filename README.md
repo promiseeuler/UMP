@@ -54,6 +54,8 @@ transport, and placement steps from one shared goal.
 - `conformance/v0.1`: byte-exact valid and invalid protocol vectors.
 - `schemas/ump-v0.schema.json`: canonical JSON Schema for wire messages.
 - `schemas/ump-network-config-v1.schema.json`: strict deployment configuration.
+- `schemas/ump-shared-goal-v1.schema.json`: strict owner goal document contract.
+- `schemas/ump-shared-goal-batch-v1.schema.json`: bounded atomic goal-batch contract.
 - `src/ump`: dependency-light reference implementation.
 - `tests`: protocol and collaboration tests.
 

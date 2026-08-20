@@ -308,14 +308,24 @@ class SharedGoal:
     def __post_init__(self) -> None:
         _identifier(self.goal_id, "goal_id")
         _required_text(self.description, "goal description", 4_096)
+        if not isinstance(self.participant_ids, tuple):
+            raise TypeError("goal participant_ids must be a tuple")
         if not 1 <= len(self.participant_ids) <= 256:
             raise ValueError("goal requires 1 to 256 participants")
         if len(self.participant_ids) != len(set(self.participant_ids)):
             raise ValueError("goal participants must be unique")
         for participant_id in self.participant_ids:
             _identifier(participant_id, "participant_id")
-        if self.deadline_ms is not None and self.deadline_ms < 0:
-            raise ValueError("goal deadline cannot be negative")
+        if not isinstance(self.constraints, dict):
+            raise TypeError("goal constraints must be a JSON object")
+        try:
+            json.dumps(self.constraints, allow_nan=False)
+        except (TypeError, ValueError) as error:
+            raise ValueError("goal constraints must be JSON serializable") from error
+        if self.deadline_ms is not None and (
+            type(self.deadline_ms) is not int or self.deadline_ms < 0
+        ):
+            raise ValueError("goal deadline must be a non-negative integer")
 
 
 @dataclass(frozen=True)

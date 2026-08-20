@@ -35,6 +35,7 @@ ump-benchmark = "ump.cli:benchmark_main"
 ump-conformance = "ump.cli:conformance_main"
 ump-coordinator = "ump.cli:coordinator_main"
 ump-credentials = "ump.cli:credentials_main"
+ump-goal = "ump.cli:goal_main"
 ump-inspector = "ump.cli:inspector_main"
 ump-lan-benchmark = "ump.cli:lan_benchmark_main"
 ump-lan-evidence = "ump.cli:lan_evidence_main"
@@ -63,5 +64,6 @@ ump = [
   "pilot_data/**/*.json",
   "lan_evidence_data/**/*.json",
   "network_config_data/**/*.json",
+  "goal_data/**/*.json",
   "review_data/**/*.json",
 ]

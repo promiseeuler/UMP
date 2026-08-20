@@ -25,6 +25,17 @@ Create a bounded JSON goal such as:
 `deadline_ms` is an absolute Unix epoch timestamp in milliseconds. Every
 participant must be an explicitly configured network peer.
 
+Validate a goal before deployment, or print the versioned contract for tooling:
+
+```sh
+ump-goal validate /etc/ump/goals/move-package.json
+ump-goal schema
+```
+
+Goal documents reject unknown fields, duplicate participants, non-object
+constraints, invalid identifiers, and non-integer deadlines. Validation output
+contains IDs and participant names but omits descriptions and constraints.
+
 ## Submit
 
 The coordinator needs its own issued credential, network configuration, and
@@ -90,6 +101,9 @@ any run. This prevents a partly accepted batch when one proposal is invalid.
 Runs then progress independently under one bounded completion deadline. JSON
 events use `submitted_batch` and `completed_batch`, with one durable run snapshot
 per goal. Exit status is successful only when every run succeeds.
+
+Use `ump-goal validate-batch /etc/ump/goals/shift-tasks.json` to validate a
+batch independently. `ump-goal batch-schema` prints its JSON Schema.
 
 Exit status is `0` for successful completion, `1` for a terminal non-successful
 run, `2` for configuration/validation failure, and `3` for timeout or

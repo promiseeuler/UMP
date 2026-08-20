@@ -51,6 +51,13 @@ from .credentials import (
     SqliteCredentialStore,
     read_active_credential,
 )
+from .goal import (
+    goal_batch_schema,
+    goal_schema,
+    goal_validation_report,
+    shared_goal_from_document,
+    shared_goals_from_document,
+)
 from .inspector import InspectorServer, InspectorStore
 from .journal import SqliteAssignmentJournal
 from .lan_evidence import (
@@ -777,6 +784,39 @@ def network_config_main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def goal_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-goal",
+        description="Validate strict UMP shared-goal documents.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    validate = commands.add_parser("validate", help="Validate one shared goal")
+    validate.add_argument("goal")
+    validate_batch = commands.add_parser(
+        "validate-batch", help="Validate an ordered batch of shared goals"
+    )
+    validate_batch.add_argument("goals")
+    commands.add_parser("schema", help="Print the shared-goal JSON Schema")
+    commands.add_parser("batch-schema", help="Print the goal-batch JSON Schema")
+    arguments = parser.parse_args(argv)
+    try:
+        if arguments.command == "schema":
+            result = goal_schema()
+        elif arguments.command == "batch-schema":
+            result = goal_batch_schema()
+        elif arguments.command == "validate-batch":
+            result = goal_validation_report(
+                _load_json_document(arguments.goals), batch=True
+            )
+        else:
+            result = goal_validation_report(_load_json_document(arguments.goal))
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"ump-goal: {error}", file=sys.stderr)
+        return 2
+
+
 def _run_snapshot_document(snapshot: RunSnapshot) -> dict[str, object]:
     return {
         "plan_id": snapshot.plan_id,
@@ -804,18 +844,7 @@ def _load_json_document(path: str):
 
 
 def _shared_goal(document) -> SharedGoal:
-    if not isinstance(document, dict):
-        raise ValueError("goal document must be a JSON object")
-    constraints = document.get("constraints", {})
-    if not isinstance(constraints, dict):
-        raise ValueError("goal constraints must be a JSON object")
-    return SharedGoal(
-        goal_id=document["goal_id"],
-        description=document["description"],
-        participant_ids=tuple(document["participant_ids"]),
-        constraints=constraints,
-        deadline_ms=document.get("deadline_ms"),
-    )
+    return shared_goal_from_document(document)
 
 
 def _load_shared_goal(path: str) -> SharedGoal:
@@ -823,12 +852,7 @@ def _load_shared_goal(path: str) -> SharedGoal:
 
 
 def _load_shared_goals(path: str) -> tuple[SharedGoal, ...]:
-    document = _load_json_document(path)
-    if not isinstance(document, list):
-        raise ValueError("goal batch document must be a JSON array")
-    if not 1 <= len(document) <= 256:
-        raise ValueError("goal batch requires 1 to 256 goals")
-    return tuple(_shared_goal(item) for item in document)
+    return shared_goals_from_document(_load_json_document(path))
 
 
 def coordinator_parser() -> argparse.ArgumentParser:
@@ -1374,6 +1398,7 @@ def main(argv: list[str] | None = None) -> int:
         "conformance": conformance_main,
         "coordinator": coordinator_main,
         "credentials": credentials_main,
+        "goal": goal_main,
         "inspector": inspector_main,
         "lan-benchmark": lan_benchmark_main,
         "lan-evidence": lan_evidence_main,
