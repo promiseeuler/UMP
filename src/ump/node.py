@@ -78,8 +78,11 @@ class ParticipantService:
         self._health_check()
         endpoint = self.bus.start()
         try:
+            manifest = self.adapter.manifest()
             state = self.adapter.state()
-            self._participant.announce(self._clock_ms(), state=state)
+            self._participant.announce(
+                self._clock_ms(), manifest=manifest, state=state
+            )
         except BaseException:
             self.bus.stop()
             raise
@@ -91,8 +94,10 @@ class ParticipantService:
             raise RuntimeError("participant service must be started before run")
         while not stop.wait(self._interval):
             self._health_check()
+            manifest = self.adapter.manifest()
             state = self.adapter.state()
             now_ms = self._clock_ms()
+            self._participant.publish_manifest(now_ms, manifest=manifest)
             self._participant.publish_state(now_ms, state=state)
 
     def close(self) -> None:

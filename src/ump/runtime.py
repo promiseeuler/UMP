@@ -278,6 +278,7 @@ class Participant:
         self.robot_id = adapter.manifest().robot_id
         self._sequences = {OPERATIONAL_STREAM: 0, SAFETY_STREAM: 0}
         self._publication_lock = RLock()
+        self._last_published_manifest = None
         self._last_published_safety = None
         self.session_id = str(uuid4())
         self.journal = journal or MemoryAssignmentJournal()
@@ -329,8 +330,39 @@ class Participant:
             raise ValueError("adapter state robot identity differs")
         return snapshot
 
-    def announce(self, now_ms: int, *, state: RobotState | None = None) -> None:
-        self._send("manifest", self.adapter.manifest(), now_ms)
+    def _manifest_snapshot(
+        self, manifest: RobotManifest | None
+    ) -> RobotManifest:
+        snapshot = self.adapter.manifest() if manifest is None else manifest
+        if not isinstance(snapshot, RobotManifest):
+            raise TypeError("adapter manifest must be RobotManifest")
+        if snapshot.robot_id != self.robot_id:
+            raise ValueError("adapter manifest robot identity differs")
+        return snapshot
+
+    def publish_manifest(
+        self,
+        now_ms: int,
+        *,
+        manifest: RobotManifest | None = None,
+        force: bool = False,
+    ) -> bool:
+        snapshot = self._manifest_snapshot(manifest)
+        with self._publication_lock:
+            if not force and snapshot == self._last_published_manifest:
+                return False
+            self._send("manifest", snapshot, now_ms)
+            self._last_published_manifest = snapshot
+            return True
+
+    def announce(
+        self,
+        now_ms: int,
+        *,
+        manifest: RobotManifest | None = None,
+        state: RobotState | None = None,
+    ) -> None:
+        self.publish_manifest(now_ms, manifest=manifest, force=True)
         self.publish_state(now_ms, state=state)
 
     def publish_state(

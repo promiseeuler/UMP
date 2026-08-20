@@ -37,6 +37,11 @@ changes, the node publishes that snapshot first on UMP's independent safety
 stream and then on the operational stream. This priority notification remains
 semantic state; it is not a functional-safety channel or emergency stop.
 
+The node also reads the manifest once per cycle. A changed capability set,
+schema, description, adapter version, or availability is published before that
+cycle's state; unchanged manifests are suppressed. This lets peers stop planning
+against a capability that becomes busy, degraded, or unavailable.
+
 The network certificate, private key, and CA paths must exactly match the active
 generation in the robot-local credential store. Peer revocations are checked on
 every inbound and outbound handshake. The node also rechecks its active local

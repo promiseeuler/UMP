@@ -133,6 +133,14 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identity differs"):
             participant.publish_state(2_000, state=foreign_state)
 
+    def test_participant_rejects_supplied_manifest_for_another_robot(self):
+        participant = self.participants[0]
+        foreign_manifest = replace(
+            participant.adapter.manifest(), robot_id="robot-other"
+        )
+        with self.assertRaisesRegex(ValueError, "identity differs"):
+            participant.publish_manifest(2_000, manifest=foreign_manifest)
+
     def test_operational_publication_emits_changed_safety_on_priority_stream_first(self):
         participant = self.participants[0]
         changed = replace(

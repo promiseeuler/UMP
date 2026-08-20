@@ -4,7 +4,16 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from ump.models import Assignment, Mode, Outcome, RobotManifest, RobotState, Safety
+from ump.models import (
+    Assignment,
+    Availability,
+    Capability,
+    Mode,
+    Outcome,
+    RobotManifest,
+    RobotState,
+    Safety,
+)
 from ump.node import ParticipantService, load_adapter
 
 
@@ -51,6 +60,28 @@ class MutableSafetyAdapter(Adapter):
             "Publish awareness",
             0.0,
             f"Robot one safety state is {self.safety.value}.",
+        )
+
+
+class MutableAvailabilityAdapter(Adapter):
+    def __init__(self):
+        self.availability = Availability.AVAILABLE
+
+    def manifest(self):
+        return RobotManifest(
+            "robot-1",
+            "Example",
+            "R1",
+            "mobile_robot",
+            (
+                Capability(
+                    "example.observe/v1",
+                    "Observe a bounded semantic target",
+                    {"type": "object"},
+                    {"type": "object"},
+                    self.availability,
+                ),
+            ),
         )
 
 
@@ -154,6 +185,26 @@ class ParticipantServiceTests(unittest.TestCase):
         self.assertEqual(states[1].sequence, 1)
         self.assertEqual(states[2].sequence, 3)
         self.assertEqual(adapter.state_reads, 2)
+
+    def test_changed_capability_availability_is_published_before_state(self):
+        adapter = MutableAvailabilityAdapter()
+        bus = Bus()
+        service = ParticipantService(adapter, bus, Resource(), Resource())
+        service.start()
+        adapter.availability = Availability.UNAVAILABLE
+        service.run(BoundedStop(1))
+        service.run(BoundedStop(1))
+        service.close()
+
+        self.assertEqual(
+            [message.message_type for message in bus.messages],
+            ["manifest", "state", "manifest", "state", "state"],
+        )
+        changed = bus.messages[2]
+        self.assertEqual(
+            changed.payload["capabilities"][0]["availability"], "unavailable"
+        )
+        self.assertEqual(changed.sequence, 3)
 
     def test_service_checks_credential_health_at_start_and_before_publication(self):
         checks = []
