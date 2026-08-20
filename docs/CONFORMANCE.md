@@ -32,6 +32,28 @@ for a conformance failure, and `2` when the suite cannot be loaded.
 state. It checks their model types, robot identity agreement, and each advertised
 capability's input and output schemas.
 
+Manufacturers can generate a retainable read-only report without writing Python:
+
+```sh
+ump-adapter-conformance inspect \
+  --adapter acme_ump.adapter:create_adapter \
+  --adapter-config /etc/acme/ump-adapter.json \
+  --output adapter-conformance.json
+```
+
+The command records the loaded factory specification, implementation-file
+SHA-256, Python distribution versions when available, robot and capability
+metadata, environment, and all read-only checks. It prints the same JSON written
+to `--output`. Exit status `0` means all checks pass, `1` means a report was
+produced with failed checks, and `2` means the adapter or report could not be
+loaded or generated.
+
+Adapter factories are trusted local code and may initialize a vendor SDK merely
+by being loaded. Run this command only with reviewed manufacturer packages. The
+CLI deliberately exposes no native-execution switch. Retain the report in a
+signed or immutable evidence store because its implementation digest does not
+authenticate the report file itself.
+
 Native capability execution is a separate operation:
 
 ```python

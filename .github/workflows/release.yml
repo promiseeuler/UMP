@@ -39,6 +39,7 @@ jobs:
           python -m venv /tmp/ump-release
           /tmp/ump-release/bin/python -m pip install dist/*.whl
           (cd /tmp && /tmp/ump-release/bin/ump-demo)
+          (cd /tmp && /tmp/ump-release/bin/ump-adapter-conformance --help)
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --samples 10 --participants 2)
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --profile tls-loopback --samples 10)
           (cd /tmp && /tmp/ump-release/bin/ump-lan-benchmark --help)

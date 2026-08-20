@@ -16,6 +16,10 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertEqual(metadata["license"], "Apache-2.0")
         self.assertEqual(metadata["requires-python"], ">=3.11")
         self.assertIn("cryptography>=43,<47", metadata["dependencies"])
+        self.assertEqual(
+            metadata["scripts"]["ump-adapter-conformance"],
+            "ump.cli:adapter_conformance_main",
+        )
         self.assertEqual(metadata["scripts"]["ump-reconcile"], "ump.cli:reconcile_main")
         self.assertEqual(
             metadata["scripts"]["ump-coordinator"], "ump.cli:coordinator_main"
@@ -53,6 +57,7 @@ class ReleasePackagingTests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text()
         self.assertIn("python -m twine check dist/*", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-demo", workflow)
+        self.assertIn("/tmp/ump-release/bin/ump-adapter-conformance --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-evidence schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-node --help", workflow)

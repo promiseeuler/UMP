@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+from importlib.metadata import packages_distributions, version
+import inspect
 import json
 from pathlib import Path
+import platform
+import sys
+import time
 from typing import Any
 
 from jsonschema import Draft202012Validator
@@ -123,6 +128,83 @@ class AdapterConformanceHarness:
             raise ValueError("adapter returned a non-terminal outcome")
         if outcome.status is AssignmentStatus.SUCCEEDED:
             Draft202012Validator(capability.output_schema).validate(outcome.outputs)
+
+
+def inspect_adapter_evidence(
+    adapter: RobotAdapter,
+    specification: str,
+    *,
+    observed_at_ms: int | None = None,
+) -> dict[str, Any]:
+    """Run read-only checks and bind the report to the loaded implementation."""
+    report = AdapterConformanceHarness().inspect(adapter)
+    try:
+        implementation_path = Path(inspect.getfile(type(adapter))).resolve()
+    except (OSError, TypeError) as error:
+        raise ValueError("adapter implementation file cannot be identified") from error
+    if not implementation_path.is_file():
+        raise ValueError("adapter implementation file does not exist")
+    implementation_digest = hashlib.sha256(implementation_path.read_bytes()).hexdigest()
+    module_root = type(adapter).__module__.partition(".")[0]
+    distributions = []
+    for distribution in sorted(packages_distributions().get(module_root, ())):
+        try:
+            distributions.append({"name": distribution, "version": version(distribution)})
+        except Exception:
+            distributions.append({"name": distribution, "version": "unknown"})
+
+    manifest: RobotManifest | None = None
+    try:
+        candidate = adapter.manifest()
+        if isinstance(candidate, RobotManifest):
+            manifest = candidate
+    except Exception:
+        pass
+    return {
+        "profile": "ump.adapter-conformance/v1",
+        "mode": "read_only",
+        "observed_at_ms": (
+            int(time.time() * 1_000) if observed_at_ms is None else observed_at_ms
+        ),
+        "adapter": {
+            "specification": specification,
+            "implementation": {
+                "path": str(implementation_path),
+                "sha256": implementation_digest,
+            },
+            "module": type(adapter).__module__,
+            "class": type(adapter).__qualname__,
+            "distributions": distributions,
+        },
+        "robot": (
+            {
+                "robot_id": manifest.robot_id,
+                "manufacturer": manifest.manufacturer,
+                "model": manifest.model,
+                "robot_class": manifest.robot_class,
+                "adapter_version": manifest.adapter_version,
+                "capabilities": [item.name for item in manifest.capabilities],
+            }
+            if manifest is not None
+            else None
+        ),
+        "subject": report.subject,
+        "passed": report.passed,
+        "checks": [
+            {
+                "id": check.check_id,
+                "passed": check.passed,
+                "description": check.description,
+            }
+            for check in report.checks
+        ],
+        "environment": {
+            "python": platform.python_version(),
+            "implementation": platform.python_implementation(),
+            "platform": platform.platform(),
+            "executable": sys.executable,
+        },
+    }
 
 
 def validate_vector_suite(directory: str | Path) -> ConformanceReport:

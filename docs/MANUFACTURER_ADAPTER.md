@@ -88,6 +88,16 @@ from ump import AdapterConformanceHarness
 report = AdapterConformanceHarness().inspect(adapter)
 ```
 
+The supported evidence command performs the same read-only operation and binds
+the result to the loaded implementation file:
+
+```sh
+ump-adapter-conformance inspect \
+  --adapter your_package.adapter:create_adapter \
+  --adapter-config adapter.json \
+  --output adapter-conformance.json
+```
+
 Execution fixtures require an explicit gate:
 
 ```python

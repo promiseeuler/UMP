@@ -28,6 +28,7 @@ Repository = "https://github.com/promiseeuler/UMP"
 Issues = "https://github.com/promiseeuler/UMP/issues"
 
 [project.scripts]
+ump-adapter-conformance = "ump.cli:adapter_conformance_main"
 ump-demo = "ump.demo:main"
 ump-authority = "ump.cli:authority_main"
 ump-benchmark = "ump.cli:benchmark_main"

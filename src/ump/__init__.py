@@ -2,7 +2,11 @@
 
 from .adapter import CommunicationLossHandler, RobotAdapter
 from .authority import SqliteAuthorityStore
-from .conformance import AdapterConformanceHarness, ConformanceReport
+from .conformance import (
+    AdapterConformanceHarness,
+    ConformanceReport,
+    inspect_adapter_evidence,
+)
 from .collaboration import Coordinator, PlanValidationError, validate_plan
 from .coordinator_store import (
     CoordinatorStore,
@@ -85,6 +89,7 @@ __all__ = [
     "standard_capabilities",
     "standard_capability",
     "load_adapter",
+    "inspect_adapter_evidence",
     "load_planner",
     "lan_evidence_schema",
     "read_run_summaries",

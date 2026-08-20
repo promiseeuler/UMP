@@ -44,6 +44,7 @@ class PublicApiTests(unittest.TestCase):
             "standard_capabilities",
             "standard_capability",
             "load_adapter",
+            "inspect_adapter_evidence",
             "load_planner",
             "lan_evidence_schema",
             "pilot_schema",

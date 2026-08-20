@@ -6,6 +6,7 @@ from pathlib import Path
 import signal
 import sqlite3
 import sys
+import tempfile
 from threading import Event
 import time
 
@@ -20,7 +21,11 @@ from .benchmark import (
     serve_tls_network_benchmark,
 )
 from .collaboration import Coordinator
-from .conformance import AdapterConformanceHarness, validate_vector_suite
+from .conformance import (
+    AdapterConformanceHarness,
+    inspect_adapter_evidence,
+    validate_vector_suite,
+)
 from .coordinator_node import (
     CoordinatorService,
     ParticipantContextTimeout,
@@ -349,6 +354,49 @@ def conformance_main(argv: list[str] | None = None) -> int:
         )
     )
     return 0 if report.passed else 1
+
+
+def adapter_conformance_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-adapter-conformance",
+        description="Generate read-only manufacturer adapter conformance evidence.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    inspect_command = commands.add_parser(
+        "inspect", help="Read an adapter manifest and semantic state"
+    )
+    inspect_command.add_argument("--adapter", required=True)
+    inspect_command.add_argument("--adapter-config")
+    inspect_command.add_argument("--output")
+    arguments = parser.parse_args(argv)
+    try:
+        adapter = load_adapter(arguments.adapter, arguments.adapter_config)
+        result = inspect_adapter_evidence(adapter, arguments.adapter)
+        encoded = json.dumps(result, sort_keys=True)
+        if arguments.output is not None:
+            output = Path(arguments.output)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            temporary_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w",
+                    encoding="utf-8",
+                    dir=output.parent,
+                    prefix=f".{output.name}.",
+                    suffix=".tmp",
+                    delete=False,
+                ) as temporary:
+                    temporary.write(encoded + "\n")
+                    temporary_path = Path(temporary.name)
+                temporary_path.replace(output)
+            finally:
+                if temporary_path is not None:
+                    temporary_path.unlink(missing_ok=True)
+        print(encoded)
+        return 0 if result["passed"] else 1
+    except (OSError, TypeError, ValueError) as error:
+        print(f"ump-adapter-conformance: {error}", file=sys.stderr)
+        return 2
 
 
 def benchmark_main(argv: list[str] | None = None) -> int:
@@ -1123,6 +1171,7 @@ def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     commands = {
         "authority": authority_main,
+        "adapter-conformance": adapter_conformance_main,
         "benchmark": benchmark_main,
         "conformance": conformance_main,
         "coordinator": coordinator_main,
