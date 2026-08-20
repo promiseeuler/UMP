@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import signal
 import sqlite3
@@ -14,6 +15,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from .authority import SqliteAuthorityStore
+from .adapter import CommunicationLossHandler
 from .benchmark import (
     run_reference_benchmark,
     run_tls_loopback_benchmark,
@@ -43,7 +45,12 @@ from .coordinator_store import (
     read_run_snapshot,
     read_run_summaries,
 )
-from .credentials import CredentialError, CredentialGeneration, SqliteCredentialStore
+from .credentials import (
+    CredentialError,
+    CredentialGeneration,
+    SqliteCredentialStore,
+    read_active_credential,
+)
 from .inspector import InspectorServer, InspectorStore
 from .journal import SqliteAssignmentJournal
 from .lan_evidence import (
@@ -52,7 +59,12 @@ from .lan_evidence import (
     validate_lan_evidence_bundle,
 )
 from .models import AssignmentStatus, AuthorityLease, SharedGoal, payload
-from .network import TlsNetworkBus, load_network_config
+from .network import (
+    TlsNetworkBus,
+    create_client_context,
+    create_server_context,
+    load_network_config,
+)
 from .node import ParticipantService, load_adapter
 from .planner import load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
@@ -540,6 +552,11 @@ def node_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--execution-workers", type=int, default=0)
     parser.add_argument("--required-peer", action="append", default=[])
     parser.add_argument("--communication-check-interval", type=float, default=0.25)
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="Validate deployment inputs without binding sockets or creating stores",
+    )
     arguments = parser.parse_args(argv)
     service = None
     credentials = None
@@ -560,6 +577,24 @@ def node_main(argv: list[str] | None = None) -> int:
                 "communication check interval must be between 0.05 and 60 seconds"
             )
         config = load_network_config(arguments.network)
+        database_paths = {
+            "assignment": Path(arguments.assignment_database).resolve(),
+            "authority": Path(arguments.authority_database).resolve(),
+            "credential": Path(arguments.credential_database).resolve(),
+            "replay": config.replay_database_path.resolve(),
+            "inbox": config.inbox_database_path.resolve(),
+            "outbox": config.outbox_database_path.resolve(),
+        }
+        paths_to_roles: dict[Path, list[str]] = {}
+        for role, path in database_paths.items():
+            paths_to_roles.setdefault(path, []).append(role)
+        collisions = {
+            str(path): roles
+            for path, roles in paths_to_roles.items()
+            if len(roles) > 1
+        }
+        if collisions:
+            raise ValueError(f"database paths must be unique by role: {collisions}")
         configured_peer_ids = {peer.robot_id for peer in config.peers}
         unknown_required_peers = set(arguments.required_peer) - configured_peer_ids
         if unknown_required_peers:
@@ -577,6 +612,65 @@ def node_main(argv: list[str] | None = None) -> int:
             raise ValueError(f"adapter conformance failed: {failures}")
         if adapter.manifest().robot_id != config.robot_id:
             raise ValueError("adapter and network robot identities differ")
+        if arguments.required_peer and not isinstance(
+            adapter, CommunicationLossHandler
+        ):
+            raise TypeError(
+                "adapter must implement CommunicationLossHandler when required peers are configured"
+            )
+        for role, path in database_paths.items():
+            parent = path.parent
+            if not parent.is_dir() or not os.access(parent, os.W_OK):
+                raise ValueError(
+                    f"{role} database parent is not a writable directory: {parent}"
+                )
+        private_key_mode = config.private_key_path.stat().st_mode & 0o777
+        if private_key_mode & 0o077:
+            raise ValueError("network private key must not be group/world accessible")
+        if arguments.preflight:
+            generation = read_active_credential(
+                arguments.credential_database,
+                config.robot_id,
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            )
+            create_server_context(
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            )
+            create_client_context(
+                config.certificate_path,
+                config.private_key_path,
+                config.ca_path,
+            )
+            print(
+                json.dumps(
+                    {
+                        "valid": True,
+                        "mode": "preflight",
+                        "robot_id": config.robot_id,
+                        "adapter_subject": adapter_report.subject,
+                        "credential_generation": generation.generation,
+                        "configured_peers": len(config.peers),
+                        "database_roles": sorted(database_paths),
+                        "checks": [
+                            "network_configuration",
+                            "adapter_read_only_conformance",
+                            "adapter_network_identity",
+                            "required_peer_policy",
+                            "active_credential_validity",
+                            "tls_contexts",
+                            "private_key_permissions",
+                            "database_role_isolation",
+                            "storage_parent_permissions",
+                        ],
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0
         credentials = SqliteCredentialStore(
             config.robot_id,
             arguments.credential_database,

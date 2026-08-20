@@ -1,9 +1,17 @@
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
+import json
 from pathlib import Path
 import sys
+import tempfile
+import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
+from ump.benchmark import _benchmark_credentials
+from ump.cli import node_main
+from ump.credentials import SqliteCredentialStore
 from ump.models import (
     Assignment,
     Availability,
@@ -44,6 +52,28 @@ class Adapter:
     def cancel(self, assignment_id, reason):
         del assignment_id, reason
         return False, "No active UMP assignment"
+
+
+class PreflightAdapter(Adapter):
+    def manifest(self):
+        return RobotManifest(
+            "benchmark-client", "Example", "P1", "mobile_robot", ()
+        )
+
+    def state(self):
+        return RobotState(
+            "benchmark-client",
+            Mode.IDLE,
+            Safety.NORMAL,
+            "Waiting",
+            "Validate deployment preflight",
+            0.0,
+            "Benchmark client adapter is ready for preflight.",
+        )
+
+
+def create_preflight_adapter(_config_path=None):
+    return PreflightAdapter()
 
 
 class MutableSafetyAdapter(Adapter):
@@ -149,6 +179,95 @@ class BoundedStop:
 
 
 class ParticipantServiceTests(unittest.TestCase):
+    def preflight_fixture(self, root: Path):
+        ca, _, _, certificate, key = _benchmark_credentials(root / "issued")
+        credential_database = root / "credentials.sqlite3"
+        store = SqliteCredentialStore(
+            "benchmark-client", credential_database, root / "managed"
+        )
+        now_ms = int(time.time() * 1_000)
+        generation = store.enroll(certificate, key, ca, now_ms)
+        generation = store.activate(generation.generation, now_ms)
+        store.close()
+        network_databases = {
+            name: root / f"network-{name}.sqlite3"
+            for name in ("replay", "inbox", "outbox")
+        }
+        network = root / "network.json"
+        network.write_text(
+            json.dumps(
+                {
+                    "robot_id": "benchmark-client",
+                    "bind_host": "127.0.0.1",
+                    "bind_port": 0,
+                    "certificate_path": str(generation.certificate_path),
+                    "private_key_path": str(generation.private_key_path),
+                    "ca_path": str(generation.ca_path),
+                    "replay_database_path": str(network_databases["replay"]),
+                    "inbox_database_path": str(network_databases["inbox"]),
+                    "outbox_database_path": str(network_databases["outbox"]),
+                    "peers": [],
+                }
+            )
+        )
+        arguments = [
+            "--network",
+            str(network),
+            "--adapter",
+            "tests.test_node:create_preflight_adapter",
+            "--assignment-database",
+            str(root / "assignments.sqlite3"),
+            "--authority-database",
+            str(root / "authority.sqlite3"),
+            "--credential-database",
+            str(credential_database),
+            "--credential-directory",
+            str(root / "managed"),
+            "--preflight",
+        ]
+        return arguments, network_databases
+
+    def test_node_preflight_validates_without_creating_runtime_databases(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "issued").mkdir()
+            arguments, network_databases = self.preflight_fixture(root)
+            output = StringIO()
+            with redirect_stdout(output):
+                status = node_main(arguments)
+
+            self.assertEqual(status, 0)
+            report = json.loads(output.getvalue())
+            self.assertTrue(report["valid"])
+            self.assertEqual(report["mode"], "preflight")
+            self.assertEqual(len(report["checks"]), 9)
+            self.assertFalse((root / "assignments.sqlite3").exists())
+            self.assertFalse((root / "authority.sqlite3").exists())
+            self.assertTrue(all(not path.exists() for path in network_databases.values()))
+
+    def test_node_preflight_rejects_database_collision_and_loose_private_key(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "issued").mkdir()
+            arguments, _ = self.preflight_fixture(root)
+            assignment_index = arguments.index("--assignment-database") + 1
+            authority_index = arguments.index("--authority-database") + 1
+            arguments[authority_index] = arguments[assignment_index]
+            errors = StringIO()
+            with redirect_stderr(errors):
+                status = node_main(arguments)
+            self.assertEqual(status, 2)
+            self.assertIn("unique by role", errors.getvalue())
+
+            arguments, _ = self.preflight_fixture(root)
+            network = json.loads(Path(arguments[1]).read_text())
+            Path(network["private_key_path"]).chmod(0o644)
+            errors = StringIO()
+            with redirect_stderr(errors):
+                status = node_main(arguments)
+            self.assertEqual(status, 2)
+            self.assertIn("group/world", errors.getvalue())
+
     def test_service_announces_before_periodic_state_and_closes_resources(self):
         bus = Bus()
         journal = Resource()

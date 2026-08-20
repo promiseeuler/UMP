@@ -34,6 +34,12 @@ TLS contexts load the local certificate and key at construction time. Keep the
 prior generation available during a planned overlap window so peers can receive
 the new fingerprint before activation.
 
+Participant and coordinator health checks compare receiver-local time with the
+active generation on startup and during operation. A generation that becomes
+expired, is not yet valid after a clock rollback, is retired, or is revoked
+fails closed. `ump-node --preflight` performs the same active-bundle check through
+a read-only SQLite connection before runtime stores or listeners are created.
+
 Private keys are copied with mode `0600`; the managed directory and generation
 directories use `0700`. Deployments must additionally use encrypted disks,
 restricted service accounts, and a hardware-backed key provider where their risk

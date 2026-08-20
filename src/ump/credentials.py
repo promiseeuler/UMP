@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import sqlite3
 from threading import RLock
+import time
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
@@ -30,6 +31,82 @@ class CredentialGeneration:
     not_before_ms: int
     not_after_ms: int
     status: str
+
+
+def read_active_credential(
+    database: str | Path,
+    robot_id: str,
+    certificate_path: str | Path,
+    private_key_path: str | Path,
+    ca_path: str | Path,
+    *,
+    now_ms: int | None = None,
+) -> CredentialGeneration:
+    """Inspect an active generation through a non-mutating SQLite connection."""
+    path = Path(database).resolve()
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        row = connection.execute(
+            "SELECT * FROM credential_generations "
+            "WHERE robot_id = ? AND status = 'active'",
+            (robot_id,),
+        ).fetchone()
+        if row is None:
+            raise CredentialError("robot has no active credential generation")
+        revoked = connection.execute(
+            "SELECT 1 FROM revoked_certificates WHERE fingerprint_sha256 = ?",
+            (row["fingerprint_sha256"],),
+        ).fetchone()
+    except sqlite3.Error as error:
+        raise CredentialError(f"credential database cannot be inspected: {error}") from error
+    finally:
+        if connection is not None:
+            connection.close()
+    generation = SqliteCredentialStore._generation(row)
+    _require_generation(
+        generation,
+        certificate_path,
+        private_key_path,
+        ca_path,
+        revoked=revoked is not None,
+        now_ms=int(time.time() * 1_000) if now_ms is None else now_ms,
+    )
+    return generation
+
+
+def _require_generation(
+    generation: CredentialGeneration,
+    certificate_path: str | Path,
+    private_key_path: str | Path,
+    ca_path: str | Path,
+    *,
+    revoked: bool,
+    now_ms: int,
+) -> None:
+    expected = tuple(
+        path.resolve()
+        for path in (
+            generation.certificate_path,
+            generation.private_key_path,
+            generation.ca_path,
+        )
+    )
+    configured = tuple(
+        Path(path).resolve()
+        for path in (certificate_path, private_key_path, ca_path)
+    )
+    if configured != expected:
+        raise CredentialError(
+            "network TLS files do not match the active credential generation"
+        )
+    if revoked:
+        raise CredentialError("active credential generation is revoked")
+    if generation.not_before_ms > now_ms:
+        raise CredentialError("active credential generation is not yet valid")
+    if generation.not_after_ms <= now_ms:
+        raise CredentialError("active credential generation is expired")
 
 
 class SqliteCredentialStore:
@@ -211,29 +288,21 @@ class SqliteCredentialStore:
         certificate_path: str | Path,
         private_key_path: str | Path,
         ca_path: str | Path,
+        *,
+        now_ms: int | None = None,
     ) -> CredentialGeneration:
         """Require the configured TLS files to be the active managed generation."""
         generation = self.active()
         if generation is None:
             raise CredentialError("robot has no active credential generation")
-        expected = tuple(
-            path.resolve()
-            for path in (
-                generation.certificate_path,
-                generation.private_key_path,
-                generation.ca_path,
-            )
+        _require_generation(
+            generation,
+            certificate_path,
+            private_key_path,
+            ca_path,
+            revoked=self.is_revoked(generation.fingerprint_sha256),
+            now_ms=int(time.time() * 1_000) if now_ms is None else now_ms,
         )
-        configured = tuple(
-            Path(path).resolve()
-            for path in (certificate_path, private_key_path, ca_path)
-        )
-        if configured != expected:
-            raise CredentialError(
-                "network TLS files do not match the active credential generation"
-            )
-        if self.is_revoked(generation.fingerprint_sha256):
-            raise CredentialError("active credential generation is revoked")
         return generation
 
     def get(self, generation: int) -> CredentialGeneration:

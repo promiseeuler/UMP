@@ -115,6 +115,9 @@ qualification matrix remains fail-closed with eight pending external gates.
   supervised-phase evidence gates without claiming physical validation.
 - Participant-node enforcement of the active managed credential generation,
   handshake-time peer revocation, and runtime local-credential revocation checks.
+- Non-mutating participant preflight for adapter identity, current credential
+  validity, TLS material, private-key permissions, storage permissions, and
+  database-role isolation.
 - Participant-node detection of semantic safety transitions with single-snapshot,
   safety-stream-first publication and independent sequence ordering.
 - Change-only participant manifest refresh so capability and availability updates

@@ -26,6 +26,25 @@ adapter configuration as a `pathlib.Path`, or `None` when `--adapter-config` is
 omitted, and must return a `RobotAdapter`. Installing an adapter grants native
 code execution to that package; use only owner- or manufacturer-approved builds.
 
+Before starting a deployment, append `--preflight` to the complete command. The
+preflight loads the trusted adapter and reads its manifest/state, but does not
+bind a network socket or create assignment, authority, replay, inbox, or outbox
+databases. It validates:
+
+- network configuration and peer references;
+- read-only adapter conformance and robot identity;
+- required-peer communication policy support;
+- the active managed credential generation and current validity window;
+- certificate, key, CA, and TLS context compatibility;
+- owner-only private-key permissions;
+- unique files for all six database roles; and
+- writable database parent directories.
+
+It emits one machine-readable JSON result. Successful preflight does not grant
+assignment authority and does not prove that a port will remain available at
+later startup. Adapter factories are trusted local code and may initialize a
+vendor SDK even during preflight.
+
 The adapter manifest robot ID must exactly match the network configuration and
 certificate URI identity. The node performs read-only adapter conformance before
 opening its listener. `state-hz` is bounded to the PRD's 1–10 Hz range. The node
@@ -56,7 +75,8 @@ The network certificate, private key, and CA paths must exactly match the active
 generation in the robot-local credential store. Peer revocations are checked on
 every inbound and outbound handshake. The node also rechecks its active local
 generation before every state publication and exits if that generation is
-retired or revoked; restart it after an approved credential rotation.
+retired, revoked, not yet valid, or expired; restart it after an approved
+credential rotation.
 
 ## Authority and durability
 
@@ -67,7 +87,8 @@ specific issuer/capability/time scopes with `ump-authority`; see `AUTHORITY.md`.
 The network configuration also requires durable replay, inbox, and outbox paths.
 Place all databases on persistent local storage owned by the UMP service account.
 Do not share one database file between robots or copy a live database between
-identities.
+identities. Assignment, authority, credential, replay, inbox, and outbox roles
+must each use a distinct resolved path; startup rejects collisions.
 
 `--execution-workers` defaults to zero, preserving synchronous adapter execution.
 A manufacturer may select 1–32 workers only when its native API safely permits

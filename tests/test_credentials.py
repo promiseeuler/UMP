@@ -10,7 +10,11 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from ump.cli import credentials_main
-from ump.credentials import CredentialError, SqliteCredentialStore
+from ump.credentials import (
+    CredentialError,
+    SqliteCredentialStore,
+    read_active_credential,
+)
 
 
 def openssl(*arguments: str, directory: Path) -> None:
@@ -111,6 +115,52 @@ class CredentialStoreTests(unittest.TestCase):
                 generation.private_key_path,
                 generation.ca_path,
             )
+
+    def test_runtime_rejects_active_generation_outside_validity_window(self):
+        generation = self.store.enroll(
+            *issue(self.root, "robot-1", "expiry"), int(time.time() * 1_000)
+        )
+        self.store.activate(generation.generation, int(time.time() * 1_000))
+        with self.assertRaisesRegex(CredentialError, "not yet valid"):
+            self.store.require_active_bundle(
+                generation.certificate_path,
+                generation.private_key_path,
+                generation.ca_path,
+                now_ms=generation.not_before_ms - 1,
+            )
+        with self.assertRaisesRegex(CredentialError, "expired"):
+            self.store.require_active_bundle(
+                generation.certificate_path,
+                generation.private_key_path,
+                generation.ca_path,
+                now_ms=generation.not_after_ms,
+            )
+
+    def test_read_only_active_credential_inspection_matches_runtime_check(self):
+        generation = self.store.enroll(
+            *issue(self.root, "robot-1", "preflight"), int(time.time() * 1_000)
+        )
+        self.store.activate(generation.generation, int(time.time() * 1_000))
+        inspected = read_active_credential(
+            self.root / "credentials.db",
+            "robot-1",
+            generation.certificate_path,
+            generation.private_key_path,
+            generation.ca_path,
+            now_ms=generation.not_before_ms,
+        )
+        self.assertEqual(inspected.generation, generation.generation)
+
+        missing = self.root / "missing.db"
+        with self.assertRaisesRegex(CredentialError, "cannot be inspected"):
+            read_active_credential(
+                missing,
+                "robot-1",
+                generation.certificate_path,
+                generation.private_key_path,
+                generation.ca_path,
+            )
+        self.assertFalse(missing.exists())
 
     def test_duplicate_enrollment_fails_with_domain_error(self):
         bundle = issue(self.root, "robot-1", "duplicate")
