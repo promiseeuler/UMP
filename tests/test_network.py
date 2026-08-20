@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from threading import Event
 
@@ -34,6 +35,8 @@ from ump.network import (
     send_discovery,
     send_frame,
 )
+from ump.cli import network_config_main
+from ump.network_config import network_config_schema, validate_network_config
 from ump.models import Mode, RobotManifest, RobotState, Safety, payload
 from ump.delivery import SqliteOutbox
 from ump.delivery import SqliteInbox
@@ -557,6 +560,117 @@ class MutualTlsTests(unittest.TestCase):
         )
         self.assertEqual(config.maximum_pending_deliveries, 500)
         self.assertEqual(config.reserved_safety_deliveries, 64)
+
+    def test_file_configuration_rejects_unknown_security_fields(self):
+        base = {
+            "robot_id": "robot-client",
+            "bind_host": "127.0.0.1",
+            "bind_port": 0,
+            "certificate_path": self.client_cert.name,
+            "private_key_path": self.client_key.name,
+            "ca_path": self.ca_cert.name,
+            "replay_database_path": "state/replay.sqlite3",
+            "inbox_database_path": "state/inbox.sqlite3",
+            "outbox_database_path": "state/outbox.sqlite3",
+            "peers": [],
+        }
+        path = self.directory / "strict-network.json"
+        document = dict(base, certificate_fingerprint="a" * 64)
+        path.write_text(json.dumps(document))
+        with self.assertRaisesRegex(ValueError, "unknown fields"):
+            load_network_config(path)
+
+        document = dict(base)
+        document["peers"] = [
+            {
+                "robot_id": "robot-server",
+                "host": "127.0.0.1",
+                "port": 7443,
+                "allowed_message_type": ["state"],
+            }
+        ]
+        path.write_text(json.dumps(document))
+        with self.assertRaisesRegex(ValueError, "unknown fields"):
+            load_network_config(path)
+
+    def test_file_configuration_rejects_weak_types_and_policy_values(self):
+        base = {
+            "robot_id": "robot-client",
+            "bind_host": "127.0.0.1",
+            "bind_port": 0,
+            "certificate_path": self.client_cert.name,
+            "private_key_path": self.client_key.name,
+            "ca_path": self.ca_cert.name,
+            "replay_database_path": "state/replay.sqlite3",
+            "inbox_database_path": "state/inbox.sqlite3",
+            "outbox_database_path": "state/outbox.sqlite3",
+            "peers": [],
+        }
+        path = self.directory / "typed-network.json"
+        for field, value in (
+            ("bind_port", True),
+            ("maximum_pending_deliveries", True),
+            ("timeout", True),
+        ):
+            with self.subTest(field=field):
+                path.write_text(json.dumps(dict(base, **{field: value})))
+                with self.assertRaises(ValueError):
+                    load_network_config(path)
+
+        for peer in (
+            {
+                "robot_id": "robot-server",
+                "host": "127.0.0.1",
+                "port": True,
+            },
+            {
+                "robot_id": "robot-server",
+                "host": "127.0.0.1",
+                "port": 7443,
+                "certificate_sha256": "A" * 64,
+            },
+            {
+                "robot_id": "robot-server",
+                "host": "127.0.0.1",
+                "port": 7443,
+                "allowed_capabilities": ["unversioned"],
+            },
+        ):
+            with self.subTest(peer=peer):
+                document = dict(base, peers=[peer])
+                path.write_text(json.dumps(document))
+                with self.assertRaises(ValueError):
+                    load_network_config(path)
+
+    def test_network_config_cli_emits_non_secret_summary_and_schema(self):
+        path = self.directory / "network-cli.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "robot_id": "robot-client",
+                    "bind_host": "127.0.0.1",
+                    "bind_port": 0,
+                    "certificate_path": self.client_cert.name,
+                    "private_key_path": self.client_key.name,
+                    "ca_path": self.ca_cert.name,
+                    "replay_database_path": "state/replay.sqlite3",
+                    "inbox_database_path": "state/inbox.sqlite3",
+                    "outbox_database_path": "state/outbox.sqlite3",
+                    "peers": [],
+                }
+            )
+        )
+        with patch("builtins.print") as output:
+            self.assertEqual(network_config_main(["validate", str(path)]), 0)
+        report = json.loads(output.call_args.args[0])
+        self.assertEqual(report, validate_network_config(path))
+        self.assertNotIn("private_key", json.dumps(report))
+        self.assertEqual(
+            network_config_schema(),
+            json.loads(
+                (Path(__file__).parents[1] / "schemas" / "ump-network-config-v1.schema.json").read_text()
+            ),
+        )
 
     def test_network_bus_delivers_manifest_and_state_to_remote_registry(self):
         server_bus = TlsNetworkBus(

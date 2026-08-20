@@ -534,19 +534,46 @@ class PeerEndpoint:
     allowed_capabilities: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.robot_id or not self.host or not 1 <= self.port <= 65_535:
+        if (
+            not isinstance(self.robot_id, str)
+            or not self.robot_id.strip()
+            or len(self.robot_id.encode("utf-8")) > 128
+            or not isinstance(self.host, str)
+            or not self.host.strip()
+            or len(self.host.encode("utf-8")) > 255
+            or type(self.port) is not int
+            or not 1 <= self.port <= 65_535
+        ):
             raise ValueError("invalid UMP peer endpoint")
         if self.certificate_sha256 is not None:
+            if not isinstance(self.certificate_sha256, str):
+                raise ValueError("peer certificate fingerprint must be lowercase SHA-256")
             fingerprint = self.certificate_sha256.lower()
-            if len(fingerprint) != 64 or any(
+            if self.certificate_sha256 != fingerprint or len(fingerprint) != 64 or any(
                 character not in "0123456789abcdef" for character in fingerprint
             ):
                 raise ValueError("peer certificate fingerprint must be lowercase SHA-256")
+        if not isinstance(self.allowed_message_types, tuple) or any(
+            not isinstance(item, str) for item in self.allowed_message_types
+        ):
+            raise ValueError("peer allowed message types must be strings")
         if len(self.allowed_message_types) != len(set(self.allowed_message_types)):
             raise ValueError("peer allowed message types must be unique")
         unknown_types = set(self.allowed_message_types) - MESSAGE_TYPES
         if unknown_types:
             raise ValueError(f"peer policy contains unknown message types: {sorted(unknown_types)}")
+        if (
+            not isinstance(self.allowed_capabilities, tuple)
+            or len(self.allowed_capabilities) > 256
+            or any(
+                not isinstance(item, str)
+                or len(item.encode("utf-8")) > 128
+                or not item.rpartition("/v")[0]
+                or not item.rpartition("/v")[2].isdigit()
+                for item in self.allowed_capabilities
+            )
+        ):
+            raise ValueError("peer allowed capabilities must be versioned strings")
         if len(self.allowed_capabilities) != len(set(self.allowed_capabilities)):
             raise ValueError("peer allowed capabilities must be unique")
 
@@ -568,16 +595,37 @@ class NetworkConfig:
     reserved_safety_deliveries: int = 64
 
     def __post_init__(self) -> None:
-        if not self.robot_id or not self.bind_host:
+        if (
+            not isinstance(self.robot_id, str)
+            or not self.robot_id.strip()
+            or len(self.robot_id.encode("utf-8")) > 128
+            or not isinstance(self.bind_host, str)
+            or not self.bind_host.strip()
+            or len(self.bind_host.encode("utf-8")) > 255
+        ):
             raise ValueError("network robot_id and bind_host are required")
-        if not 0 <= self.bind_port <= 65_535:
+        if type(self.bind_port) is not int or not 0 <= self.bind_port <= 65_535:
             raise ValueError("network bind_port is invalid")
-        if not 0.1 <= self.timeout <= 60.0:
+        if (
+            isinstance(self.timeout, bool)
+            or not isinstance(self.timeout, (int, float))
+            or not 0.1 <= self.timeout <= 60.0
+        ):
             raise ValueError("network timeout must be between 0.1 and 60 seconds")
-        if not 1 <= self.maximum_pending_deliveries <= 1_000_000:
+        if (
+            type(self.maximum_pending_deliveries) is not int
+            or not 1 <= self.maximum_pending_deliveries <= 1_000_000
+        ):
             raise ValueError("maximum pending deliveries is outside supported bounds")
-        if not 0 <= self.reserved_safety_deliveries < self.maximum_pending_deliveries:
+        if (
+            type(self.reserved_safety_deliveries) is not int
+            or not 0
+            <= self.reserved_safety_deliveries
+            < self.maximum_pending_deliveries
+        ):
             raise ValueError("reserved safety deliveries must fit inside the outbox")
+        if not isinstance(self.peers, tuple) or len(self.peers) > 1_024:
+            raise ValueError("network peers must be a bounded tuple")
         for path in (self.certificate_path, self.private_key_path, self.ca_path):
             if not path.is_file():
                 raise ValueError(f"network credential file does not exist: {path}")
@@ -601,23 +649,47 @@ def load_network_config(path: str | Path) -> NetworkConfig:
     }
     if missing := required - value.keys():
         raise ValueError(f"network configuration is missing {sorted(missing)}")
+    allowed = required | {
+        "peers",
+        "timeout",
+        "maximum_pending_deliveries",
+        "reserved_safety_deliveries",
+    }
+    if unknown := value.keys() - allowed:
+        raise ValueError(f"network configuration has unknown fields: {sorted(unknown)}")
 
     def credential_path(field_name: str) -> Path:
         candidate = Path(value[field_name])
         return candidate if candidate.is_absolute() else config_path.parent / candidate
 
     try:
-        peers = tuple(
-            PeerEndpoint(
-                robot_id=item["robot_id"],
-                host=item["host"],
-                port=item["port"],
-                certificate_sha256=item.get("certificate_sha256"),
-                allowed_message_types=tuple(item.get("allowed_message_types", ())),
-                allowed_capabilities=tuple(item.get("allowed_capabilities", ())),
+        peer_documents = value.get("peers", ())
+        if not isinstance(peer_documents, list):
+            raise ValueError("network peers must be an array")
+        peer_allowed = {
+            "robot_id",
+            "host",
+            "port",
+            "certificate_sha256",
+            "allowed_message_types",
+            "allowed_capabilities",
+        }
+        peers = []
+        for item in peer_documents:
+            if not isinstance(item, dict):
+                raise ValueError("network peer must be an object")
+            if unknown := item.keys() - peer_allowed:
+                raise ValueError(f"network peer has unknown fields: {sorted(unknown)}")
+            peers.append(
+                PeerEndpoint(
+                    robot_id=item["robot_id"],
+                    host=item["host"],
+                    port=item["port"],
+                    certificate_sha256=item.get("certificate_sha256"),
+                    allowed_message_types=tuple(item.get("allowed_message_types", ())),
+                    allowed_capabilities=tuple(item.get("allowed_capabilities", ())),
+                )
             )
-            for item in value.get("peers", ())
-        )
         return NetworkConfig(
             robot_id=value["robot_id"],
             bind_host=value["bind_host"],
@@ -628,13 +700,15 @@ def load_network_config(path: str | Path) -> NetworkConfig:
             replay_database_path=credential_path("replay_database_path"),
             inbox_database_path=credential_path("inbox_database_path"),
             outbox_database_path=credential_path("outbox_database_path"),
-            peers=peers,
+            peers=tuple(peers),
             timeout=value.get("timeout", 2.0),
             maximum_pending_deliveries=value.get("maximum_pending_deliveries", 10_000),
             reserved_safety_deliveries=value.get("reserved_safety_deliveries", 64),
         )
-    except (KeyError, TypeError, ValueError) as error:
-        raise ValueError("network configuration contains invalid values") from error
+    except KeyError as error:
+        raise ValueError(f"network configuration is missing field: {error.args[0]}") from error
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"network configuration contains invalid values: {error}") from error
 
 
 class TlsNetworkBus:

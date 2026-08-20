@@ -31,6 +31,10 @@ class ReleasePackagingTests(unittest.TestCase):
         )
         self.assertEqual(metadata["scripts"]["ump-review"], "ump.cli:review_main")
         self.assertEqual(
+            metadata["scripts"]["ump-network-config"],
+            "ump.cli:network_config_main",
+        )
+        self.assertEqual(
             metadata["scripts"]["ump-lan-benchmark"],
             "ump.cli:lan_benchmark_main",
         )
@@ -68,6 +72,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("schemas/ump-lan-evidence-v1.schema.json", workflow)
         self.assertIn("schemas/ump-independent-review-v1.schema.json", workflow)
         self.assertIn("schemas/ump-adapter-conformance-v1.schema.json", workflow)
+        self.assertIn("schemas/ump-network-config-v1.schema.json", workflow)
         self.assertIn("vocabulary_data/v1/catalog.json", workflow)
         self.assertIn("examples/read_only_adapter.py", workflow)
         self.assertIn("actions/upload-artifact@v7", workflow)

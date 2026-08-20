@@ -56,6 +56,8 @@ qualification matrix remains fail-closed with eight pending external gates.
   floors, queue heads, sender locks, inbox ordering, and reserved outbox capacity.
 - Expiring UDP local-discovery hint encoding and transport.
 - File-based network and peer configuration.
+- Strict public network-configuration schema and secret-free validation CLI with
+  unknown-field, strong-type, bounded-policy, and versioned-capability checks.
 - Deny-by-default peer metadata disclosure with message-type allowlists and
   capability-filtered manifests.
 - Deny-by-default participant and coordinator assignment authorization.

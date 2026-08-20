@@ -53,6 +53,7 @@ transport, and placement steps from one shared goal.
 - `docs/STATUS.md`: implemented behavior and explicit production gaps.
 - `conformance/v0.1`: byte-exact valid and invalid protocol vectors.
 - `schemas/ump-v0.schema.json`: canonical JSON Schema for wire messages.
+- `schemas/ump-network-config-v1.schema.json`: strict deployment configuration.
 - `src/ump`: dependency-light reference implementation.
 - `tests`: protocol and collaboration tests.
 

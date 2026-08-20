@@ -65,6 +65,7 @@ from .network import (
     create_server_context,
     load_network_config,
 )
+from .network_config import network_config_schema, validate_network_config
 from .node import ParticipantService, load_adapter
 from .planner import load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
@@ -753,6 +754,29 @@ def node_main(argv: list[str] | None = None) -> int:
             credentials.close()
 
 
+def network_config_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-network-config",
+        description="Validate a strict UMP mutual-TLS network configuration.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    validate = commands.add_parser("validate", help="Validate one network JSON file")
+    validate.add_argument("config")
+    commands.add_parser("schema", help="Print the network configuration JSON Schema")
+    arguments = parser.parse_args(argv)
+    try:
+        result = (
+            network_config_schema()
+            if arguments.command == "schema"
+            else validate_network_config(arguments.config)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except (OSError, ValueError) as error:
+        print(f"ump-network-config: {error}", file=sys.stderr)
+        return 2
+
+
 def _run_snapshot_document(snapshot: RunSnapshot) -> dict[str, object]:
     return {
         "plan_id": snapshot.plan_id,
@@ -1354,6 +1378,7 @@ def main(argv: list[str] | None = None) -> int:
         "lan-benchmark": lan_benchmark_main,
         "lan-evidence": lan_evidence_main,
         "node": node_main,
+        "network-config": network_config_main,
         "pilot": pilot_main,
         "reconcile": reconcile_main,
         "vocabulary": vocabulary_main,

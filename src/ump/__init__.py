@@ -42,6 +42,7 @@ from .models import (
     SharedGoal,
 )
 from .node import ParticipantService, load_adapter
+from .network_config import network_config_schema, validate_network_config
 from .planner import Planner, load_planner
 from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
 from .runtime import Participant, Registry
@@ -96,12 +97,14 @@ __all__ = [
     "load_adapter",
     "inspect_adapter_evidence",
     "load_planner",
+    "network_config_schema",
     "lan_evidence_schema",
     "read_run_summaries",
     "review_schema",
     "pilot_schema",
     "validate_pilot_bundle",
     "validate_lan_evidence_bundle",
+    "validate_network_config",
     "validate_plan",
     "validate_adapter_evidence",
     "validate_ros2_smoke_report",

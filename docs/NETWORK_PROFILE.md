@@ -139,6 +139,27 @@ only by the UMP service account; participant and coordinator startup reject grou
 or world-accessible key files. Use a hardware-backed key store where the platform
 supports one.
 
+Validate configuration before participant or coordinator preflight:
+
+```sh
+ump-network-config validate /etc/ump/network.json
+ump-network-config schema
+```
+
+The loader and public `schemas/ump-network-config-v1.schema.json` reject unknown
+top-level and peer fields, missing fields, booleans used as numbers, duplicate
+policy entries, uppercase or malformed certificate pins, unversioned capability
+names, unsupported message types, oversized peer/policy lists, invalid bounds,
+and missing credential files. Unknown fields fail closed because silently
+ignoring a misspelled pin or disclosure key could change security behavior.
+
+Successful validation prints robot identity, bind endpoint, peer count, disclosure
+policy names, queue bounds, and timeout. It deliberately omits certificate, key,
+CA, and database paths. This command parses files but does not verify managed
+credential activation, key permissions, database-role isolation, or TLS context
+construction; use `ump-node --preflight` or `ump-coordinator preflight` for those
+deployment checks.
+
 ```python
 from ump.network import TlsNetworkBus, load_network_config
 

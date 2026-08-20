@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schemas/ump-network-config-v1.schema.json",
+  "title": "UMP Mutual-TLS Network Configuration",
+  "type": "object",
+  "required": ["robot_id", "bind_host", "bind_port", "certificate_path", "private_key_path", "ca_path", "replay_database_path", "inbox_database_path", "outbox_database_path"],
+  "properties": {
+    "robot_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "bind_host": {"type": "string", "minLength": 1, "maxLength": 255},
+    "bind_port": {"type": "integer", "minimum": 0, "maximum": 65535},
+    "certificate_path": {"$ref": "#/$defs/path"},
+    "private_key_path": {"$ref": "#/$defs/path"},
+    "ca_path": {"$ref": "#/$defs/path"},
+    "replay_database_path": {"$ref": "#/$defs/path"},
+    "inbox_database_path": {"$ref": "#/$defs/path"},
+    "outbox_database_path": {"$ref": "#/$defs/path"},
+    "maximum_pending_deliveries": {"type": "integer", "minimum": 1, "maximum": 1000000, "default": 10000},
+    "reserved_safety_deliveries": {"type": "integer", "minimum": 0, "default": 64},
+    "timeout": {"type": "number", "minimum": 0.1, "maximum": 60, "default": 2},
+    "peers": {"type": "array", "maxItems": 1024, "items": {"$ref": "#/$defs/peer"}}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "peer": {
+      "type": "object",
+      "required": ["robot_id", "host", "port"],
+      "properties": {
+        "robot_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "host": {"type": "string", "minLength": 1, "maxLength": 255},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "certificate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "allowed_message_types": {"type": "array", "uniqueItems": true, "items": {"enum": ["manifest", "state", "goal", "plan", "assignment", "assignment_ack", "assignment_query", "assignment_snapshot", "cancellation_request", "cancellation_ack", "outcome"]}},
+        "allowed_capabilities": {"type": "array", "maxItems": 256, "uniqueItems": true, "items": {"type": "string", "minLength": 4, "maxLength": 128, "pattern": "/v[0-9]+$"}}
+      },
+      "additionalProperties": false
+    }
+  }
+}
