@@ -21,6 +21,9 @@ PYTHONPATH=src python3 -m ump.cli benchmark
 
 For two-host deployment measurements, see [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
+Manufacturers can begin with the documented [adapter contract](docs/MANUFACTURER_ADAPTER.md)
+and the runnable read-only example in `examples/read_only_adapter.py`.
+
 The demo connects three simulated robots from different manufacturers through
 an in-memory transport. A replaceable planner assigns route inspection,
 transport, and placement steps from one shared goal.

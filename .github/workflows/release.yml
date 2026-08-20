@@ -29,6 +29,7 @@ jobs:
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-v0.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/conformance/v0.1/manifest.json$'
           tar -tzf dist/*.tar.gz | grep '/src/ump/vocabulary_data/v1/catalog.json$'
+          tar -tzf dist/*.tar.gz | grep '/examples/read_only_adapter.py$'
           tar -tzf dist/*.tar.gz | grep '/docs/PRD.md$'
           tar -tzf dist/*.tar.gz | grep '/ros2_ws/src/ump_interfaces/action/ExecuteCapability.action$'
       - name: Test installed wheel

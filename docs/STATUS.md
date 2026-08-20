@@ -82,6 +82,8 @@
   checks and a machine-readable `ump-conformance` report.
 - Adapter conformance harness with read-only manifest/state inspection and an
   explicit opt-in gate before any native capability execution.
+- Documented manufacturer-facing adapter protocol, supported package-root imports,
+  and a runnable zero-capability read-only hardware integration starting point.
 - Append-only SQLite protocol recorder and loopback-only, read-only inspector UI
   for robot state, capabilities, and correlated protocol events.
 - Reproducible reference-runtime benchmark for canonical in-memory state

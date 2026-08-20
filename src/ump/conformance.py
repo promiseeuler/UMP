@@ -9,8 +9,8 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
+from .adapter import RobotAdapter
 from .models import Assignment, AssignmentStatus, Outcome, RobotManifest, RobotState
-from .runtime import RobotAdapter
 from .transport import ProtocolDecodeError, decode_envelope, encode_envelope
 
 

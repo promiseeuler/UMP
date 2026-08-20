@@ -11,6 +11,7 @@ from uuid import uuid4
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
 
+from .adapter import RobotAdapter
 from .authority import (
     AssignmentAuthorizer,
     AuthorizationError,
@@ -38,13 +39,6 @@ from .transport import (
     MessageBus,
     make_envelope,
 )
-
-
-class RobotAdapter(Protocol):
-    def manifest(self) -> RobotManifest: ...
-    def state(self) -> RobotState: ...
-    def accept(self, assignment: Assignment) -> Outcome: ...
-    def cancel(self, assignment_id: str, reason: str) -> tuple[bool, str]: ...
 
 
 @dataclass

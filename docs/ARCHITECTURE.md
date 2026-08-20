@@ -26,6 +26,9 @@ accepts a shared goal and immutable participant snapshot, then returns a
 proposal. The reference planner is deterministic; an AI model can replace it
 without changing adapters.
 
+The manufacturer-facing Python contract lives in `ump.adapter` and is re-exported
+from `ump`; implementation guidance is in `MANUFACTURER_ADAPTER.md`.
+
 ## Transport bindings
 
 `InMemoryBus` is a deterministic development binding. It exercises envelope,

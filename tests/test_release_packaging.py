@@ -28,6 +28,7 @@ class ReleasePackagingTests(unittest.TestCase):
             "recursive-include compliance *.json",
             "recursive-include conformance *.json *.hex",
             "recursive-include docs *.md",
+            "recursive-include examples *.py",
             "graft ros2_ws",
             "recursive-include schemas *.json",
         ):
@@ -42,6 +43,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
         self.assertIn("schemas/ump-v0.schema.json", workflow)
         self.assertIn("vocabulary_data/v1/catalog.json", workflow)
+        self.assertIn("examples/read_only_adapter.py", workflow)
         self.assertIn("actions/upload-artifact@v7", workflow)
         self.assertIn("actions/attest@v4", workflow)
         self.assertIn("github.event.repository.visibility == 'public'", workflow)
