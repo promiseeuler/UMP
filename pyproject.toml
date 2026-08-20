@@ -36,6 +36,7 @@ ump-credentials = "ump.cli:credentials_main"
 ump-inspector = "ump.cli:inspector_main"
 ump-reconcile = "ump.cli:reconcile_main"
 ump-readiness = "ump.cli:readiness_main"
+ump-vocabulary = "ump.cli:vocabulary_main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -44,4 +45,9 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-ump = ["inspector_static/*.html", "inspector_static/*.css", "inspector_static/*.js"]
+ump = [
+  "inspector_static/*.html",
+  "inspector_static/*.css",
+  "inspector_static/*.js",
+  "vocabulary_data/**/*.json",
+]

@@ -55,11 +55,34 @@ class SimulatedRobot:
                 f"{assignment.step.description.lower()} and is available."
             ),
         )
+        outputs = {"completed": True}
+        if assignment.step.capability == "ump.navigation.inspect-route/v1":
+            outputs.update(
+                traversable=True,
+                summary="Route is traversable under current observed conditions",
+            )
+        elif (
+            assignment.step.capability == "ump.material.carry/v1"
+            and "destination" in assignment.step.inputs
+        ):
+            outputs.update(
+                delivered=True,
+                final_location=assignment.step.inputs["destination"],
+            )
+        elif (
+            assignment.step.capability == "ump.manipulation.place/v1"
+            and "target" in assignment.step.inputs
+        ):
+            outputs.update(
+                placed=True,
+                target=assignment.step.inputs["target"],
+            )
         return Outcome(
             assignment.assignment_id,
             self._manifest.robot_id,
             True,
             assignment.step.completion_criteria,
+            outputs=outputs,
         )
 
     def cancel(self, assignment_id: str, reason: str) -> tuple[bool, str]:

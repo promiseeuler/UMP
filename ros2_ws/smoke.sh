@@ -32,7 +32,7 @@ start_server() {
     >"/tmp/${namespace}.log" 2>&1 &
   pids+=("$!")
 }
-start_server robot_quadruped_1 ump.navigation.inspect/v1 0.2
+start_server robot_quadruped_1 ump.navigation.inspect-route/v1 0.2
 start_server robot_humanoid_1 ump.material.carry/v1 0.3
 start_server robot_mobile_arm_1 ump.manipulation.place/v1 5.0
 
@@ -62,7 +62,7 @@ exercise() {
   ros2 run ump_gazebo_demo action_smoke_client "$@"
 }
 exercise --action /robot_quadruped_1/execute_capability \
-  --assignment-id smoke-inspect --capability ump.navigation.inspect/v1 --expect succeeded
+  --assignment-id smoke-inspect --capability ump.navigation.inspect-route/v1 --expect succeeded
 exercise --action /robot_humanoid_1/execute_capability \
   --assignment-id smoke-carry --capability ump.material.carry/v1 --expect succeeded
 exercise --action /robot_mobile_arm_1/execute_capability \

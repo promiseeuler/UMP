@@ -98,10 +98,16 @@ def fixture(result_status=NativeActionStatus.SUCCEEDED):
 class Ros2AdapterTests(unittest.TestCase):
     def test_action_result_maps_to_ump_outcome_without_control_translation(self):
         adapter, _, backend, assignment = fixture()
+        backend.result = NativeActionResult(
+            NativeActionStatus.SUCCEEDED,
+            "Route inspection completed",
+            {"completed": True, "traversable": True},
+        )
         outcome = adapter.accept(assignment)
         self.assertTrue(outcome.succeeded)
         self.assertEqual(outcome.status, AssignmentStatus.SUCCEEDED)
         self.assertEqual(backend.executions[0][1].step.inputs, {"route": "aisle-4"})
+        self.assertEqual(outcome.outputs["traversable"], True)
 
     def test_unknown_native_result_remains_unknown(self):
         adapter, _, _, assignment = fixture(NativeActionStatus.UNKNOWN)
@@ -169,6 +175,7 @@ class Ros2AdapterTests(unittest.TestCase):
             def __init__(self):
                 self.status = self.CANCELLED
                 self.description = "Native action was cancelled"
+                self.outputs_json = '{"completed":false}'
 
         _, _, _, assignment = fixture()
         binding = json_capability_binding(
@@ -180,6 +187,28 @@ class Ros2AdapterTests(unittest.TestCase):
         self.assertEqual(goal.inputs_json, '{"route":"aisle-4"}')
         result = binding.result_reader(Result(), 0)
         self.assertEqual(result.status, NativeActionStatus.CANCELLED)
+        self.assertEqual(result.outputs, {"completed": False})
+
+    def test_generic_json_action_codec_rejects_non_object_outputs(self):
+        class Action:
+            class Goal:
+                pass
+
+        class Result:
+            SUCCEEDED = 0
+            FAILED = 1
+            REJECTED = 2
+            CANCELLED = 3
+            UNKNOWN = 4
+            status = SUCCEEDED
+            description = "Done"
+            outputs_json = "[]"
+
+        binding = json_capability_binding(
+            "ump.navigation.inspect-route/v1", "/ump/execute", Action
+        )
+        with self.assertRaisesRegex(ValueError, "must be an object"):
+            binding.result_reader(Result(), 0)
 
 
 if __name__ == "__main__":

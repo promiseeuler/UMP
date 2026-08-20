@@ -221,6 +221,7 @@ class Coordinator:
             succeeded=outcome_data["succeeded"],
             description=outcome_data["description"],
             status=AssignmentStatus(outcome_data["status"]),
+            outputs=outcome_data.get("outputs", {}),
         )
         snapshot = AssignmentSnapshot(
             assignment_id=assignment_id,

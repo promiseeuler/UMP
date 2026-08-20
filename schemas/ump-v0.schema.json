@@ -301,7 +301,8 @@
         "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
         "succeeded": { "type": "boolean" },
         "description": { "type": "string", "minLength": 1, "maxLength": 4096 },
-        "status": { "enum": ["succeeded", "failed", "rejected", "cancelled", "unknown"] }
+        "status": { "enum": ["succeeded", "failed", "rejected", "cancelled", "unknown"] },
+        "outputs": { "type": "object" }
       },
       "additionalProperties": true
     }

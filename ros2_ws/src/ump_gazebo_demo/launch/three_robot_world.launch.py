@@ -36,7 +36,7 @@ def generate_launch_description():
             output="screen",
         )
         for namespace, capability, duration in (
-            ("robot_quadruped_1", "ump.navigation.inspect/v1", 2.0),
+            ("robot_quadruped_1", "ump.navigation.inspect-route/v1", 2.0),
             ("robot_humanoid_1", "ump.material.carry/v1", 3.0),
             ("robot_mobile_arm_1", "ump.manipulation.place/v1", 2.0),
         )

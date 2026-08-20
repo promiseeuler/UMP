@@ -32,10 +32,13 @@ class NativeActionStatus(str, Enum):
 class NativeActionResult:
     status: NativeActionStatus
     description: str
+    outputs: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if not self.description.strip():
             raise ValueError("native action result requires a description")
+        if self.outputs is not None and not isinstance(self.outputs, dict):
+            raise ValueError("native action result outputs must be an object")
 
 
 GoalBuilder = Callable[[Assignment, Any], Any]
@@ -141,6 +144,7 @@ class Ros2RobotAdapter:
             status is AssignmentStatus.SUCCEEDED,
             result.description,
             status,
+            result.outputs or {},
         )
 
     def cancel(self, assignment_id: str, reason: str) -> tuple[bool, str]:
@@ -286,7 +290,13 @@ def json_capability_binding(
             status = statuses[result.status]
         except (AttributeError, KeyError) as error:
             raise ValueError("ExecuteCapability returned an invalid status") from error
-        return NativeActionResult(status, result.description)
+        try:
+            outputs = json.loads(getattr(result, "outputs_json", "{}"))
+        except (TypeError, json.JSONDecodeError) as error:
+            raise ValueError("ExecuteCapability returned invalid outputs JSON") from error
+        if not isinstance(outputs, dict):
+            raise ValueError("ExecuteCapability outputs JSON must be an object")
+        return NativeActionResult(status, result.description, outputs)
 
     return RosActionBinding(
         capability,

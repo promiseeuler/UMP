@@ -121,6 +121,15 @@ An outcome acknowledges only the adapter-level result represented by its fields.
 It is not evidence of physical success unless the adapter's capability contract
 defines and supplies the necessary evidence.
 
+`outputs` is an optional JSON object for backward-compatible v0.1 decoding and
+defaults to `{}`. New adapters SHOULD provide it. Before journaling a native
+successful result, the participant MUST validate `outputs` against the exact
+output schema advertised for the assigned capability. Non-success results MAY
+use an empty object because they do not claim completion. The local model limits canonical
+structured output to 16 KiB. Identity mismatch, invalid JSON values, excessive
+size, or schema failure produces `unknown`; UMP MUST NOT preserve a success claim
+while discarding malformed structured evidence.
+
 ### Robot-local resources
 
 State and plan steps MAY name opaque robot-local resources such as tools,

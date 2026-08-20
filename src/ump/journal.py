@@ -80,6 +80,7 @@ def _decode_outcome(encoded: str) -> Outcome:
         succeeded=value["succeeded"],
         description=value["description"],
         status=AssignmentStatus(value["status"]),
+        outputs=value.get("outputs", {}),
     )
 
 

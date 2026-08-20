@@ -48,5 +48,6 @@ manifests and network-decoded manifests fail before planning or native execution
 when numeric semantics are ambiguous. The adapter conformance harness also
 checks the complete JSON Schema structure.
 
-This profile does not standardize domain capability names or physical behavior.
-It standardizes only how numeric meaning and coordinate context are declared.
+The unit and frame rules apply to both standard and vendor capabilities. The
+first bounded domain vocabulary is specified in `VOCABULARY.md`; it standardizes
+three high-level warehouse outcomes without standardizing physical control.

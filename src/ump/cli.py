@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 import sqlite3
 import sys
 import time
+
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
 
 from .authority import SqliteAuthorityStore
 from .benchmark import run_reference_benchmark, run_tls_loopback_benchmark
@@ -14,6 +18,7 @@ from .inspector import InspectorServer, InspectorStore
 from .journal import SqliteAssignmentJournal
 from .models import AssignmentStatus, AuthorityLease, payload
 from .readiness import load_readiness_report
+from .vocabulary import standard_capability, vocabulary_document
 
 
 def authority_parser() -> argparse.ArgumentParser:
@@ -224,6 +229,62 @@ def reconcile_main(argv: list[str] | None = None) -> int:
             journal.close()
 
 
+def vocabulary_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-vocabulary",
+        description="Inspect and validate the versioned UMP standard capability vocabulary.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("list", help="List standard capability names and descriptions")
+    show = commands.add_parser("show", help="Print one complete capability contract")
+    show.add_argument("name")
+    for command in ("validate-input", "validate-output"):
+        validate = commands.add_parser(command, help=f"Validate a JSON {command[9:]}")
+        validate.add_argument("name")
+        validate.add_argument(
+            "document",
+            help="JSON document path, or - to read standard input",
+        )
+    arguments = parser.parse_args(argv)
+    try:
+        if arguments.command == "list":
+            catalog = vocabulary_document()
+            result: object = {
+                "vocabulary": catalog["vocabulary"],
+                "capabilities": [
+                    {"name": item["name"], "description": item["description"]}
+                    for item in catalog["capabilities"]
+                ],
+            }
+        elif arguments.command == "show":
+            capability = standard_capability(arguments.name)
+            result = payload(capability)
+        else:
+            capability = standard_capability(arguments.name)
+            encoded = (
+                sys.stdin.read()
+                if arguments.document == "-"
+                else Path(arguments.document).read_text()
+            )
+            document = json.loads(encoded)
+            schema = (
+                capability.input_schema
+                if arguments.command == "validate-input"
+                else capability.output_schema
+            )
+            Draft202012Validator(schema).validate(document)
+            result = {
+                "capability": capability.name,
+                "document": arguments.command[9:],
+                "valid": True,
+            }
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except (KeyError, OSError, ValueError, json.JSONDecodeError, ValidationError) as error:
+        print(f"ump-vocabulary: {error}", file=sys.stderr)
+        return 2
+
+
 def conformance_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-conformance",
@@ -343,11 +404,12 @@ def main(argv: list[str] | None = None) -> int:
         "credentials": credentials_main,
         "inspector": inspector_main,
         "reconcile": reconcile_main,
+        "vocabulary": vocabulary_main,
         "readiness": readiness_main,
     }
     if not arguments or arguments[0] not in commands:
         print(
-            "usage: python -m ump.cli {authority,benchmark,conformance,credentials,inspector,readiness,reconcile} ...",
+            "usage: python -m ump.cli {authority,benchmark,conformance,credentials,inspector,readiness,reconcile,vocabulary} ...",
             file=sys.stderr,
         )
         return 2

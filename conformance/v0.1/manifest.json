@@ -5,6 +5,7 @@
     {"id": "valid-manifest", "file": "valid/manifest.hex", "encoding": "hex", "expected": "valid", "sha256": "3a25bbcafdc6f5b44c03c47b15198a8bb0e5bc534a4f584ffccd7276bf2a3ca2"},
     {"id": "valid-state", "file": "valid/state.hex", "encoding": "hex", "expected": "valid", "sha256": "c250347cdcb29e68f5a603a2bee8b7bba8603cdf7c53965cc6f8cb74131da838"},
     {"id": "valid-safety-state", "file": "valid/safety-state.hex", "encoding": "hex", "expected": "valid", "sha256": "cfb4faa6717e0457b60b48606dab0d1cbb68c7c17542c98e10fcab5b1dd2065a"},
+    {"id": "valid-structured-outcome", "file": "valid/structured-outcome.hex", "encoding": "hex", "expected": "valid", "sha256": "770b379a1d379a7be9d29feea548e3476aa29e861ca825cd97c4d2539778dca9"},
     {"id": "invalid-protocol", "file": "invalid/protocol.hex", "encoding": "hex", "expected": "invalid", "sha256": "f50cf52323a56c535c138c032357d92300203048e1d1bda5b68237b2dee08575"},
     {"id": "invalid-message-type", "file": "invalid/message-type.hex", "encoding": "hex", "expected": "invalid", "sha256": "1fceb5c990e9c9cfb54a3018ef83806f46dd7025dafc379dec7d0663cecd4848"},
     {"id": "invalid-sequence", "file": "invalid/sequence.hex", "encoding": "hex", "expected": "invalid", "sha256": "c21a1fe32a8cbf36b111f9df3b28c636760db8171b44050f8fb2ae1f3dac028a"},

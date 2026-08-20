@@ -6,8 +6,9 @@ from .authority import AllowAllAuthorizer
 from .collaboration import Coordinator
 from .models import Plan, PlanStep, RobotManifest, SharedGoal
 from .runtime import Participant, Registry
-from .simulation import SimulatedRobot, capability
+from .simulation import SimulatedRobot
 from .transport import InMemoryBus
+from .vocabulary import standard_capability
 
 
 class WarehousePlanner:
@@ -63,21 +64,21 @@ def build_demo():
             "Example Humanoid Co",
             "H1",
             "humanoid",
-            (capability("ump.material.carry/v1", "Carry a bounded payload"),),
+            (standard_capability("ump.material.carry/v1"),),
         ),
         RobotManifest(
             "robot-quadruped-1",
             "Example Quadruped Co",
             "Q1",
             "quadruped",
-            (capability("ump.navigation.inspect-route/v1", "Inspect route traversability"),),
+            (standard_capability("ump.navigation.inspect-route/v1"),),
         ),
         RobotManifest(
             "robot-mobile-arm-1",
             "Example Manipulation Co",
             "A1",
             "mobile_arm",
-            (capability("ump.manipulation.place/v1", "Place an object at a named target"),),
+            (standard_capability("ump.manipulation.place/v1"),),
         ),
     )
     participants = [

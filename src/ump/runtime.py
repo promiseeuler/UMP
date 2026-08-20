@@ -519,6 +519,18 @@ class Participant:
     def _execute_assignment(self, assignment: Assignment, envelope: Envelope) -> None:
         try:
             outcome = self.adapter.accept(assignment)
+            if not isinstance(outcome, Outcome):
+                raise TypeError("adapter must return Outcome")
+            if outcome.assignment_id != assignment.assignment_id:
+                raise ValueError("adapter outcome assignment identity differs")
+            if outcome.robot_id != self.robot_id:
+                raise ValueError("adapter outcome robot identity differs")
+            capability = self.adapter.manifest().capability(assignment.step.capability)
+            if capability is None:
+                raise ValueError("adapter no longer advertises the assigned capability")
+            if outcome.status is AssignmentStatus.SUCCEEDED:
+                Draft202012Validator.check_schema(capability.output_schema)
+                Draft202012Validator(capability.output_schema).validate(outcome.outputs)
         except Exception as error:
             outcome = Outcome(
                 assignment.assignment_id,

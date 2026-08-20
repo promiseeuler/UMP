@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+import json
 import math
 import re
 from typing import Any
@@ -10,6 +11,7 @@ from urllib.parse import urlsplit
 MAX_ID_BYTES = 128
 MAX_TEXT_BYTES = 1_024
 MAX_REFERENCE_URI_BYTES = 2_048
+MAX_STRUCTURED_OUTPUT_BYTES = 16_384
 FRAME_ID_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_.\-/]{0,127}$")
 MEDIA_TYPE_PATTERN = re.compile(
     r"^[A-Za-z0-9!#$&^_.+\-]+/[A-Za-z0-9!#$&^_.+\-]+$"
@@ -506,6 +508,7 @@ class Outcome:
     succeeded: bool
     description: str
     status: AssignmentStatus | None = None
+    outputs: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _identifier(self.assignment_id, "assignment_id")
@@ -518,6 +521,21 @@ class Outcome:
             raise ValueError("accepted is not a terminal outcome status")
         if self.succeeded != (resolved is AssignmentStatus.SUCCEEDED):
             raise ValueError("outcome succeeded flag and terminal status disagree")
+        if not isinstance(self.outputs, dict):
+            raise ValueError("outcome outputs must be an object")
+        try:
+            encoded_outputs = json.dumps(
+                self.outputs,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        except (TypeError, ValueError) as error:
+            raise ValueError("outcome outputs must be JSON serializable") from error
+        if len(encoded_outputs) > MAX_STRUCTURED_OUTPUT_BYTES:
+            raise ValueError(
+                f"outcome outputs exceed {MAX_STRUCTURED_OUTPUT_BYTES} UTF-8 bytes"
+            )
         object.__setattr__(self, "status", resolved)
 
 

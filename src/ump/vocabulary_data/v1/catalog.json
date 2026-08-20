@@ -1,0 +1,98 @@
+{
+  "vocabulary": "ump.standard/v1",
+  "capabilities": [
+    {
+      "name": "ump.navigation.inspect-route/v1",
+      "description": "Inspect whether a named route between two semantic locations is traversable.",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": {"type": "string", "minLength": 1, "maxLength": 128},
+          "to": {"type": "string", "minLength": 1, "maxLength": 128}
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": ["completed", "traversable"],
+        "properties": {
+          "completed": {"type": "boolean"},
+          "traversable": {"type": "boolean"},
+          "route_reference": {"type": "string", "format": "uri", "maxLength": 2048},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 1024},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1, "x-ump-unit": "1"}
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "ump.material.carry/v1",
+      "description": "Carry a named object to a named semantic destination using native robot control.",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": ["object", "destination"],
+        "properties": {
+          "object": {"type": "string", "minLength": 1, "maxLength": 128},
+          "destination": {"type": "string", "minLength": 1, "maxLength": 128},
+          "payload_mass": {"type": "number", "minimum": 0, "x-ump-unit": "kg"},
+          "keep_upright": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": ["completed", "delivered", "final_location"],
+        "properties": {
+          "completed": {"type": "boolean"},
+          "delivered": {"type": "boolean"},
+          "final_location": {"type": "string", "minLength": 1, "maxLength": 128},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 1024}
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "ump.manipulation.place/v1",
+      "description": "Place a named object at a named semantic target using native robot control.",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": ["object", "target"],
+        "properties": {
+          "object": {"type": "string", "minLength": 1, "maxLength": 128},
+          "target": {"type": "string", "minLength": 1, "maxLength": 128},
+          "placement": {
+            "type": "object",
+            "x-ump-frame-field": "frame_id",
+            "required": ["frame_id", "x", "y", "z"],
+            "properties": {
+              "frame_id": {"type": "string", "minLength": 1, "maxLength": 128},
+              "x": {"type": "number", "x-ump-unit": "m"},
+              "y": {"type": "number", "x-ump-unit": "m"},
+              "z": {"type": "number", "x-ump-unit": "m"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": ["completed", "placed", "target"],
+        "properties": {
+          "completed": {"type": "boolean"},
+          "placed": {"type": "boolean"},
+          "target": {"type": "string", "minLength": 1, "maxLength": 128},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 1024}
+        },
+        "additionalProperties": false
+      }
+    }
+  ]
+}

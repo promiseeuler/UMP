@@ -289,11 +289,17 @@ safety review, bounded work areas, physical emergency stops, and operator approv
 5. **Conformance alpha:** golden vectors, independent adapter test harness, inspector.
 6. **Hardware pilot:** one simulated plus two physical participants in supervised work.
 
-## 16. Decisions deferred until evidence
+## 16. Decisions and evidence
 
-- mandatory production transport binding;
-- identity and credential provisioning profile;
-- exact ROS 2 and simulator release matrix;
-- durable event-store implementation;
-- first standardized domain capability vocabulary; and
+Still deferred until deployment evidence:
+
+- mandatory production transport binding; and
 - first commercial robot adapters.
+
+Resolved in the reference implementation:
+
+- mutual-TLS network profile and robot-local credential lifecycle;
+- Ubuntu Noble, ROS 2 Jazzy, and Gazebo Harmonic reference matrix;
+- durable SQLite journals for assignments, coordination, authority, delivery,
+  replay protection, credentials, and inspection; and
+- `ump.standard/v1`, the first bounded domain capability vocabulary.

@@ -21,6 +21,29 @@ def valid_goal_request(
     return isinstance(inputs, dict)
 
 
+def successful_outputs(capability, inputs):
+    """Return deterministic coordination-level outputs for the demo capabilities."""
+    if capability == "ump.navigation.inspect-route/v1":
+        return {
+            "completed": True,
+            "traversable": True,
+            "summary": "The requested route is traversable",
+        }
+    if capability == "ump.material.carry/v1":
+        return {
+            "completed": True,
+            "delivered": True,
+            "final_location": inputs.get("destination", "unspecified"),
+        }
+    if capability == "ump.manipulation.place/v1":
+        return {
+            "completed": True,
+            "placed": True,
+            "target": inputs.get("target", "unspecified"),
+        }
+    return {"completed": True}
+
+
 class ProxyCapabilityServer(Node):
     """Cancellable lifecycle fixture; it does not model physical capability."""
 
@@ -73,18 +96,22 @@ class ProxyCapabilityServer(Node):
             goal_handle.publish_feedback(feedback)
             if progress >= 1.0:
                 goal_handle.succeed()
+                inputs = json.loads(goal_handle.request.inputs_json)
                 return self._result(
                     ExecuteCapability.Result.SUCCEEDED,
                     "Proxy action reached its deterministic completion condition",
+                    successful_outputs(self._capability, inputs),
                 )
             time.sleep(0.05)
 
     @staticmethod
-    def _result(status, description):
+    def _result(status, description, outputs=None):
         result = ExecuteCapability.Result()
         result.status = status
         result.description = description
-        result.outputs_json = "{}"
+        result.outputs_json = json.dumps(
+            outputs or {}, sort_keys=True, separators=(",", ":")
+        )
         return result
 
     def destroy_node(self):

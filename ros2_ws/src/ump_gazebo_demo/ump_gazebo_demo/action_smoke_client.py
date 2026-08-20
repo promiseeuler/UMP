@@ -67,10 +67,19 @@ def exercise(arguments) -> dict[str, object]:
             raise RuntimeError(
                 f"unexpected terminal status ROS={wrapped.status} UMP={wrapped.result.status}"
             )
+        try:
+            outputs = json.loads(wrapped.result.outputs_json)
+        except (TypeError, json.JSONDecodeError) as error:
+            raise RuntimeError("action result contained invalid outputs JSON") from error
+        if not isinstance(outputs, dict):
+            raise RuntimeError("action result outputs must be a JSON object")
+        if arguments.expect == "succeeded" and outputs.get("completed") is not True:
+            raise RuntimeError("successful action result did not report completion")
         return {
             "assignment_id": arguments.assignment_id,
             "status": arguments.expect,
             "description": wrapped.result.description,
+            "outputs": outputs,
         }
     finally:
         client.destroy()

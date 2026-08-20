@@ -104,14 +104,14 @@ class AdapterConformanceHarness:
                     raise ValueError("fixture requests an unadvertised capability")
                 Draft202012Validator(capability.input_schema).validate(item.step.inputs)
                 outcome = adapter.accept(item)
-                self._validate_outcome(item, manifest, outcome)
+                self._validate_outcome(item, manifest, capability, outcome)
 
             checks.append(_check(check_id, execute))
         return ConformanceReport(manifest.robot_id, tuple(checks))
 
     @staticmethod
     def _validate_outcome(
-        assignment: Assignment, manifest: RobotManifest, outcome: Outcome
+        assignment: Assignment, manifest: RobotManifest, capability, outcome: Outcome
     ) -> None:
         if not isinstance(outcome, Outcome):
             raise TypeError("accept() must return Outcome")
@@ -121,6 +121,8 @@ class AdapterConformanceHarness:
             raise ValueError("outcome robot ID differs from manifest")
         if outcome.status is AssignmentStatus.ACCEPTED:
             raise ValueError("adapter returned a non-terminal outcome")
+        if outcome.status is AssignmentStatus.SUCCEEDED:
+            Draft202012Validator(capability.output_schema).validate(outcome.outputs)
 
 
 def validate_vector_suite(directory: str | Path) -> ConformanceReport:

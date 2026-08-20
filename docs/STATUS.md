@@ -59,6 +59,10 @@
   local fingerprint revocation, and handshake-time revocation enforcement.
 - Robot-local evidence-based resolution of unknown assignments with immutable
   outcome, resolver identity, evidence audit, and safe resource release.
+- Bounded structured outcome payloads validated against advertised capability
+  output schemas before durable terminal acceptance.
+- Versioned `ump.standard/v1` inspect-route, carry, and place contracts with a
+  language-neutral catalog and validation CLI.
 - Receiver-local lease evaluation resistant to sender timestamp backdating.
 - Required-peer communication watchdog with manufacturer-defined loss and
   restoration callbacks derived from semantic-state freshness.

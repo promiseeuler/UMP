@@ -24,7 +24,7 @@ class ConformanceVectorTests(unittest.TestCase):
     def test_published_v01_vectors_pass_their_declared_expectations(self):
         report = validate_vector_suite(ROOT / "conformance" / "v0.1")
         self.assertTrue(report.passed)
-        self.assertEqual(len(report.checks), 8)
+        self.assertEqual(len(report.checks), 9)
 
     def test_cli_emits_machine_readable_success_report(self):
         from contextlib import redirect_stdout
