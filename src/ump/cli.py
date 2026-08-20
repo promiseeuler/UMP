@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import signal
 import sqlite3
 import sys
+from threading import Event
 import time
 
 from jsonschema import Draft202012Validator
@@ -17,11 +19,13 @@ from .benchmark import (
     run_tls_network_benchmark,
     serve_tls_network_benchmark,
 )
-from .conformance import validate_vector_suite
+from .conformance import AdapterConformanceHarness, validate_vector_suite
 from .credentials import CredentialError, CredentialGeneration, SqliteCredentialStore
 from .inspector import InspectorServer, InspectorStore
 from .journal import SqliteAssignmentJournal
 from .models import AssignmentStatus, AuthorityLease, payload
+from .network import TlsNetworkBus, load_network_config
+from .node import ParticipantService, load_adapter
 from .readiness import load_readiness_report
 from .vocabulary import standard_capability, vocabulary_document
 
@@ -430,6 +434,90 @@ def lan_benchmark_main(argv: list[str] | None = None) -> int:
     return 0 if report["passed"] else 1
 
 
+def node_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-node",
+        description="Run one manufacturer adapter as a UMP network participant.",
+    )
+    parser.add_argument("--network", required=True)
+    parser.add_argument("--adapter", required=True, help="Trusted module:factory")
+    parser.add_argument("--adapter-config")
+    parser.add_argument("--assignment-database", required=True)
+    parser.add_argument("--authority-database", required=True)
+    parser.add_argument("--state-hz", type=float, default=2.0)
+    parser.add_argument("--execution-workers", type=int, default=0)
+    arguments = parser.parse_args(argv)
+    service = None
+    stop = Event()
+    previous_handlers = {}
+    try:
+        if not 1.0 <= arguments.state_hz <= 10.0:
+            raise ValueError("state_hz must be between 1 and 10")
+        if not 0 <= arguments.execution_workers <= 32:
+            raise ValueError("execution_workers must be between 0 and 32")
+        config = load_network_config(arguments.network)
+        adapter = load_adapter(arguments.adapter, arguments.adapter_config)
+        adapter_report = AdapterConformanceHarness().inspect(adapter)
+        if not adapter_report.passed:
+            failures = "; ".join(
+                f"{check.check_id}: {check.description}"
+                for check in adapter_report.checks
+                if not check.passed
+            )
+            raise ValueError(f"adapter conformance failed: {failures}")
+        if adapter.manifest().robot_id != config.robot_id:
+            raise ValueError("adapter and network robot identities differ")
+        journal = SqliteAssignmentJournal(arguments.assignment_database)
+        authority = SqliteAuthorityStore(config.robot_id, arguments.authority_database)
+        bus = TlsNetworkBus.from_config(config)
+        try:
+            service = ParticipantService(
+                adapter,
+                bus,
+                journal,
+                authority,
+                state_hz=arguments.state_hz,
+                execution_workers=arguments.execution_workers,
+            )
+        except BaseException:
+            bus.stop()
+            journal.close()
+            authority.close()
+            raise
+
+        def request_stop(_signal_number, _frame) -> None:
+            stop.set()
+
+        for signal_number in (signal.SIGINT, signal.SIGTERM):
+            previous_handlers[signal_number] = signal.signal(
+                signal_number, request_stop
+            )
+        host, port = service.start()
+        print(
+            json.dumps(
+                {
+                    "event": "ready",
+                    "robot_id": config.robot_id,
+                    "host": host,
+                    "port": port,
+                    "state_hz": arguments.state_hz,
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        service.run(stop)
+        return 0
+    except Exception as error:
+        print(f"ump-node: {type(error).__name__}: {error}", file=sys.stderr)
+        return 2
+    finally:
+        for signal_number, handler in previous_handlers.items():
+            signal.signal(signal_number, handler)
+        if service is not None:
+            service.close()
+
+
 def readiness_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-readiness",
@@ -489,13 +577,14 @@ def main(argv: list[str] | None = None) -> int:
         "credentials": credentials_main,
         "inspector": inspector_main,
         "lan-benchmark": lan_benchmark_main,
+        "node": node_main,
         "reconcile": reconcile_main,
         "vocabulary": vocabulary_main,
         "readiness": readiness_main,
     }
     if not arguments or arguments[0] not in commands:
         print(
-            "usage: python -m ump.cli {authority,benchmark,conformance,credentials,inspector,lan-benchmark,readiness,reconcile,vocabulary} ...",
+            "usage: python -m ump.cli {authority,benchmark,conformance,credentials,inspector,lan-benchmark,node,readiness,reconcile,vocabulary} ...",
             file=sys.stderr,
         )
         return 2

@@ -84,6 +84,8 @@
   explicit opt-in gate before any native capability execution.
 - Documented manufacturer-facing adapter protocol, supported package-root imports,
   and a runnable zero-capability read-only hardware integration starting point.
+- Owner-facing `ump-node` service with trusted adapter factories, durable assignment
+  and authority stores, bounded 1–10 Hz state publication, and signal shutdown.
 - Append-only SQLite protocol recorder and loopback-only, read-only inspector UI
   for robot state, capabilities, and correlated protocol events.
 - Reproducible reference-runtime benchmark for canonical in-memory state

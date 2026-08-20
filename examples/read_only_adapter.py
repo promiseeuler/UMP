@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from ump import (
     AdapterConformanceHarness,
@@ -54,6 +55,12 @@ class ReadOnlyAdapter:
     def cancel(self, assignment_id: str, reason: str) -> tuple[bool, str]:
         del assignment_id, reason
         return False, "Read-only adapter has no native UMP work to cancel"
+
+
+def create_adapter(config_path: Path | None = None) -> ReadOnlyAdapter:
+    """Factory used by ump-node; this example has no native configuration."""
+    del config_path
+    return ReadOnlyAdapter()
 
 
 def main() -> None:

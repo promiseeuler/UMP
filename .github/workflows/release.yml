@@ -40,6 +40,7 @@ jobs:
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --samples 10 --participants 2)
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --profile tls-loopback --samples 10)
           (cd /tmp && /tmp/ump-release/bin/ump-lan-benchmark --help)
+          (cd /tmp && /tmp/ump-release/bin/ump-node --help)
       - name: Generate checksums
         run: sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
       - name: Attest public release artifacts

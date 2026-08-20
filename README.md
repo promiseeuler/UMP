@@ -10,7 +10,7 @@ and safety systems.
 
 ## Run the reference demo
 
-UMP v0 requires Python 3.11 or newer and has no runtime dependencies.
+UMP v0 requires Python 3.11 or newer and has a dependency-light runtime.
 
 ```sh
 PYTHONPATH=src python3 -m ump.demo
@@ -36,6 +36,7 @@ transport, and placement steps from one shared goal.
 - `docs/NETWORK_PROFILE.md`: mutual-TLS and discovery alpha profile.
 - `docs/AUTHORITY.md`: robot-local assignment leases and owner CLI.
 - `docs/CREDENTIALS.md`: issued-certificate enrollment, rotation, and revocation.
+- `docs/NODE.md`: owner-facing long-running participant service.
 - `docs/RECONCILIATION.md`: evidence-based resolution of uncertain native work.
 - `docs/ROS2_GAZEBO.md`: manufacturer ROS action adapter and simulator profile.
 - `docs/CONFORMANCE.md`: golden vectors and safe adapter validation workflow.

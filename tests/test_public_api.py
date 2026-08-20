@@ -22,11 +22,13 @@ class PublicApiTests(unittest.TestCase):
             "Availability",
             "Mode",
             "Outcome",
+            "ParticipantService",
             "RobotManifest",
             "RobotState",
             "Safety",
             "standard_capabilities",
             "standard_capability",
+            "load_adapter",
         ):
             self.assertIn(public_name, ump.__all__)
             self.assertTrue(hasattr(ump, public_name))

@@ -41,6 +41,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("python -m twine check dist/*", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-demo", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
+        self.assertIn("/tmp/ump-release/bin/ump-node --help", workflow)
         self.assertIn("schemas/ump-v0.schema.json", workflow)
         self.assertIn("vocabulary_data/v1/catalog.json", workflow)
         self.assertIn("examples/read_only_adapter.py", workflow)

@@ -18,6 +18,7 @@ from .models import (
     Safety,
     SharedGoal,
 )
+from .node import ParticipantService, load_adapter
 from .runtime import Participant, Registry
 from .vocabulary import standard_capabilities, standard_capability
 
@@ -33,6 +34,7 @@ __all__ = [
     "Mode",
     "Outcome",
     "Participant",
+    "ParticipantService",
     "Registry",
     "RobotAdapter",
     "RobotManifest",
@@ -43,4 +45,5 @@ __all__ = [
     "SqliteAuthorityStore",
     "standard_capabilities",
     "standard_capability",
+    "load_adapter",
 ]
