@@ -17,7 +17,7 @@ def generate_launch_description():
     world = share / "worlds" / "ump_warehouse.wbt"
     mode = LaunchConfiguration("mode")
     autostart = LaunchConfiguration("autostart")
-    webots = WebotsLauncher(world=str(world), mode=mode, ros2_supervisor=True)
+    webots = WebotsLauncher(world=str(world), mode=mode, ros2_supervisor=False)
 
     drivers = [
         WebotsController(
@@ -53,7 +53,6 @@ def generate_launch_description():
         DeclareLaunchArgument("mode", default_value="realtime"),
         DeclareLaunchArgument("autostart", default_value="true"),
         webots,
-        webots._supervisor,
         *drivers,
         coordinator,
         shutdown,

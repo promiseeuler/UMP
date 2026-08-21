@@ -2,6 +2,7 @@
 set -euo pipefail
 
 : "${ROS_DISTRO:?Source ROS 2 before running the Webots smoke test}"
+export USER=${USER:-ump}
 launch_log=/tmp/ump-webots.log
 report=${UMP_WEBOTS_REPORT:-/tmp/ump-ros2-webots-smoke.json}
 ros2 launch ump_webots_demo warehouse.launch.py mode:=fast autostart:=false >"$launch_log" 2>&1 &

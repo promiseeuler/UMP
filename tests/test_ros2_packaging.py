@@ -154,6 +154,7 @@ class Ros2PackagingTests(unittest.TestCase):
         launch = (package / "launch" / "warehouse.launch.py").read_text()
         self.assertIn("WebotsLauncher", launch)
         self.assertIn("WebotsController", launch)
+        self.assertIn("ros2_supervisor=False", launch)
         self.assertIn('DeclareLaunchArgument("autostart"', launch)
 
     def test_webots_smoke_runs_the_ordered_warehouse_flow(self):
