@@ -27,6 +27,8 @@ Manufacturers can begin with the documented [adapter contract](docs/MANUFACTURER
 and the runnable read-only example in `examples/read_only_adapter.py`.
 Robot owners can follow the staged [deployment path](docs/ROBOT_DEPLOYMENT.md),
 starting with simulation and awareness-only operation before granting work.
+Hardware teams joining the alpha should use the
+[design-partner process](docs/DESIGN_PARTNER_PROGRAM.md).
 
 The demo connects three simulated robots from different manufacturers through
 an in-memory transport. A replaceable planner assigns route inspection,
@@ -138,6 +140,7 @@ staged credential process in [`docs/CREDENTIALS.md`](docs/CREDENTIALS.md).
 - `docs/INSPECTOR.md`: read-only local protocol inspector setup.
 - `docs/HARDWARE_PILOT.md`: physical-pilot evidence profile and verifier.
 - `docs/INDEPENDENT_REVIEWS.md`: external review evidence and finding policy.
+- `docs/DESIGN_PARTNER_PROGRAM.md`: partner intake, staged tests, and evidence process.
 - `docs/STATUS.md`: implemented behavior and explicit production gaps.
 - `conformance/v0.1`: byte-exact valid and invalid protocol vectors.
 - `schemas/ump-v0.schema.json`: canonical JSON Schema for wire messages.
