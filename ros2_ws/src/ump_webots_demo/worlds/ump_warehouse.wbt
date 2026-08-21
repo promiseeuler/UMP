@@ -1,8 +1,5 @@
 #VRML_SIM R2023b utf8
 
-EXTERNPROTO "webots://projects/objects/backgrounds/protos/TexturedBackground.proto"
-EXTERNPROTO "webots://projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
-
 WorldInfo {
   basicTimeStep 32
   title "UMP Collaborative Warehouse"
@@ -16,8 +13,8 @@ Viewpoint {
   position 10 10 13
   follow "package-1"
 }
-TexturedBackground {}
-TexturedBackgroundLight {}
+Background { skyColor [ 0.72 0.8 0.9 ] }
+DirectionalLight { direction -0.4 -1 -0.3 intensity 1.2 castShadows TRUE }
 
 Solid {
   translation 0 -0.08 0
