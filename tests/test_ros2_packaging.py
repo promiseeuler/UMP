@@ -75,9 +75,12 @@ class Ros2PackagingTests(unittest.TestCase):
         self.assertIn("source /opt/ros/jazzy/setup.bash", workflow)
         self.assertIn("ros-tooling/setup-ros@v0.7", workflow)
         self.assertIn("ros-jazzy-ros-gz-sim", workflow)
-        self.assertIn("ros-jazzy-webots-ros2", workflow)
+        self.assertIn("ros-jazzy-webots-ros2-driver", workflow)
+        self.assertIn("--ignore-installed .", workflow)
         self.assertIn("colcon test-result --verbose", workflow)
-        self.assertIn("pip install --break-system-packages .", workflow)
+        self.assertIn(
+            "pip install --break-system-packages --ignore-installed .", workflow
+        )
         self.assertIn("timeout 180s bash ros2_ws/smoke.sh", workflow)
         self.assertIn("timeout 240s bash ros2_ws/webots_smoke.sh", workflow)
         self.assertIn(

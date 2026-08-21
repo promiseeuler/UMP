@@ -36,10 +36,10 @@ commands assume ROS 2 Jazzy is installed from the official ROS repository.
 
 ```bash
 sudo apt update
-sudo apt install ros-jazzy-webots-ros2 python3-colcon-common-extensions
+sudo apt install ros-jazzy-webots-ros2-driver python3-colcon-common-extensions
 git clone https://github.com/promiseeuler/UMP.git
 cd UMP
-python3 -m pip install -e .
+python3 -m pip install --break-system-packages --ignore-installed -e .
 source /opt/ros/jazzy/setup.bash
 rosdep install --from-paths ros2_ws/src --ignore-src -r -y
 cd ros2_ws

@@ -25,13 +25,13 @@ jobs:
       - name: Install simulator integrations
         run: |
           apt-get update
-          apt-get install -y ros-jazzy-ros-gz-sim ros-jazzy-webots-ros2 xauth xvfb
+          apt-get install -y ros-jazzy-ros-gz-sim ros-jazzy-webots-ros2-driver xauth xvfb
       - name: Resolve dependencies
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash
           rosdep install --from-paths ros2_ws/src --ignore-src -r -y
-          python3 -m pip install --break-system-packages .
+          python3 -m pip install --break-system-packages --ignore-installed .
       - name: Build and test packages
         shell: bash
         run: |
