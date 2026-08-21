@@ -25,7 +25,10 @@ jobs:
       - name: Install simulator integrations
         run: |
           apt-get update
-          apt-get install -y ros-jazzy-ros-gz-sim ros-jazzy-webots-ros2-driver xauth xvfb
+          apt-get install -y curl ros-jazzy-ros-gz-sim ros-jazzy-webots-ros2-driver xauth xvfb
+          curl -fL -o /tmp/webots.deb \
+            https://github.com/cyberbotics/webots/releases/download/R2025a/webots_2025a_amd64.deb
+          apt-get install -y /tmp/webots.deb
       - name: Resolve dependencies
         shell: bash
         run: |

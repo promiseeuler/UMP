@@ -76,6 +76,7 @@ class Ros2PackagingTests(unittest.TestCase):
         self.assertIn("ros-tooling/setup-ros@v0.7", workflow)
         self.assertIn("ros-jazzy-ros-gz-sim", workflow)
         self.assertIn("ros-jazzy-webots-ros2-driver", workflow)
+        self.assertIn("webots_2025a_amd64.deb", workflow)
         self.assertIn("--ignore-installed .", workflow)
         self.assertIn("colcon test-result --verbose", workflow)
         self.assertIn(

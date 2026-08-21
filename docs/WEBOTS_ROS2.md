@@ -36,7 +36,10 @@ commands assume ROS 2 Jazzy is installed from the official ROS repository.
 
 ```bash
 sudo apt update
-sudo apt install ros-jazzy-webots-ros2-driver python3-colcon-common-extensions
+sudo apt install curl ros-jazzy-webots-ros2-driver python3-colcon-common-extensions
+curl -fL -o /tmp/webots.deb \
+  https://github.com/cyberbotics/webots/releases/download/R2025a/webots_2025a_amd64.deb
+sudo apt install /tmp/webots.deb
 git clone https://github.com/promiseeuler/UMP.git
 cd UMP
 python3 -m pip install --break-system-packages --ignore-installed -e .
@@ -47,6 +50,7 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
+Webots R2025a is pinned to the version required by the current Jazzy driver.
 Webots is a desktop simulator and must be installed locally. The browser UMP
 demonstration cannot provide the same simulator physics or ROS driver boundary.
 
