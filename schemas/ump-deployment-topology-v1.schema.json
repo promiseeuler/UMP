@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schema/deployment-topology/v1",
+  "type": "object",
+  "required": ["profile", "mode", "nodes"],
+  "properties": {
+    "profile": {"const": "ump.deployment-topology/v1"},
+    "mode": {"const": "local_lab"},
+    "nodes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": ["robot_id", "manufacturer", "model", "robot_class", "host", "port"],
+        "properties": {
+          "robot_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9_.-]+$"},
+          "manufacturer": {"type": "string", "minLength": 1, "maxLength": 256},
+          "model": {"type": "string", "minLength": 1, "maxLength": 256},
+          "robot_class": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9_.-]+$"},
+          "host": {"type": "string", "minLength": 1, "maxLength": 64},
+          "port": {"type": "integer", "minimum": 1024, "maximum": 65535}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

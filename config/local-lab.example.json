@@ -1,0 +1,30 @@
+{
+  "profile": "ump.deployment-topology/v1",
+  "mode": "local_lab",
+  "nodes": [
+    {
+      "robot_id": "robot-humanoid-1",
+      "manufacturer": "Example Humanoid Co",
+      "model": "H1",
+      "robot_class": "humanoid",
+      "host": "127.0.0.1",
+      "port": 17443
+    },
+    {
+      "robot_id": "robot-quadruped-1",
+      "manufacturer": "Example Quadruped Co",
+      "model": "Q1",
+      "robot_class": "quadruped",
+      "host": "127.0.0.1",
+      "port": 17444
+    },
+    {
+      "robot_id": "robot-mobile-arm-1",
+      "manufacturer": "Example Manipulation Co",
+      "model": "A1",
+      "robot_class": "mobile_arm",
+      "host": "127.0.0.1",
+      "port": 17445
+    }
+  ]
+}

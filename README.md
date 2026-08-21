@@ -32,6 +32,87 @@ The demo connects three simulated robots from different manufacturers through
 an in-memory transport. A replaceable planner assigns route inspection,
 transport, and placement steps from one shared goal.
 
+## Install UMP
+
+UMP v0 requires Python 3.11 or newer. Until the first signed release is
+published, install the reviewed checkout into an isolated environment:
+
+```sh
+git clone https://github.com/promiseeuler/UMP.git
+cd UMP
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install .
+ump-demo
+```
+
+Install the runtime on each robot's onboard or companion computer, not inside a
+motor controller or safety PLC. UMP does not replace native autonomy, emergency
+stops, or manufacturer safety systems. Physical robots require a reviewed
+manufacturer adapter and owner-issued certificates; follow
+[`docs/ROBOT_DEPLOYMENT.md`](docs/ROBOT_DEPLOYMENT.md).
+
+## Run a local robot network
+
+Create a three-robot, awareness-only localhost lab with no external services:
+
+```sh
+ump-deployment quickstart --output ump-local-lab
+ump-deployment verify-local ump-local-lab
+```
+
+`quickstart` generates unique short-lived development certificates,
+fingerprint-pinned mutual-TLS peer configurations, isolated durable stores,
+read-only adapters, preflight scripts, and launch scripts. `verify-local` starts
+all generated TLS endpoints and succeeds only when every robot receives every
+peer manifest and semantic state.
+
+Run preflight for each generated node:
+
+```sh
+ump-local-lab/nodes/robot-humanoid-1/preflight.sh
+ump-local-lab/nodes/robot-quadruped-2/preflight.sh
+ump-local-lab/nodes/robot-mobile-arm-3/preflight.sh
+```
+
+Then start each node in a separate terminal:
+
+```sh
+ump-local-lab/nodes/robot-humanoid-1/run.sh
+ump-local-lab/nodes/robot-quadruped-2/run.sh
+ump-local-lab/nodes/robot-mobile-arm-3/run.sh
+```
+
+Each node now publishes identity and semantic state over mutual TLS and observes
+the other two nodes. The generated adapters advertise no capabilities, so the
+network cannot assign physical work. Inspect one node's local view with:
+
+```sh
+ump-inspector \
+  --database ump-local-lab/nodes/robot-humanoid-1/state/inspector.sqlite3 \
+  --port 8765
+```
+
+Use the interactive setup when choosing your own identities and robot classes:
+
+```sh
+ump-deployment wizard --output my-ump-lab
+```
+
+For repeatable automation, edit [`config/local-lab.example.json`](config/local-lab.example.json)
+and run:
+
+```sh
+ump-deployment generate \
+  --topology config/local-lab.example.json \
+  --output my-ump-lab \
+  --development-pki
+```
+
+Development PKI bundles are marked `production_eligible: false` and must never
+be installed on physical deployments. Replace them with the owner's PKI and the
+staged credential process in [`docs/CREDENTIALS.md`](docs/CREDENTIALS.md).
+
 ## Repository map
 
 - `docs/PRD.md`: product requirements and delivery milestones.
@@ -61,6 +142,7 @@ transport, and placement steps from one shared goal.
 - `conformance/v0.1`: byte-exact valid and invalid protocol vectors.
 - `schemas/ump-v0.schema.json`: canonical JSON Schema for wire messages.
 - `schemas/ump-network-config-v1.schema.json`: strict deployment configuration.
+- `schemas/ump-deployment-topology-v1.schema.json`: local-lab topology contract.
 - `schemas/ump-shared-goal-v1.schema.json`: strict owner goal document contract.
 - `schemas/ump-shared-goal-batch-v1.schema.json`: bounded atomic goal-batch contract.
 - `schemas/ump-release-evidence-v1.schema.json`: retained release qualification bundle.

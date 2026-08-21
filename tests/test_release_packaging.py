@@ -63,6 +63,10 @@ class ReleasePackagingTests(unittest.TestCase):
             metadata["scripts"]["ump-visual-sim"],
             "ump.cli:visual_simulation_main",
         )
+        self.assertEqual(
+            metadata["scripts"]["ump-deployment"],
+            "ump.cli:deployment_main",
+        )
 
     def test_source_manifest_contains_auditable_project_assets(self):
         manifest = (ROOT / "MANIFEST.in").read_text()
@@ -86,6 +90,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("/tmp/ump-release/bin/ump-adapter-conformance schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-authority --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-credentials --help", workflow)
+        self.assertIn("/tmp/ump-release/bin/ump-deployment --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-lan-evidence schema", workflow)
         self.assertIn("/tmp/ump-release/bin/ump-node --help", workflow)
@@ -103,6 +108,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("schemas/ump-lan-evidence-v1.schema.json", workflow)
         self.assertIn("schemas/ump-independent-review-v1.schema.json", workflow)
         self.assertIn("schemas/ump-adapter-conformance-v1.schema.json", workflow)
+        self.assertIn("schemas/ump-deployment-topology-v1.schema.json", workflow)
         self.assertIn("schemas/ump-network-config-v1.schema.json", workflow)
         self.assertIn("schemas/ump-shared-goal-v1.schema.json", workflow)
         self.assertIn("schemas/ump-shared-goal-batch-v1.schema.json", workflow)

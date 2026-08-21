@@ -27,7 +27,8 @@ class SimulatedQualificationTests(unittest.TestCase):
     def test_run_passes_without_claiming_production_qualification(self):
         self.assertTrue(self.report["passed"])
         self.assertFalse(self.report["scope"]["qualification_substitute"])
-        self.assertEqual(len(self.report["checks"]), 9)
+        self.assertEqual(len(self.report["checks"]), 10)
+        self.assertTrue(self.report["scenarios"]["generated_local_network"]["passed"])
         validate_simulated_qualification(self.report)
 
     def test_validator_rejects_inconsistent_pass_claim(self):
@@ -70,7 +71,7 @@ class SimulatedQualificationTests(unittest.TestCase):
         schema = simulated_qualification_schema()
         self.assertEqual(
             schema["properties"]["profile"]["const"],
-            "ump.simulated-qualification/v1",
+            "ump.simulated-qualification/v2",
         )
 
 

@@ -30,6 +30,7 @@ jobs:
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-lan-evidence-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-independent-review-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-adapter-conformance-v1.schema.json$'
+          tar -tzf dist/*.tar.gz | grep '/schemas/ump-deployment-topology-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-network-config-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-shared-goal-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-shared-goal-batch-v1.schema.json$'
@@ -48,6 +49,7 @@ jobs:
           (cd /tmp && /tmp/ump-release/bin/ump-adapter-conformance schema)
           (cd /tmp && /tmp/ump-release/bin/ump-authority --help)
           (cd /tmp && /tmp/ump-release/bin/ump-credentials --help)
+          (cd /tmp && /tmp/ump-release/bin/ump-deployment --help)
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --samples 10 --participants 2)
           (cd /tmp && /tmp/ump-release/bin/ump-benchmark --profile tls-loopback --samples 10)
           (cd /tmp && /tmp/ump-release/bin/ump-lan-benchmark --help)

@@ -122,6 +122,10 @@ qualification matrix remains fail-closed with eight pending external gates.
   and bounded uncertainty waiting.
 - Four-identity mutual-TLS loopback integration covering authorized awareness,
   three dependency-ordered assignments, outcomes, and terminal run durability.
+- Strict local-lab topology schema and deployment generator producing unique
+  short-lived development identities, fingerprint-pinned awareness policies,
+  managed credential stores, preflight/launch scripts, and a mutual-TLS
+  all-peer observation verifier without production-eligibility claims.
 - Integrity-bound hardware-pilot bundle verifier enforcing the PRD topology and
   supervised-phase gates, participant adapter-report semantics, robot/revision
   agreement, and artifact digests without claiming physical validation.

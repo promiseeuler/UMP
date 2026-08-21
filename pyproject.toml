@@ -35,6 +35,7 @@ ump-benchmark = "ump.cli:benchmark_main"
 ump-conformance = "ump.cli:conformance_main"
 ump-coordinator = "ump.cli:coordinator_main"
 ump-credentials = "ump.cli:credentials_main"
+ump-deployment = "ump.cli:deployment_main"
 ump-goal = "ump.cli:goal_main"
 ump-inspector = "ump.cli:inspector_main"
 ump-lan-benchmark = "ump.cli:lan_benchmark_main"
@@ -62,6 +63,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 ump = [
   "adapter_evidence_data/**/*.json",
+  "deployment_data/**/*.json",
   "inspector_static/*.html",
   "inspector_static/*.css",
   "inspector_static/*.js",

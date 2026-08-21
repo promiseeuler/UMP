@@ -33,6 +33,12 @@ from .credentials import (
     read_credential_generation,
     read_credential_generations,
 )
+from .deployment import (
+    default_local_topology,
+    deployment_topology_schema,
+    generate_deployment_bundle,
+    verify_local_awareness,
+)
 from .journal import SqliteAssignmentJournal
 from .goal import (
     goal_batch_schema,
@@ -104,6 +110,8 @@ __all__ = [
     "ConformanceReport",
     "CoordinatorStore",
     "CredentialGenerationSummary",
+    "default_local_topology",
+    "deployment_topology_schema",
     "Mode",
     "LanEvidenceValidationError",
     "InspectorStoreError",
@@ -143,6 +151,7 @@ __all__ = [
     "goal_batch_schema",
     "goal_schema",
     "goal_validation_report",
+    "generate_deployment_bundle",
     "inspect_adapter_evidence",
     "inspect_network_databases",
     "load_planner",
@@ -164,6 +173,7 @@ __all__ = [
     "validate_lan_evidence_bundle",
     "validate_network_config",
     "validate_simulated_qualification",
+    "verify_local_awareness",
     "validate_plan",
     "validate_adapter_evidence",
     "validate_ros2_smoke_report",

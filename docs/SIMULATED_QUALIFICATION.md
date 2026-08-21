@@ -29,10 +29,12 @@ The run checks:
 - cyclic plans are rejected before dispatch;
 - stale and restored peer state invoke adapter-owned communication policy;
 - same-host TCP loopback communication passes mutual-TLS and reference latency
-  checks; and
-- all simulated adapters pass read-only contract inspection.
+  checks;
+- all simulated adapters pass read-only contract inspection; and
+- a generated three-robot local deployment exchanges every manifest and state
+  over fingerprint-pinned mutual TLS.
 
-The JSON report uses profile `ump.simulated-qualification/v1`, identifies the
+The JSON report uses profile `ump.simulated-qualification/v2`, identifies the
 exact source revision and environment, and lists every check. It always declares
 `qualification_substitute: false`. The validator rejects any report that tries
 to present simulation as production qualification.

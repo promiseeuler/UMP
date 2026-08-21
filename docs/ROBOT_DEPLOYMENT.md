@@ -16,6 +16,27 @@ Create a bounded test area, physical emergency-stop procedure, operator roles,
 and rollback plan before any assignment-capable integration. Do not use
 `AllowAllAuthorizer` outside deterministic simulation.
 
+## Local awareness lab
+
+Before using manufacturer hardware, generate and verify a complete localhost
+deployment bundle:
+
+```sh
+ump-deployment quickstart --output ump-local-lab
+ump-deployment verify-local ump-local-lab
+```
+
+The verifier starts every generated mutual-TLS endpoint and proves that each
+robot receives every peer manifest and semantic state. Generated adapters are
+read-only and advertise no capabilities. Run each `preflight.sh`, then launch
+each `run.sh` in a separate terminal to keep the network active.
+
+Use `ump-deployment wizard --output my-ump-lab` for interactive identities, or
+use `ump-deployment generate --topology <file> --output <directory>
+--development-pki` for repeatable topology-as-code. Development credentials are
+short-lived, include a local CA private key, and are never eligible for physical
+or production deployment.
+
 ## 2. Run the reference simulation
 
 Install the reviewed UMP build in an isolated environment and run:

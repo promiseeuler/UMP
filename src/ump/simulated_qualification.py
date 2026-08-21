@@ -6,7 +6,9 @@ import json
 from importlib.resources import files
 from pathlib import Path
 import platform
+import socket
 import subprocess
+import tempfile
 from typing import Any
 
 from jsonschema import Draft202012Validator
@@ -16,11 +18,16 @@ from .benchmark import run_tls_loopback_benchmark
 from .collaboration import Coordinator, PlanValidationError
 from .conformance import AdapterConformanceHarness
 from .demo import WarehousePlanner, build_demo
+from .deployment import (
+    default_local_topology,
+    generate_deployment_bundle,
+    verify_local_awareness,
+)
 from .models import Plan, PlanStep, SharedGoal
 from .runtime import CommunicationWatchdog, Registry
 
 
-PROFILE = "ump.simulated-qualification/v1"
+PROFILE = "ump.simulated-qualification/v2"
 REQUIRED_CHECK_IDS = frozenset(
     {
         "simulation.adapters.read-only-conformance",
@@ -29,6 +36,7 @@ REQUIRED_CHECK_IDS = frozenset(
         "simulation.collaboration.completed",
         "simulation.collaboration.dependencies",
         "simulation.communication.loss-restoration",
+        "simulation.deployment.local-awareness",
         "simulation.plan.cycle-rejected",
         "simulation.trace.correlated",
         "simulation.transport.mutual-tls-loopback",
@@ -310,6 +318,23 @@ def run_simulated_qualification(
     collaboration, collaboration_checks = _collaboration_scenario()
     boundaries, boundary_checks = _boundary_scenarios()
     tls = run_tls_loopback_benchmark(samples=tls_samples).as_dict()
+    sockets = []
+    try:
+        ports = []
+        for _ in range(3):
+            listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            listener.bind(("127.0.0.1", 0))
+            sockets.append(listener)
+            ports.append(listener.getsockname()[1])
+        topology = default_local_topology(3, min(ports))
+        for node, port in zip(topology["nodes"], ports, strict=True):
+            node["port"] = port
+    finally:
+        for listener in sockets:
+            listener.close()
+    with tempfile.TemporaryDirectory() as directory:
+        generate_deployment_bundle(topology, directory, development_pki=True)
+        local_awareness = verify_local_awareness(directory)
 
     _, _, adapters = build_demo()
     try:
@@ -331,6 +356,11 @@ def run_simulated_qualification(
             "id": "simulation.adapters.read-only-conformance",
             "passed": conformance_passed,
             "description": "All three simulated adapters passed read-only contract inspection.",
+        },
+        {
+            "id": "simulation.deployment.local-awareness",
+            "passed": local_awareness["passed"],
+            "description": "A generated three-robot bundle exchanged all manifests and states over mutual TLS.",
         },
     ]
     report = {
@@ -361,6 +391,7 @@ def run_simulated_qualification(
                 }
                 for report in conformance
             ],
+            "generated_local_network": local_awareness,
         },
         "checks": checks,
         "passed": all(check["passed"] for check in checks),

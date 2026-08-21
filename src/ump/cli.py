@@ -64,6 +64,13 @@ from .credentials import (
     read_credential_generations,
     read_active_credential,
 )
+from .deployment import (
+    DeploymentError,
+    default_local_topology,
+    deployment_topology_schema,
+    generate_deployment_bundle,
+    verify_local_awareness,
+)
 from .goal import (
     goal_batch_schema,
     goal_schema,
@@ -418,6 +425,72 @@ def credentials_main(argv: list[str] | None = None) -> int:
     finally:
         if store is not None:
             store.close()
+
+
+def _prompt_value(prompt: str, default: str) -> str:
+    value = input(f"{prompt} [{default}]: ").strip()
+    return value or default
+
+
+def deployment_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-deployment",
+        description="Generate and verify UMP robot deployment bundles.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    generate = commands.add_parser("generate", help="Generate from a topology JSON file")
+    generate.add_argument("--topology", required=True)
+    generate.add_argument("--output", required=True)
+    generate.add_argument("--development-pki", action="store_true")
+    quickstart = commands.add_parser("quickstart", help="Generate a local awareness lab")
+    quickstart.add_argument("--output", required=True)
+    quickstart.add_argument("--robots", type=int, default=3)
+    quickstart.add_argument("--base-port", type=int, default=17443)
+    wizard = commands.add_parser("wizard", help="Interactively define a local awareness lab")
+    wizard.add_argument("--output", required=True)
+    wizard.add_argument("--base-port", type=int, default=17443)
+    verify = commands.add_parser("verify-local", help="Run mutual-TLS peer awareness checks")
+    verify.add_argument("bundle_root")
+    commands.add_parser("schema", help="Print the deployment topology schema")
+    arguments = parser.parse_args(argv)
+    try:
+        if arguments.command == "schema":
+            result = deployment_topology_schema()
+        elif arguments.command == "verify-local":
+            result = verify_local_awareness(arguments.bundle_root)
+        elif arguments.command == "generate":
+            result = generate_deployment_bundle(
+                arguments.topology,
+                arguments.output,
+                development_pki=arguments.development_pki,
+            )
+        elif arguments.command == "quickstart":
+            result = generate_deployment_bundle(
+                default_local_topology(arguments.robots, arguments.base_port),
+                arguments.output,
+                development_pki=True,
+            )
+        else:
+            count = int(_prompt_value("Number of robots", "3"))
+            topology = default_local_topology(count, arguments.base_port)
+            for index, node in enumerate(topology["nodes"], 1):
+                print(f"Robot {index}", file=sys.stderr)
+                node["robot_id"] = _prompt_value("  Robot ID", node["robot_id"])
+                node["manufacturer"] = _prompt_value(
+                    "  Manufacturer", node["manufacturer"]
+                )
+                node["model"] = _prompt_value("  Model", node["model"])
+                node["robot_class"] = _prompt_value(
+                    "  Robot class", node["robot_class"]
+                )
+            result = generate_deployment_bundle(
+                topology, arguments.output, development_pki=True
+            )
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result.get("passed", True) else 1
+    except (DeploymentError, OSError, ValueError, EOFError) as error:
+        print(f"ump-deployment: {error}", file=sys.stderr)
+        return 2
 
 
 def reconcile_main(argv: list[str] | None = None) -> int:
@@ -1776,6 +1849,7 @@ def main(argv: list[str] | None = None) -> int:
         "conformance": conformance_main,
         "coordinator": coordinator_main,
         "credentials": credentials_main,
+        "deployment": deployment_main,
         "goal": goal_main,
         "inspector": inspector_main,
         "lan-benchmark": lan_benchmark_main,
