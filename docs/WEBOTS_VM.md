@@ -16,7 +16,7 @@ mobile arm performs validated grasp dynamics.
 | --- | --- | --- | --- |
 | Ubuntu 24.04 x86-64 | Native installation | Best | Reference and CI-compatible environment |
 | Intel macOS | Ubuntu 24.04 x86-64 VM | Good | UTM, VMware, or Parallels can virtualize the guest |
-| Apple Silicon macOS | Ubuntu 24.04 x86-64 emulated VM | Slow | UTM/QEMU emulation is required for Linux Webots |
+| Apple Silicon macOS | Remote/native x86-64 Ubuntu host | Recommended | UTM x86 emulation is experimental and is not a qualification target |
 | Windows x86-64 | Ubuntu 24.04 x86-64 VM | Good | Hyper-V, VMware, or VirtualBox |
 | Linux x86-64 | Ubuntu 24.04 x86-64 VM | Good | KVM/QEMU is preferred |
 | ARM64 Linux VM | Unsupported for this profile | No | Webots R2025a Linux binaries are x86-64 only |
@@ -26,7 +26,30 @@ The VM needs at least 4 CPU cores, 8 GB RAM, 40 GB disk, networking, and an
 OpenGL 3.3-capable virtual display. Allocate 12 GB RAM and enable 3D acceleration
 when the hypervisor supports it.
 
-## Apple Silicon setup with UTM
+## Apple Silicon compatibility
+
+Linux Webots R2025a is x86-64 only. UTM can emulate that architecture on Apple
+Silicon, but this path has two independent limitations: Ubuntu's live graphical
+installer may not initialize the virtual display, and software-emulated OpenGL
+may not satisfy Webots' interactive 3D viewport. It is useful for experiments,
+not for retained UMP visual qualification.
+
+The verified Apple Silicon attempt used UTM 4.7.5, Ubuntu 24.04.4 amd64, Q35,
+four emulated cores, 8 GB RAM, and both accelerated and non-accelerated virtio
+display devices. GRUB booted, but the desktop live environment did not reach the
+installer. Safe graphics reported an inactive display. The server ISO also
+wedged during UTM startup after the failed live boot. Do not interpret a headless
+Docker run on Apple Silicon as equivalent visual evidence.
+
+For a live 3D demonstration from an Apple Silicon Mac, use one of these paths:
+
+1. Connect by remote desktop to an x86-64 Ubuntu 24.04 workstation or GPU VM and
+   run Webots on that machine's local display.
+2. Use a separate x86-64 Ubuntu computer on the same lab network.
+3. Use UTM only as an experimental path and expect display troubleshooting and
+   substantially slower simulation.
+
+## Experimental Apple Silicon setup with UTM
 
 1. Install UTM:
 
@@ -41,9 +64,16 @@ when the hypervisor supports it.
    viewport is blank or crashes, disable acceleration and use software rendering.
 6. Install Ubuntu Desktop, enable the shared clipboard, and reboot the guest.
 
-An x86-64 guest on Apple Silicon is emulated rather than virtualized. Startup and
-simulation will be slower, but keeping ROS 2 and Webots inside the same guest
-avoids cross-architecture DDS discovery problems.
+An x86-64 guest on Apple Silicon is emulated rather than virtualized. Keeping ROS
+2 and Webots in one guest avoids cross-architecture DDS discovery problems, but
+does not guarantee that the virtual GPU can render Webots. This route must pass
+the visible scene and retained smoke-evidence checks before it is accepted.
+
+If the desktop ISO does not reach its graphical installer, try the official
+Ubuntu 24.04 amd64 server ISO with the non-GL `virtio-gpu-pci` display, then add
+`ubuntu-desktop` after installation. If UTM remains in `starting`, stop there and
+move the run to an x86-64 host; that environment cannot produce credible visual
+evidence.
 
 ## Install UMP inside the guest
 
