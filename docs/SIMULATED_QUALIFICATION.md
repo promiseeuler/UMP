@@ -41,6 +41,21 @@ This run does not exercise physical dynamics, actuators, emergency stops, a
 representative two-host LAN, independent manufacturer code, or external review.
 It therefore does not change any gate in `compliance/qualification.json`.
 
+## Visual run
+
+Start the local browser visualization without installing Node.js, a game engine,
+or frontend dependencies:
+
+```sh
+ump-visual-sim --port 8766
+```
+
+Open `http://127.0.0.1:8766/`. The loopback-only interface animates the same
+three-robot warehouse plan and shows semantic state, plan progress, and protocol
+events. The Python backend executes the real UMP collaboration before returning
+the scenario. Canvas positions are visual choreography, not physics or actuator
+simulation.
+
 For professional robot simulation, run the native ROS 2 Jazzy and Gazebo
 Harmonic workflow in `ROS2_GAZEBO.md`. For physical progression, follow
 `ROBOT_DEPLOYMENT.md` and retain the evidence described in `HARDWARE_PILOT.md`.

@@ -113,6 +113,7 @@ from .simulated_qualification import (
     validate_simulated_qualification,
 )
 from .vocabulary import standard_capability, vocabulary_document
+from .visual_simulation import VisualSimulationServer
 
 
 def authority_parser() -> argparse.ArgumentParser:
@@ -1699,6 +1700,42 @@ def simulated_qualification_main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def visual_simulation_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-visual-sim",
+        description="Serve the dependency-free UMP warehouse visual simulation.",
+    )
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8766)
+    arguments = parser.parse_args(argv)
+    server = None
+    try:
+        server = VisualSimulationServer(arguments.host, arguments.port)
+        address = server.address
+        print(
+            json.dumps(
+                {
+                    "ready": True,
+                    "url": f"http://{address.host}:{address.port}/",
+                    "scope": "semantic_digital_twin",
+                    "physical_dynamics": False,
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        server.serve_forever()
+        return 0
+    except (OSError, ValueError) as error:
+        print(f"ump-visual-sim: {error}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        if server is not None:
+            server.close()
+
+
 def inspector_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-inspector",
@@ -1752,6 +1789,7 @@ def main(argv: list[str] | None = None) -> int:
         "readiness": readiness_main,
         "public-readiness": public_readiness_main,
         "simulate": simulated_qualification_main,
+        "visual-sim": visual_simulation_main,
         "release-evidence": release_evidence_main,
         "ros2-evidence": ros2_evidence_main,
         "review": review_main,

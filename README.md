@@ -18,6 +18,7 @@ python3 -m unittest discover -s tests -v
 PYTHONPATH=src python3 -m ump.cli conformance conformance/v0.1
 PYTHONPATH=src python3 -m ump.cli benchmark
 PYTHONPATH=src python3 -m ump.cli simulate run --project-root .
+PYTHONPATH=src python3 -m ump.cli visual-sim --port 8766
 ```
 
 For two-host deployment measurements, see [docs/BENCHMARKS.md](docs/BENCHMARKS.md).

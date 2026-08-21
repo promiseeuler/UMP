@@ -52,6 +52,7 @@ class PublicApiTests(unittest.TestCase):
             "standard_capabilities",
             "adapter_evidence_schema",
             "audit_public_release",
+            "build_visual_scenario",
             "run_simulated_qualification",
             "simulated_qualification_schema",
             "standard_capability",

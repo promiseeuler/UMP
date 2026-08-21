@@ -86,6 +86,7 @@ from .review import (
     validate_review_bundle,
 )
 from .vocabulary import standard_capabilities, standard_capability
+from .visual_simulation import build_visual_scenario
 
 __all__ = [
     "AdapterConformanceHarness",
@@ -136,6 +137,7 @@ __all__ = [
     "simulated_qualification_schema",
     "adapter_evidence_schema",
     "audit_public_release",
+    "build_visual_scenario",
     "standard_capability",
     "load_adapter",
     "goal_batch_schema",
