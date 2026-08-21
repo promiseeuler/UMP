@@ -1,6 +1,6 @@
 # Universal Machine Protocol
 
-Universal Machine Protocol (UMP) is a lightweight, manufacturer-neutral
+Universal Machine Protocol (UMP) is a manufacturer-neutral
 communication layer for shared robot awareness and collaboration.
 
 UMP lets robots describe their capabilities, current activity, intent, and
