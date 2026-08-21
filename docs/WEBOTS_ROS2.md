@@ -34,6 +34,11 @@ safety, or production readiness.
 Use Ubuntu 24.04, ROS 2 Jazzy, Webots, and the Jazzy `webots_ros2` packages. The
 commands assume ROS 2 Jazzy is installed from the official ROS repository.
 
+For a complete host compatibility matrix and an all-in-one Ubuntu virtual
+machine procedure, use [`WEBOTS_VM.md`](WEBOTS_VM.md). Linux Webots R2025a is
+published for x86-64, so an Apple Silicon Linux guest must emulate x86-64 rather
+than use the default ARM64 Ubuntu image.
+
 ```bash
 sudo apt update
 sudo apt install curl ros-jazzy-webots-ros2-driver python3-colcon-common-extensions

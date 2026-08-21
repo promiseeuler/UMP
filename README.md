@@ -128,6 +128,7 @@ staged credential process in [`docs/CREDENTIALS.md`](docs/CREDENTIALS.md).
 - `docs/PLANNER.md`: reasoning-provider contract and validation boundary.
 - `docs/RECONCILIATION.md`: evidence-based resolution of uncertain native work.
 - `docs/WEBOTS_ROS2.md`: primary Webots and ROS 2 visual warehouse profile.
+- `docs/WEBOTS_VM.md`: compatible VM setup for the live Webots 3D demonstration.
 - `docs/ROS2_GAZEBO.md`: manufacturer ROS action adapter and simulator profile.
 - `docs/SIMULATED_QUALIFICATION.md`: repeatable non-production simulation report.
 - `docs/ROBOT_DEPLOYMENT.md`: staged owner and manufacturer deployment path.
