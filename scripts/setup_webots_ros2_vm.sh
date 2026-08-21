@@ -30,7 +30,8 @@ if [[ -z "$ros_apt_source_version" ]]; then
   echo "Could not determine the current ros2-apt-source release." >&2
   exit 1
 fi
-curl -fL -o /tmp/ros2-apt-source.deb \
+curl -fL --retry 8 --retry-delay 5 --retry-all-errors \
+  -o /tmp/ros2-apt-source.deb \
   "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ros_apt_source_version}/ros2-apt-source_${ros_apt_source_version}.noble_all.deb"
 sudo dpkg -i /tmp/ros2-apt-source.deb
 
@@ -44,7 +45,8 @@ sudo apt-get install -y \
   xauth \
   xvfb
 
-curl -fL -o "/tmp/${WEBOTS_DEB}" \
+curl -fL --retry 12 --retry-delay 10 --retry-all-errors \
+  --continue-at - -o "/tmp/${WEBOTS_DEB}" \
   "https://github.com/cyberbotics/webots/releases/download/${WEBOTS_VERSION}/${WEBOTS_DEB}"
 sudo apt-get install -y "/tmp/${WEBOTS_DEB}"
 
