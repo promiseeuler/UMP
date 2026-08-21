@@ -95,8 +95,11 @@ qualification matrix remains fail-closed with eight pending external gates.
   structured UMP assignment to a structured UMP outcome.
 - Machine-readable native ROS 2/Gazebo smoke reports with exact lifecycle-result,
   Jazzy-version, world-digest, and repository-revision validation in CI.
+- Webots warehouse package with three `webots_ros2_driver` plugins, the reference
+  planner, all three `Ros2RobotAdapter` bindings, and verifier-compatible smoke
+  evidence for the ordered visual task.
 - Pinned Ubuntu Noble / ROS 2 Jazzy package build-and-test workflow for the
-  reference interfaces and Gazebo fixture.
+  reference interfaces, Webots profile, and Gazebo fixture.
 - Container-verified Jazzy interface generation and package build, plus a native
   Noble headless smoke gate for world startup and ROS action lifecycle behavior.
 - Versioned, byte-exact valid and invalid wire vectors with SHA-256 integrity
@@ -170,8 +173,9 @@ qualification matrix remains fail-closed with eight pending external gates.
 
 - Automated integration with deployment-specific CA enrollment protocols,
   hardware security modules, and online OCSP/CRL services.
-- Runtime-verified ROS 2/Gazebo dynamics, Isaac Sim, Webots, or physical robot
-  adapters. The checked-in Gazebo proxies validate lifecycle, not physical work.
+- Retained runtime evidence for ROS 2/Gazebo dynamics, Webots manipulation,
+  Isaac Sim, or physical robot adapters. The Gazebo proxies validate lifecycle;
+  the Webots profile adds locomotion and visual handoff but not grasp dynamics.
 - Healthy-LAN TLS benchmarks, independent adapter conformance results, or release
   artifacts.
 - Independent security, safety, or interoperability review.

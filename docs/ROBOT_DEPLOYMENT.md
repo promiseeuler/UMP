@@ -145,8 +145,9 @@ versioned schema. Implement native operating-mode, workspace, resource, and
 safety checks inside `accept()`. Native software retains final acceptance and
 cancellation authority.
 
-Exercise the adapter first in deterministic simulation, then ROS 2/Gazebo or the
-manufacturer's professional simulator. Run execution conformance only with its
+Exercise the adapter first in deterministic simulation, then ROS 2/Webots,
+ROS 2/Gazebo, or the manufacturer's professional simulator. Run execution
+conformance only with its
 explicit native-execution gate and retain the adapter version, firmware,
 configuration, fixtures, and result.
 

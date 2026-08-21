@@ -127,6 +127,7 @@ staged credential process in [`docs/CREDENTIALS.md`](docs/CREDENTIALS.md).
 - `docs/NODE.md`: owner-facing long-running participant service.
 - `docs/PLANNER.md`: reasoning-provider contract and validation boundary.
 - `docs/RECONCILIATION.md`: evidence-based resolution of uncertain native work.
+- `docs/WEBOTS_ROS2.md`: primary Webots and ROS 2 visual warehouse profile.
 - `docs/ROS2_GAZEBO.md`: manufacturer ROS action adapter and simulator profile.
 - `docs/SIMULATED_QUALIFICATION.md`: repeatable non-production simulation report.
 - `docs/ROBOT_DEPLOYMENT.md`: staged owner and manufacturer deployment path.
@@ -153,8 +154,9 @@ staged credential process in [`docs/CREDENTIALS.md`](docs/CREDENTIALS.md).
 - `tests`: protocol and collaboration tests.
 
 The reference runtime is transport-neutral. The repository includes a mutual-TLS
-network profile and a ROS 2/Gazebo conformance adapter; Isaac Sim, Webots, and
-physical robot adapters remain later layers over the same contracts.
+network profile, a Webots visual warehouse integration, and a ROS 2/Gazebo
+conformance adapter. Isaac Sim and physical robot adapters remain later layers
+over the same contracts.
 
 This repository is currently a reference foundation. It is not yet suitable for
 unsupervised physical robot operation; see `docs/STATUS.md` for the exact gap list.

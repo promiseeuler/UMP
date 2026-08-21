@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<robot name="UMP Quadruped">
+  <webots>
+    <device reference="gps" type="GPS"><ros><enabled>true</enabled><alwaysOn>true</alwaysOn></ros></device>
+    <device reference="lidar" type="Lidar"><ros><enabled>true</enabled><alwaysOn>true</alwaysOn><topicName>scan</topicName></ros></device>
+    <plugin type="ump_webots_demo.warehouse_driver.WarehouseRobotDriver">
+      <capability>ump.navigation.inspect-route/v1</capability>
+      <role>route inspector</role>
+    </plugin>
+  </webots>
+</robot>

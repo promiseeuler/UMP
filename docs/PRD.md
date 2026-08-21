@@ -256,10 +256,11 @@ duplication, reordering, disconnection, and restart.
 
 ### Level 3: professional robot simulation
 
-The first standard profile targets ROS 2 with Gazebo. The architecture must also
-support NVIDIA Isaac Sim and Webots adapters without changing core schemas. The
-reference scenario uses a humanoid, quadruped, and mobile arm to inspect a route,
-transport an object, and place it.
+The primary visual profile targets ROS 2 Jazzy with Webots. Gazebo Harmonic is
+retained as the compatibility and engineering-validation profile. The
+architecture must also support NVIDIA Isaac Sim adapters without changing core
+schemas. The reference scenario uses a humanoid, quadruped, and mobile arm to
+inspect a route, transport an object, and place it.
 
 ### Level 4: hardware in the loop and physical robots
 
@@ -285,7 +286,8 @@ safety review, bounded work areas, physical emergency stops, and operator approv
 1. **Protocol seed:** schemas, semantic state, in-memory transport, registry, tests.
 2. **Collaboration seed:** planner interface, validation, assignment lifecycle, demo.
 3. **Network alpha:** secure local transport, discovery, identity, replay protection.
-4. **ROS 2/Gazebo alpha:** adapters, three-robot scenario, fault injection.
+4. **ROS 2 simulator alpha:** Webots visual demonstration, Gazebo compatibility,
+   adapters, three-robot scenario, and fault injection.
 5. **Conformance alpha:** golden vectors, independent adapter test harness, inspector.
 6. **Hardware pilot:** one simulated plus two physical participants in supervised work.
 
@@ -299,7 +301,7 @@ Still deferred until deployment evidence:
 Resolved in the reference implementation:
 
 - mutual-TLS network profile and robot-local credential lifecycle;
-- Ubuntu Noble, ROS 2 Jazzy, and Gazebo Harmonic reference matrix;
+- Ubuntu Noble, ROS 2 Jazzy, Webots visual, and Gazebo Harmonic compatibility matrix;
 - durable SQLite journals for assignments, coordination, authority, delivery,
   replay protection, credentials, and inspection; and
 - `ump.standard/v1`, the first bounded domain capability vocabulary.

@@ -22,10 +22,10 @@ jobs:
       - uses: ros-tooling/setup-ros@v0.7
         with:
           required-ros-distributions: jazzy
-      - name: Install Gazebo integration
+      - name: Install simulator integrations
         run: |
           apt-get update
-          apt-get install -y ros-jazzy-ros-gz-sim
+          apt-get install -y ros-jazzy-ros-gz-sim ros-jazzy-webots-ros2 xauth xvfb
       - name: Resolve dependencies
         shell: bash
         run: |
@@ -54,16 +54,29 @@ jobs:
           ump-ros2-evidence /tmp/ump-ros2-gazebo-smoke.json \
             --world ros2_ws/src/ump_gazebo_demo/worlds/three_robot_world.sdf \
             --revision "$GITHUB_SHA"
+      - name: Run Webots visual-profile smoke
+        shell: bash
+        env:
+          ROS_AUTOMATIC_DISCOVERY_RANGE: LOCALHOST
+          ROS_DOMAIN_ID: "74"
+          ROS2CLI_NO_DAEMON: "1"
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source ros2_ws/install/setup.bash
+          xvfb-run -a timeout 240s bash ros2_ws/webots_smoke.sh
+          ump-ros2-evidence /tmp/ump-ros2-webots-smoke.json \
+            --world ros2_ws/src/ump_webots_demo/worlds/ump_warehouse.wbt \
+            --revision "$GITHUB_SHA"
       - name: Attest native smoke evidence
         if: success() && github.event.repository.visibility == 'public'
         uses: actions/attest@v4
         with:
-          subject-path: /tmp/ump-ros2-gazebo-smoke.json
+          subject-path: /tmp/ump-ros2-*-smoke.json
       - name: Retain native smoke evidence
         if: success()
         uses: actions/upload-artifact@v7
         with:
-          name: ros2-gazebo-smoke-${{ github.sha }}
-          path: /tmp/ump-ros2-gazebo-smoke.json
+          name: ros2-simulator-smoke-${{ github.sha }}
+          path: /tmp/ump-ros2-*-smoke.json
           if-no-files-found: error
           retention-days: 90

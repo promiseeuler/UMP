@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<robot name="UMP Mobile Arm">
+  <webots>
+    <device reference="gps" type="GPS"><ros><enabled>true</enabled><alwaysOn>true</alwaysOn></ros></device>
+    <plugin type="ump_webots_demo.warehouse_driver.WarehouseRobotDriver">
+      <capability>ump.manipulation.place/v1</capability>
+      <role>shelf placer</role>
+      <packageDef>PACKAGE_1</packageDef>
+    </plugin>
+  </webots>
+</robot>

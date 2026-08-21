@@ -58,6 +58,7 @@ events. The Python backend executes the real UMP collaboration before returning
 the scenario. Canvas positions are visual choreography, not physics or actuator
 simulation.
 
-For professional robot simulation, run the native ROS 2 Jazzy and Gazebo
-Harmonic workflow in `ROS2_GAZEBO.md`. For physical progression, follow
+For the primary visual robot simulation, run the ROS 2 Jazzy and Webots workflow
+in `WEBOTS_ROS2.md`. Retain the Gazebo Harmonic compatibility workflow in
+`ROS2_GAZEBO.md`. For physical progression, follow
 `ROBOT_DEPLOYMENT.md` and retain the evidence described in `HARDWARE_PILOT.md`.
