@@ -3,6 +3,8 @@ include README.md
 include CONTRIBUTING.md
 include SECURITY.md
 include REFERENCE.md
+include THIRD_PARTY_NOTICES.md
+recursive-include scripts *.py
 recursive-include config *.json
 recursive-include conformance *.json *.hex
 recursive-include docs *.md
