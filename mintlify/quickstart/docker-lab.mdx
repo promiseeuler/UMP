@@ -1,12 +1,11 @@
 ---
-title: "Run the Docker lab"
-description: "Exercise UMP with clean containers, live middleware, faults, ROS 2, and Gazebo."
+title: "Run the UMP Docker Lab for Repeatable Testing"
+description: "Use Docker Compose profiles to run core scenarios, standards probes, fault tests, load tests, ROS 2, and Gazebo simulations in a repeatable UMP lab environment."
 icon: "container"
+sidebarTitle: "Docker Lab"
 ---
 
-Docker is the repeatable workflow for Apple Silicon macOS and Linux. The first
-ROS 2 and Gazebo builds download a large dependency set and can take several
-minutes.
+Docker is the repeatable workflow for Apple Silicon macOS and Linux. The first ROS 2 and Gazebo builds download a large dependency set and can take several minutes.
 
 <Tabs>
   <Tab title="Core">
@@ -50,8 +49,7 @@ minutes.
 | `fault` | Toxiproxy delayed socket | Successful documented recovery path |
 | `visual` | Gazebo Harmonic native executor | Models load and scenario succeeds |
 
-The Gazebo executor attaches to the same controller boundary a manufacturer
-adapter replaces. UMP core contains no simulator-specific command path.
+The Gazebo executor attaches to the same controller boundary a manufacturer adapter replaces. UMP core contains no simulator-specific command path.
 
 ## Stop services
 
@@ -61,6 +59,5 @@ docker compose -f docker-compose.lab.yml --profile fault down
 ```
 
 <Warning>
-  A passing container lab is software qualification evidence. It is not a
-  physical robot or workcell safety certificate.
+  A passing container lab is software qualification evidence. It is not a physical robot or workcell safety certificate.
 </Warning>

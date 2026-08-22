@@ -1,43 +1,156 @@
 ---
-title: "Authority leases"
-description: "How robot owners grant bounded permission without surrendering native control."
+title: "UMP Authority Leases: Owner-Authorized Collaboration Model"
+description: "Learn how UMP authority leases work: deny-by-default scoping, grant and revoke CLI commands, lease lifecycle, and how participants validate assignments against local policy."
 icon: "key-round"
+sidebarTitle: "Authority"
 ---
 
-Authority is granted by the target robot owner and stored locally for that
-robot. A lease binds a lease ID, issuer identity, capability, target robot,
-validity window, and revision.
+UMP uses authority leases to enforce an owner-authorized collaboration model. Mutual TLS proves which peer sent an assignment, but a local authority lease decides whether that authenticated peer may ask this robot to execute a named high-level capability during a bounded time window. Authority is deny-by-default: without a valid lease, assignments are rejected.
 
-```mermaid
-flowchart LR
-  O[Robot owner] -->|grant exact scope| L[(Local lease)]
-  C[Coordinator] -->|assignment + lease ID| V{Validate}
-  L --> V
-  V -->|active, matching| A[Native acceptance]
-  V -->|missing, expired, revoked, mismatch| R[Reject]
-```
+## Lease scope
 
-## Grant a lease
+Each lease is stored and evaluated on the target robot. Remote peers cannot grant themselves authority through a protocol message. The robot owner, manufacturer integration, or an approved local policy service creates and revokes leases.
+
+A lease contains:
+
+| Field | Description |
+| --- | --- |
+| `lease_id` | Stable identifier for the lease |
+| `grantor_robot_id` | The robot that grants authority |
+| `issuer_id` | Authenticated coordinator or peer identity |
+| `capabilities` | One or more exact versioned capability names |
+| `issued_at_ms` | Issue time in Unix epoch milliseconds |
+| `expires_at_ms` | Expiry time in Unix epoch milliseconds |
+| `maximum_clock_uncertainty_ms` | Clock uncertainty tolerance |
+| `revision` | Monotonic revision number |
+| `status` | Active or revoked state |
+
+The participant uses its receiver-local clock. Envelope timestamps do not affect lease validity. To fail closed around clock error, a lease is rejected when the local time plus declared uncertainty reaches expiry, or when local time minus uncertainty is earlier than the issue time.
+
+## Secure defaults
+
+`Participant` uses `DenyAllAuthorizer` unless an authorizer is supplied. `Coordinator` requires an authority lease ID for every assigned robot unless a test explicitly sets `require_authority=False`.
+
+`AllowAllAuthorizer` is for deterministic simulation and conformance fixtures only. It must not be used for a physical robot or production network.
+
+## CLI commands
+
+The `ump-authority` CLI operates on a local SQLite database. Times are Unix epoch milliseconds.
+
+### Grant a lease
 
 ```bash
-ump-authority --robot-id robot-mobile-1 \
+ump-authority \
+  --robot-id robot-humanoid-1 \
   --database /var/lib/ump/authority.sqlite3 \
-  grant --lease-id supervised-shift-a \
+  grant \
+  --lease-id owner-shift-a \
   --issuer-id warehouse-coordinator-1 \
   --capability ump.material.carry/v1 \
   --expires-at-ms 1800000000000
 ```
 
-Use short validity windows and one exact capability. Revoke the lease when the
-supervised session ends.
+Renew a lease by repeating `grant` with the same lease and issuer identities and exactly the next revision. Scope and time may be changed by that local renewal.
 
-## Authorization requirements
+### Revoke a lease
 
-An assignment is authorized only when robot, issuer, capability, lease ID,
-lease revision, and effective time all match. Backdated messages cannot extend
-an expired lease. Revocation is durable and audited.
+```bash
+ump-authority \
+  --robot-id robot-humanoid-1 \
+  --database /var/lib/ump/authority.sqlite3 \
+  revoke \
+  --lease-id owner-shift-a \
+  --expected-revision 1 \
+  --reason "operator ended collaboration"
+```
 
-<Warning>
-  `AllowAllAuthorizer` exists for deterministic fixtures. Never use it for a
-  networked or physical robot deployment.
-</Warning>
+Revocation is terminal for a lease ID. Create a new ID after a fresh owner approval instead of reactivating revoked history.
+
+### List and show leases
+
+```bash
+ump-authority \
+  --robot-id robot-humanoid-1 \
+  --database /var/lib/ump/authority.sqlite3 \
+  list --status active --issuer-id warehouse-coordinator-1 --limit 100
+
+ump-authority \
+  --robot-id robot-humanoid-1 \
+  --database /var/lib/ump/authority.sqlite3 \
+  show --lease-id owner-shift-a
+```
+
+`list` returns newest-updated leases first and supports 1 to 1,000 results. `show` performs an exact lookup independent of that bound.
+
+### Inspect lease history
+
+```bash
+ump-authority \
+  --robot-id robot-humanoid-1 \
+  --database /var/lib/ump/authority.sqlite3 \
+  events \
+  --lease-id owner-shift-a
+```
+
+`events` returns the latest bounded transitions in chronological order.
+
+Both `list`, `show`, and `events` open an existing database using SQLite read-only and query-only modes. They validate authority tables, verify the local robot owns the selected lease, and never create a missing parent, database, table, or event. Missing, incompatible, or mismatched evidence returns exit status `2`.
+
+## Lease lifecycle
+
+A lease transitions through the following states:
+
+```text
+granted -> active -> expired
+                -> revoked
+```
+
+- **Granted**: lease is created in the local database
+- **Active**: lease is within its valid time window and not revoked
+- **Expired**: current time plus clock uncertainty has reached or passed `expires_at_ms`
+- **Revoked**: explicitly terminated by the owner; the lease ID cannot be reactivated
+
+Effective status is computed using receiver-local time and the same clock-uncertainty boundaries used for assignment authorization. `stored_status` is the immutable database record; `effective_status` is the runtime evaluation.
+
+## Assignment validation
+
+Before durable assignment acceptance, the target participant verifies against robot-local policy that:
+
+1. The lease exists and is active
+2. Its grantor is the local target robot
+3. Its holder equals the authenticated envelope source
+4. The requested capability is in scope
+5. Receiver-local time is safely within the lease window after clock uncertainty
+
+Missing, unknown, expired, revoked, not-yet-valid, wrong-issuer, and out-of-capability leases are rejected. Rejected authorization does not consume or bind the assignment ID.
+
+<Note>
+  Lease authorization is not functional-safety approval. Native adapters retain final acceptance authority and local safety systems always take precedence.
+</Note>
+
+## Runtime configuration
+
+Attach an authority store to a participant at runtime:
+
+```python
+from ump.authority import SqliteAuthorityStore
+from ump.runtime import Participant
+
+authority = SqliteAuthorityStore(
+    "robot-humanoid-1", "/var/lib/ump/authority.sqlite3"
+)
+participant = Participant(adapter, bus, authorizer=authority)
+```
+
+The coordinator must reference the lease expected by each target:
+
+```python
+coordinator = Coordinator(
+    "warehouse-coordinator-1",
+    bus,
+    registry,
+    authority_lease_ids={"robot-humanoid-1": "owner-shift-a"},
+)
+```
+
+A plan requires a matching lease for each assigned capability. `task_enabled` in an integration config alone does not authorize work. The lease must be granted, active, and correctly scoped.

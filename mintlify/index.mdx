@@ -1,74 +1,67 @@
 ---
 title: "Universal Machine Protocol"
-description: "A shared semantic layer for awareness and authorized collaboration across heterogeneous robots."
+description: "UMP is an open-source, manufacturer-neutral semantic layer for shared robot awareness and high-level collaboration across heterogeneous robots."
 icon: "network"
+sidebarTitle: "Introduction"
 ---
 
-Universal Machine Protocol (UMP) lets robots from different manufacturers share
-what they are doing and participate in validated, high-level collaborative work.
+Universal Machine Protocol (UMP) is a manufacturer-neutral semantic layer that lets heterogeneous robots describe what they are, what they can do, what they are doing, and their current operational state using one bounded protocol. UMP carries shared goals and validated assignments, but it never controls joints, motors, navigation, manipulation, gait, or emergency stops. Every robot keeps its native controller, autonomy, acceptance checks, and safety system.
 
 <Note>
-  UMP is an alpha reference implementation. It is ready for integration
-  development and software qualification, not universal hardware certification.
+  UMP is an **alpha reference implementation** (UMP 0.1). It is suitable for integration development and supervised hardware trials after the readiness gate passes. It is not a universal robot certification or a replacement for manufacturer safety controls.
 </Note>
 
-## One protocol, native control
+## Architecture
+
+UMP sits between native robot controllers and a secure coordination network. Manufacturer adapters translate native state into UMP semantics, while a mutual-TLS network enforces identity, disclosure, and authority boundaries.
 
 ```mermaid
 flowchart LR
-  A[Native controller] <--> B[Manufacturer adapter]
-  B <--> C[UMP participant]
-  C <--> D[Secure UMP network]
-  D --> E[Registry and inspector]
-  D <--> F[Coordinator]
-  F --> G[Validated assignment]
-  G --> B
+    NC["Native Controller"] --> MA["Manufacturer Adapter"]
+    MA --> UP["UMP Participant"]
+    UP --> SN["Secure UMP Network"]
+    SN --> RI["Registry / Inspector"]
+    SN --> CO["Coordinator"]
+    CO --> VA["Validated Assignment"]
+    VA --> MA
 ```
-
-UMP shares identity, capabilities, activity, intent, progress, availability,
-pose, safety, health, battery, and freshness. It never sends joint trajectories,
-motor values, gait commands, or emergency-stop commands.
-
-<Columns cols={3}>
-  <Card title="Run the lab" icon="flask-conical" href="/quickstart/first-scenario">
-    Prove the mixed-fleet workflow in five minutes.
-  </Card>
-  <Card title="Connect a robot" icon="bot" href="/guides/manufacturer-adapter">
-    Build a read-only manufacturer adapter first.
-  </Card>
-  <Card title="Understand readiness" icon="shield-check" href="/validate/hardware-readiness">
-    Learn what software evidence proves and what it cannot prove.
-  </Card>
-</Columns>
 
 ## What you can build
 
-- A local mutual-TLS awareness network for heterogeneous robots.
-- A read-only operational view of observed robot state.
-- Standards bridges for MassRobotics, VDA 5050, Open-RMF, ROS 2, and OPC UA.
-- A coordinator that validates plans and issues bounded assignments under
-  robot-owner authority leases.
-- A qualification laboratory with deterministic emulators, real local
-  middleware, fault injection, load profiles, Gazebo, and signed evidence.
+With UMP, you can create:
+
+- **Local mTLS awareness networks** — observe heterogeneous robots in real time without exposing control surfaces
+- **Read-only operational views** — inspect manifests, state, health, battery, and pose through the read-only inspector
+- **Standards bridges** — connect MassRobotics, VDA 5050, Open-RMF, ROS 2, and OPC UA Robotics into a single semantic model
+- **Coordinator-driven collaboration** — submit shared goals, receive deterministic plans, and track validated assignments
+- **Qualification laboratories** — run mixed-fleet scenarios, fault profiles, load tests, and signed readiness reports
 
 ## Choose your path
 
 <Tabs>
   <Tab title="Evaluator">
-    Start with [Install UMP](/quickstart/install), then run the
-    [first scenario](/quickstart/first-scenario).
+    Start with the [five-minute verification](/quickstart/first-scenario) to run the mixed-fleet lab, generate a signed readiness report, and verify protocol conformance. Then review the [safety boundary](/overview/safety-boundary) to understand what UMP does and does not control.
   </Tab>
-  <Tab title="Robot engineer">
-    Read the [safety boundary](/overview/safety-boundary), then implement a
-    [manufacturer adapter](/guides/manufacturer-adapter).
+  <Tab title="Robot Engineer">
+    Begin with the [installation guide](/quickstart/install), then implement a read-only adapter from the manufacturer guide. Publish manifest and state before adding any high-level capabilities or accepting assignments.
   </Tab>
-  <Tab title="Fleet integrator">
-    Review [architecture](/concepts/architecture),
-    [standards integrations](/integrations/overview), and
-    [production nodes](/guides/production-node).
-  </Tab>
-  <Tab title="Safety or test lead">
-    Begin with [hardware readiness](/validate/hardware-readiness) and the
-    [supervised hardware gate](/validate/hardware-trials).
+  <Tab title="Fleet Integrator">
+    Generate a [local awareness network](/guides/deployment), configure mutual-TLS identities, and connect standards integrations. Use the coordinator to submit shared goals while enforcing authority leases and disclosure policy.
   </Tab>
 </Tabs>
+
+## Next steps
+
+<CardGroup cols={3}>
+  <Card title="Run the Lab" icon="flask-conical" href="/quickstart/first-scenario">
+    Execute the mixed-fleet warehouse scenario and verify readiness in under five minutes.
+  </Card>
+
+  <Card title="Connect a Robot" icon="bot" href="/guides/manufacturer-adapter">
+    Implement the RobotAdapter protocol and bind your native controller to UMP semantics.
+  </Card>
+
+  <Card title="Understand Readiness" icon="shield-check" href="/validate/hardware-readiness">
+    Learn how signed reports, conformance vectors, and fault profiles qualify hardware trials.
+  </Card>
+</CardGroup>

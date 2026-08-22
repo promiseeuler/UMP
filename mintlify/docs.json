@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "maple",
+  "theme": "luma",
   "name": "Universal Machine Protocol",
   "description": "Manufacturer-neutral awareness and collaboration for heterogeneous robots",
   "colors": {
@@ -27,70 +27,83 @@
     }
   },
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Overview",
-        "icon": "house",
-        "pages": ["index", "overview/safety-boundary", "overview/project-status"]
-      },
-      {
-        "group": "Get started",
-        "icon": "rocket",
-        "pages": ["quickstart/install", "quickstart/first-scenario", "quickstart/docker-lab"]
-      },
-      {
-        "group": "Core concepts",
-        "icon": "network",
-        "pages": [
-          "concepts/architecture",
-          "concepts/robot-state",
-          "concepts/collaboration",
-          "concepts/authority",
-          "concepts/delivery"
-        ]
-      },
-      {
-        "group": "Build with UMP",
-        "icon": "wrench",
-        "pages": [
-          "guides/local-network",
-          "guides/inspector",
-          "guides/manufacturer-adapter",
-          "guides/planner",
-          "guides/production-node"
-        ]
-      },
-      {
-        "group": "Standards integrations",
-        "icon": "shuffle",
-        "pages": [
-          "integrations/overview",
-          "integrations/massrobotics",
-          "integrations/vda5050",
-          "integrations/open-rmf",
-          "integrations/ros2",
-          "integrations/opc-ua"
-        ]
-      },
-      {
-        "group": "Validate and deploy",
-        "icon": "shield-check",
-        "pages": [
-          "validate/conformance",
-          "validate/hardware-readiness",
-          "validate/fault-load-soak",
-          "validate/hardware-trials"
-        ]
-      },
-      {
-        "group": "Reference",
-        "icon": "book-open",
-        "pages": [
-          "reference/cli",
-          "reference/schemas",
-          "reference/security",
-          "reference/troubleshooting",
-          "reference/glossary"
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "icon": "house",
+            "pages": [
+              "index",
+              "overview/safety-boundary",
+              "overview/project-status"
+            ]
+          },
+          {
+            "group": "Get Started",
+            "icon": "rocket",
+            "pages": [
+              "quickstart/install",
+              "quickstart/first-scenario",
+              "quickstart/docker-lab"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "icon": "network",
+            "pages": [
+              "concepts/architecture",
+              "concepts/robot-state",
+              "concepts/collaboration",
+              "concepts/authority",
+              "concepts/delivery"
+            ]
+          },
+          {
+            "group": "Build with UMP",
+            "icon": "wrench",
+            "pages": [
+              "guides/local-network",
+              "guides/inspector",
+              "guides/manufacturer-adapter",
+              "guides/planner",
+              "guides/production-node"
+            ]
+          },
+          {
+            "group": "Standards Integrations",
+            "icon": "shuffle",
+            "pages": [
+              "integrations/overview",
+              "integrations/massrobotics",
+              "integrations/vda5050",
+              "integrations/open-rmf",
+              "integrations/ros2",
+              "integrations/opc-ua"
+            ]
+          },
+          {
+            "group": "Validate and Deploy",
+            "icon": "shield-check",
+            "pages": [
+              "validate/conformance",
+              "validate/hardware-readiness",
+              "validate/fault-load-soak",
+              "validate/hardware-trials"
+            ]
+          },
+          {
+            "group": "Reference",
+            "icon": "book-open",
+            "pages": [
+              "reference/cli",
+              "reference/schemas",
+              "reference/security",
+              "reference/troubleshooting",
+              "reference/glossary"
+            ]
+          }
         ]
       }
     ]

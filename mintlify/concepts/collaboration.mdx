@@ -1,57 +1,153 @@
 ---
-title: "Goals, plans, and assignments"
-description: "How high-level collaboration remains bounded and traceable."
+title: "UMP Collaboration: Goals, Planning, and Bounded Assignments"
+description: "Learn how UMP coordinates shared goals, validates plans, dispatches bounded assignments, manages step dependencies, and handles cancellation across heterogeneous robots."
 icon: "list-checks"
+sidebarTitle: "Collaboration"
 ---
 
-Collaboration separates what a user wants from what any one robot is asked to
-accept.
+UMP enables heterogeneous robots to collaborate on shared goals through a validated planning and assignment model. A coordinator converts a shared goal into a durable plan, dispatches high-level assignments to participants, and tracks outcomes. UMP never issues joint commands, motor values, or gait instructions. Native software retains full control over acceptance, execution, path planning, and motion.
 
-## Lifecycle
+## Shared goals
 
-```mermaid
-sequenceDiagram
-  actor Owner
-  participant Coordinator
-  participant Planner
-  participant Authority
-  participant Robot
-  Owner->>Coordinator: Shared goal
-  Coordinator->>Planner: Validated goal + observed participants
-  Planner-->>Coordinator: Proposed dependency plan
-  Coordinator->>Coordinator: Validate schemas, identities, frames, capabilities
-  Coordinator->>Authority: Check scoped lease
-  Authority-->>Coordinator: Active lease
-  Coordinator->>Robot: High-level assignment
-  Robot-->>Coordinator: Accepted or rejected
-  Robot-->>Coordinator: Terminal outcome
-  Coordinator-->>Owner: Durable run result
+A shared goal is a bounded JSON document that declares what the fleet should accomplish. The schema is `ump-shared-goal-v1` and is validated before any plan is created.
+
+```json
+{
+  "goal_id": "goal-move-package-1",
+  "description": "Move the sealed package from intake to storage shelf A",
+  "participant_ids": [
+    "robot-humanoid-1",
+    "robot-quadruped-1",
+    "robot-mobile-arm-1"
+  ],
+  "constraints": {"keep_upright": true},
+  "deadline_ms": 1770000000000
+}
 ```
 
-## Shared goal
+Every participant must be an explicitly configured network peer. The coordinator waits for a manifest and fresh semantic state from every participant before invoking the planner.
 
-A goal defines the desired semantic outcome and eligible participants. It does
-not prescribe joints, trajectories, or vendor commands.
+Validate a goal before submission:
 
-## Plan
+```bash
+ump-goal validate /etc/ump/goals/move-package.json
+ump-goal schema
+```
 
-A plan contains versioned capability steps and dependencies. Only dependency-
-ready steps may dispatch. Independent steps may execute concurrently when the
-coordinator is explicitly configured for bounded concurrency.
+## Plan validation
 
-## Assignment
+The planner returns a proposal, but the coordinator does not trust it blindly. Before journaling or publishing, the coordinator validates:
 
-An assignment binds one validated step to one robot, plan revision, issuer,
-correlation identity, and authority lease. The target adapter still performs
-native acceptance.
+- Message size limits
+- Goal identity and participant set
+- Fresh state for every participant
+- Capability availability and exact versioned names
+- Deadline feasibility
+- Dependency graph acyclicity
+- Authority lease presence for each assigned capability
 
-## Outcome
+Each participant then independently validates its local authority lease, capability input schema, resource availability, and native safety policy before accepting an assignment.
 
-Terminal outcomes are `succeeded`, `failed`, `rejected`, `cancelled`, or
-`unknown`. `Unknown` is used when execution may have occurred but UMP cannot
-safely prove the terminal result. It must be reconciled, not retried blindly.
+## Bounded assignments
 
-<Note>
-  External reasoning providers produce proposed plans only. Provider output
-  cannot become assignments until UMP validation succeeds.
-</Note>
+An assignment requests one advertised high-level capability. It is a request, not a command. The native adapter decides whether to accept or reject it based on local policy, resource availability, and safety checks.
+
+Before invoking native code, the participant:
+
+1. Confirms the capability exists in the manifest
+2. Validates assignment inputs against the capability's JSON Schema
+3. Atomically reserves every requested robot-local resource
+4. Durably records acceptance
+
+Repeated delivery of the same `assignment_id` returns the recorded outcome and does not invoke the native adapter again. An assignment ID is permanently bound to the canonical hash of its first accepted payload.
+
+## Dependency model
+
+Plans may declare step dependencies. Only `succeeded` outcomes satisfy a dependency. The reference lab scenario demonstrates this:
+
+- `mobile-1` transports a payload to a workcell
+- `inspector-1` verifies the workcell is ready
+- `manipulator-1` places the payload only after both `transport` and `inspect` succeed
+
+```json
+{
+  "steps": [
+    {
+      "step_id": "transport",
+      "robot_id": "mobile-1",
+      "capability": "ump.material.carry/v1",
+      "depends_on": []
+    },
+    {
+      "step_id": "inspect",
+      "robot_id": "inspector-1",
+      "capability": "ump.inspection.verify-workcell/v1",
+      "depends_on": []
+    },
+    {
+      "step_id": "place",
+      "robot_id": "manipulator-1",
+      "capability": "ump.manipulation.place/v1",
+      "depends_on": ["transport", "inspect"]
+    }
+  ]
+}
+```
+
+A failed, rejected, or unknown step blocks its dependent steps. Independent pending steps remain representable but are not dispatched after a run has entered a terminal failed or unknown state.
+
+## Assignment lifecycle
+
+A step follows this state machine:
+
+```text
+pending -> dispatched -> accepted -> succeeded | failed | rejected | unknown
+                    \--------------------------^
+                     -> cancellation_requested -> cancelled | unknown
+```
+
+- **pending**: waiting for prerequisites
+- **dispatched**: assignment published to the participant
+- **accepted**: participant durably recorded and passed to native adapter
+- **succeeded**: native adapter reported successful completion
+- **failed**: native adapter reported failure
+- **rejected**: participant or native adapter refused the assignment
+- **unknown**: outcome cannot be determined (crash, timeout, interrupted cancellation)
+- **cancellation\_requested**: coordinator requested cancellation
+- **cancelled**: native adapter accepted the cancellation request
+
+An outcome may arrive before its acknowledgement and transition a dispatched step directly to a terminal state. Terminal results are immutable.
+
+## Outcomes and evidence
+
+The `outputs` field is an optional JSON object for backward-compatible v0.1 decoding. Before journaling a native successful result, the participant validates `outputs` against the exact output schema advertised for the assigned capability. Non-success results may use an empty object.
+
+The local model limits canonical structured output to 16 KiB. Identity mismatch, invalid JSON values, excessive size, or schema failure produces `unknown`. UMP does not preserve a success claim while discarding malformed structured evidence.
+
+## Cancellation
+
+A coordinator may request cancellation of an active plan. The participant must accept a cancellation request only from the authenticated issuer that originally created the durable assignment. The native adapter keeps final authority and returns an explicit accepted or rejected decision.
+
+<Warning>
+  Cancellation is a task-coordination operation. It is not an emergency stop, does not bypass local controllers, and must not be represented as a safety-rated stop mechanism. Deployments continue to rely on robot-local safety systems and physical emergency stops.
+</Warning>
+
+Cancel a plan using the same coordinator identity and journal that submitted it:
+
+```bash
+ump-coordinator cancel \
+  --network /etc/ump/coordinator-network.json \
+  --credential-database /var/lib/ump/coordinator-credentials.sqlite3 \
+  --credential-directory /var/lib/ump/coordinator-credentials \
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --plan-id PLAN_ID \
+  --reason "Operator ended supervised work"
+```
+
+The command prints affected assignment IDs and waits up to 30 seconds for a terminal run result. Exit status `0` means the durable run is `cancelled`; `1` means it reached another terminal state; `2` indicates validation or configuration failure; and `3` indicates timeout or interruption.
+
+## Reconciliation
+
+On coordinator restart, previously dispatched or accepted work becomes `unknown`. It is not redispatched. The coordinator can query the original participant for a durable terminal outcome. A response is accepted only when its authenticated robot identity and assignment fingerprint match the coordinator journal. A recovered success may resume ready dependencies. Unknown participant state remains blocked.
+
+For details on reconciliation, see the [Delivery](/concepts/delivery) concept page.

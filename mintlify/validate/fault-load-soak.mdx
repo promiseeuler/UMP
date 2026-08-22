@@ -1,23 +1,45 @@
 ---
-title: "Fault, load, and soak tests"
-description: "Reproduce network failures, measure reference loads, and run the release soak."
+title: "Fault Injection, Load, and Soak Testing for UMP"
+description: "Run deterministic fault probes, bounded load profiles, and long-duration soak tests to surface intermittent issues and validate UMP resilience before hardware trials."
 icon: "gauge"
+sidebarTitle: "Fault and Load Tests"
 ---
 
-## Deterministic network faults
+UMP provides deterministic fault injection, bounded load profiles, and extended soak testing through the `ump-lab` CLI and Docker Compose profiles. All results contribute to the signed readiness report that gates progression to supervised hardware trials.
 
-`FaultProfile` models latency, jitter, packet loss, duplication, reordering,
-partitions, reconnects, and broker restart checkpoints from a fixed seed.
+## Fault probes
+
+`FaultProfile` produces deterministic decisions for latency, jitter, loss, duplication, reordering, partitions, and broker restart checkpoints. These probes validate how UMP handles degraded network conditions without requiring physical hardware.
+
+Run a fault probe from a profile file:
 
 ```bash
-ump-lab fault config/fault-baseline.json \
-  --output .ump-lab/faults.json
+ump-lab fault config/fault-baseline.json --output .ump-lab/faults.json
 ```
 
-The Docker fault profile routes MQTT through Toxiproxy so delay is exercised on
-a real socket path.
+The Docker fault profile also routes MQTT through Toxiproxy to prove a real delayed socket path. Use the `--profile faults` Docker Compose profile for containerized fault testing:
 
-## Load profiles
+```bash
+docker compose -f docker-compose.lab.yml --profile fault run --build --rm fault-test
+```
+
+Fault profiles cover these categories:
+
+| Fault type | What it tests |
+| --- | --- |
+| Communication loss | Peer disconnections and recovery behavior |
+| Message replay | Duplicate detection and sequence enforcement |
+| Delivery failures | Outbox retry, backoff, and dead-letter handling |
+| Latency and jitter | Timeliness of state freshness and assignment responses |
+| Reordering and partitions | Session consistency and dependency ordering |
+
+Existing UMP tests also cover stale state, retries, durable restart, reconciliation, cancellation, credential rotation, and identity conflicts.
+
+## Load probes
+
+Load probes exercise the UMP runtime with bounded participant counts and cycles to measure propagation latency, memory behavior, and throughput under pressure.
+
+Run the standard load profiles:
 
 ```bash
 ump-lab load --participants 3 --cycles 10
@@ -26,16 +48,52 @@ ump-lab load --participants 100 --cycles 10
 ump-lab load --participants 250 --cycles 10
 ```
 
-Record runtime, participant count, cycles, delivery totals, latency
-percentiles, throughput, memory, stale participants, and terminal outcomes.
+The `--participants` argument accepts only `3`, `25`, `100`, or `250`. The probe reports stale participants, propagation latency percentiles, and whether the run passed. Any stale participant causes a failure.
 
-## Eight-hour soak
+Use the `--profile load` Docker Compose profile for containerized load testing:
+
+```bash
+docker compose -f docker-compose.lab.yml --profile load run --build --rm load-test
+```
+
+## Soak testing
+
+Soak testing runs extended continuous operation to surface intermittent issues such as memory leaks, timing drift, or rare race conditions.
+
+Run the production soak command for real wall-clock time:
 
 ```bash
 ump-lab soak --duration-s 28800 --participants 25 --state-hz 2
 ```
 
-Pass criteria include no lost terminal outcomes, identity corruption, unbounded
-queues, or unexplained stale participants. The scheduled workflow requires a
-self-hosted Linux runner labeled `ump-soak`; GitHub-hosted jobs cannot provide a
-single continuous eight-hour qualification window.
+This example runs for eight hours with 25 participants publishing state at 2 Hz. The weekly workflow requires a self-hosted Linux runner labeled `ump-soak`. GitHub-hosted jobs cannot provide one continuous eight-hour qualification run. A queued, shortened, skipped, or interrupted soak is not passing evidence.
+
+<Note>
+  The soak probe validates long-term stability of the UMP runtime and transport bindings. It does not exercise native robot controllers or physical hardware.
+</Note>
+
+## How results feed the readiness report
+
+The readiness report aggregates outcomes from all probes:
+
+```bash
+ump-readiness report \
+  --fault-profile config/fault-baseline.json \
+  --output .ump-lab/readiness.json
+```
+
+The report records:
+
+- Scenario outcome and latency fields
+- Delivery counts per peer and stream
+- Fault decisions and their effects
+- Load profile stale-participant counts
+- Soak duration and completion status
+
+Verify the report independently:
+
+```bash
+ump-readiness verify .ump-lab/readiness.json
+```
+
+All probe results must pass for the same reviewed revision before the software gate is considered complete. See [Hardware Readiness](/validate/hardware-readiness) for the full gate criteria and [Hardware Trials](/validate/hardware-trials) for the next phase.

@@ -1,48 +1,154 @@
 ---
-title: "Create a local network"
-description: "Generate a mutual-TLS awareness network for development."
+title: "Set Up a Local Mutual-TLS Awareness Network"
+description: "Generate a local UMP deployment bundle with mutual TLS, verify peer awareness, and validate network configuration before connecting physical robots."
 icon: "radio-tower"
+sidebarTitle: "Local Network"
 ---
 
-The quickstart generator creates three read-only participants with development
-credentials and isolated durable stores.
+The Universal Machine Protocol (UMP) uses mutual TLS to authenticate every participant and encrypt all operational traffic. Before connecting physical robots, you can generate a complete local awareness lab on your workstation. This lab creates certificates, network configurations, and read-only adapters so you can verify that every robot receives peer manifests and semantic state over authenticated connections.
+
+## Quickstart with a generated bundle
+
+The fastest path is `ump-deployment quickstart`, which creates a ready-to-run local network with development credentials.
 
 <Steps>
-  <Step title="Generate the deployment">
+  <Step title="Generate the bundle">
+    Run the quickstart command with your desired output directory, robot count, and base port:
+
     ```bash
-    ump-deployment quickstart --output ump-local-lab
+    ump-deployment quickstart --output ump-local-lab --robots 3 --base-port 17443
     ```
+
+    This creates a complete bundle including:
+
+    - One certificate and private key per participant
+    - A local CA (only with `--development-pki`)
+    - Network configuration files for each robot
+    - Read-only adapter stubs that advertise no capabilities
+    - `preflight.sh` and `run.sh` scripts for each node
   </Step>
-  <Step title="Verify the complete topology">
+  <Step title="Verify peer awareness">
+    Run the verifier to prove that every generated endpoint can complete mutual-TLS handshakes and exchange manifests and state:
+
     ```bash
     ump-deployment verify-local ump-local-lab
     ```
 
-    Verification starts each endpoint and proves every participant receives
-    every peer manifest and state.
+    The verifier starts every endpoint and confirms that each robot receives every peer manifest and semantic state. Stop and review if any check fails.
   </Step>
-  <Step title="Start the participants">
-    Run each script in a separate terminal:
+  <Step title="Start the network">
+    Run each `preflight.sh`, then launch each `run.sh` in a separate terminal to keep the network active:
 
     ```bash
-    ump-local-lab/nodes/robot-humanoid-1/run.sh
-    ump-local-lab/nodes/robot-quadruped-1/run.sh
-    ump-local-lab/nodes/robot-arm-1/run.sh
+    cd ump-local-lab
+    ./robot-1/preflight.sh
+    ./robot-1/run.sh
     ```
+
+    Repeat for every robot in the bundle.
   </Step>
 </Steps>
 
-Generated adapters advertise no capabilities and reject assignments. Generated
-PKI includes a local CA private key and must never be promoted to production.
+<Tip>
+  Development credentials are short-lived and include a local CA private key. They are never eligible for physical or production deployment.
+</Tip>
 
-## Repeatable topology as code
+## Generate from a topology file
 
-```bash
-ump-deployment generate \
-  --topology config/local-lab.example.json \
-  --output my-ump-lab \
-  --development-pki
+For repeatable, version-controlled labs, define your network as a topology JSON file and generate the bundle from it.
+
+### Topology schema
+
+The topology file must conform to `ump-deployment-topology-v1.schema.json`. It declares nodes, their robot IDs, manufacturers, models, robot classes, and network endpoints.
+
+```json title="topology.json"
+{
+  "version": "ump-deployment-topology/v1",
+  "nodes": [
+    {
+      "robot_id": "robot-mobile-1",
+      "manufacturer": "ExampleRobotics",
+      "model": "MobileBot-X1",
+      "robot_class": "mobile",
+      "host": "127.0.0.1",
+      "port": 17443
+    },
+    {
+      "robot_id": "robot-manipulator-1",
+      "manufacturer": "ExampleRobotics",
+      "model": "ArmBot-A2",
+      "robot_class": "manipulator",
+      "host": "127.0.0.1",
+      "port": 17444
+    }
+  ]
+}
 ```
 
-Use `ump-deployment wizard --output my-ump-lab` for an interactive development
-setup. For physical robots, issue identities through the owner's existing PKI.
+Generate the bundle:
+
+```bash
+ump-deployment generate --topology topology.json --output my-ump-lab --development-pki
+```
+
+Then verify it:
+
+```bash
+ump-deployment verify-local my-ump-lab
+```
+
+## Interactive wizard
+
+For ad-hoc labs, use the wizard to define identities interactively:
+
+```bash
+ump-deployment wizard --output my-ump-lab --base-port 17443
+```
+
+The wizard prompts for robot count, then asks for robot ID, manufacturer, model, and robot class for each node before generating the bundle.
+
+## What a bundle contains
+
+Each generated bundle contains per-participant directories with:
+
+<CardGroup cols={2}>
+  <Card title="Certificates and keys" icon="shield">
+    One leaf certificate with a `urn:ump:robot:<robot-id>` URI SAN, matching private key, and CA bundle. With `--development-pki`, a local CA and its private key are also included.
+  </Card>
+
+  <Card title="Network config" icon="network">
+    A `network.json` file pinning peer IDs, certificate fingerprints, allowed message types, and disclosure policies.
+  </Card>
+
+  <Card title="Adapter stub" icon="code">
+    A read-only adapter that publishes manifest and state but advertises no capabilities.
+  </Card>
+
+  <Card title="Startup scripts" icon="terminal">
+    `preflight.sh` validates inputs without binding sockets. `run.sh` starts the node with the generated configuration.
+  </Card>
+</CardGroup>
+
+## Validate and inspect network configuration
+
+Before starting any node, validate its network configuration file:
+
+```bash
+ump-network-config validate /etc/ump/network.json
+```
+
+Validation prints the robot identity, bind endpoint, peer count, disclosure policy names, queue bounds, and timeout. It checks for unknown fields, malformed certificate pins, unversioned capability names, unsupported message types, and missing credential files. It deliberately omits certificate and key paths from output.
+
+To inspect the health of durable delivery stores without reading message content:
+
+```bash
+ump-network-diagnostics --network /etc/ump/network.json
+```
+
+This command opens the inbox and outbox in read-only SQLite mode and reports status counts, pending work by peer and stream, retry attempts, oldest pending age, and dead-letter metadata. Exit status `0` means all checks pass, `1` means a backlog or dead-letter check is degraded, and `2` means the configuration or database evidence cannot be trusted.
+
+## Next steps
+
+- [Production Node](/guides/production-node) to run a real manufacturer adapter in production
+- [Manufacturer Adapter](/guides/manufacturer-adapter) to implement a read-only or assignment-capable adapter
+- [Inspector](/guides/inspector) to observe recorded UMP traffic in a local UI

@@ -1,41 +1,203 @@
 ---
-title: "Troubleshooting"
-description: "Diagnose empty views, unavailable runtimes, rejected assignments, and lab failures."
+title: "UMP Troubleshooting Guide for Common Issues"
+description: "Diagnose and resolve common UMP issues from installation errors and integration failures to mTLS problems, stale state, assignment rejections, and conformance failures."
 icon: "life-buoy"
+sidebarTitle: "Troubleshooting"
 ---
 
-<AccordionGroup>
-  <Accordion title="The inspector is empty" icon="monitor-x">
-    Confirm the participant is running and both processes use the same inspector
-    database. Verify manifest/state disclosure and network preflight. Opening
-    the static HTML file directly does not connect to recorded data.
-  </Accordion>
-  <Accordion title="An optional integration is unavailable" icon="package-x">
-    Install `.[lab]` for MQTT, OPC UA, and WebSocket probes. Use the Docker
-    profiles or a supported system install for ROS 2, Open-RMF, and Gazebo. Run
-    `ump-integration runtime <type>` for a focused result.
-  </Accordion>
-  <Accordion title="An assignment is rejected" icon="circle-x">
-    Check identity binding, explicit mapping, advertised capability, lease ID,
-    issuer, scope, expiry, frame, units, freshness, health, battery, safety,
-    operating mode, and the native rejection reason.
-  </Accordion>
-  <Accordion title="The coordinator reports unknown" icon="circle-help">
-    Execution may have started before communication or process loss. Do not
-    redispatch blindly. Query the native controller and reconcile with retained
-    operator evidence using `ump-reconcile`.
-  </Accordion>
-  <Accordion title="Docker cannot bind a port" icon="unplug">
-    Run `docker compose -f docker-compose.lab.yml down`, inspect local listeners,
-    and stop the conflicting service before restarting the profile.
-  </Accordion>
-  <Accordion title="The first Gazebo build appears stuck" icon="clock">
-    The image installs a large ROS 2 and Gazebo dependency set. Watch build
-    output and allow the first build to complete. Later runs reuse cached layers.
-  </Accordion>
-  <Accordion title="Readiness signature is invalid" icon="file-warning">
-    Treat the report as modified or incomplete. Restore the original artifacts
-    and public key identity, regenerate from the reviewed revision, and never
-    override verification for a release or hardware trial.
-  </Accordion>
-</AccordionGroup>
+This guide covers the most common issues you may encounter when installing, configuring, and operating UMP. Each issue includes symptoms, root causes, and concrete steps to resolve them.
+
+<Accordion title="ump-demo --help fails or command not found">
+  **Symptom:** Running `ump-demo --help` returns `command not found` or a shell error.
+
+  **Likely cause:** The virtual environment is not activated or the install step was skipped.
+
+  **Resolution:**
+
+  1. Activate your virtual environment:
+     ```bash
+     . .venv/bin/activate
+     ```
+  2. Confirm UMP is installed:
+     ```bash
+     python3 -m pip install .
+     ```
+  3. For lab dependencies, install the extras:
+     ```bash
+     python3 -m pip install '.[lab]'
+     ```
+  4. Verify the command is available:
+     ```bash
+     ump-demo --help
+     ump-lab --help
+     ump-readiness --help
+     ```
+</Accordion>
+
+<Accordion title="IntegrationUnavailableError">
+  **Symptom:** A command or import raises `IntegrationUnavailableError`.
+
+  **Likely cause:** The optional runtime for the selected standard is not installed.
+
+  **Resolution:**
+
+  1. Check which runtime is missing:
+     ```bash
+     ump-integration runtime vda5050
+     ump-integration runtime open_rmf
+     ump-integration runtime ros2
+     ump-integration runtime opc_ua
+     ```
+  2. Install the lab extras if you have not already:
+     ```bash
+     python3 -m pip install '.[lab]'
+     ```
+  3. For ROS 2, Open-RMF, and Gazebo, use the Docker Compose profiles instead of local installation:
+     ```bash
+     docker compose -f docker-compose.lab.yml --profile ros2 run --build --rm ros2
+     ```
+</Accordion>
+
+<Accordion title="Scenario fails or passed: false">
+  **Symptom:** `ump-lab run` or `ump-readiness report` returns `"passed": false`.
+
+  **Likely cause:** A prior test run changed persistent state, or a required service is not running.
+
+  **Resolution:**
+
+  1. Check that no previous test changed database or workspace state.
+  2. Re-run from a clean state:
+     ```bash
+     rm -rf .ump-lab
+     ump-lab run --output .ump-lab/scenario.json
+     ```
+  3. For Docker-based scenarios, ensure the profile is up:
+     ```bash
+     ump-lab up --profile core
+     ```
+  4. Inspect the JSON output for the specific failed check and address it before re-running.
+</Accordion>
+
+<Accordion title="mTLS connection refused">
+  **Symptom:** A UMP node or coordinator cannot establish a mutual-TLS connection.
+
+  **Likely cause:** Certificate mismatch, wrong bundle root, or port conflict.
+
+  **Resolution:**
+
+  1. Verify the certificate contains exactly one URI SAN matching the robot ID:
+     ```bash
+     openssl x509 -in robot-1.pem -noout -text | grep "URI:urn:ump:robot"
+     ```
+  2. Confirm the bundle root matches the path used during generation:
+     ```bash
+     ump-deployment verify-local ./bundle
+     ```
+  3. Check for port conflicts:
+     ```bash
+     lsof -i :17443
+     ```
+  4. Ensure the active credential generation is valid and not expired:
+     ```bash
+     ump-credential --robot-id robot-1 --database credentials.sqlite3 active
+     ```
+  5. Re-run preflight to catch configuration errors before binding sockets:
+     ```bash
+     ump-node --preflight --network /etc/ump/network.json ...
+     ```
+</Accordion>
+
+<Accordion title="Stale state or freshness warnings">
+  **Symptom:** Peers report stale state, or the inspector shows freshness warnings.
+
+  **Likely cause:** `fresh_for_ms` is too short for the network latency, or the adapter stopped publishing.
+
+  **Resolution:**
+
+  1. Check the adapter's configured `fresh_for_ms`. The core profile allows 1 to 60,000 ms.
+  2. Measure actual network latency and set `fresh_for_ms` above the observed p95 plus a safety margin.
+  3. Verify the adapter loop is running and `state()` returns successfully.
+  4. Check network diagnostics for delivery backlogs:
+     ```bash
+     ump-network-diagnostics --network /etc/ump/network.json
+     ```
+  5. If using required-peer monitoring, confirm the peer is reachable and publishing.
+</Accordion>
+
+<Accordion title="Assignment rejected by adapter">
+  **Symptom:** An assignment returns `rejected` instead of `accepted`.
+
+  **Likely cause:** The adapter's `accept()` returned non-success due to native controller state.
+
+  **Resolution:**
+
+  1. Check the native controller's current operating mode, resources, and safety status.
+  2. Verify the requested capability is advertised in the current manifest.
+  3. Confirm the assignment inputs match the capability schema, including units and frame fields.
+  4. Check that a valid authority lease exists, is active, and covers the requested capability:
+     ```bash
+     ump-authority --robot-id robot-1 --database authority.sqlite3 show --lease-id owner-shift-a
+     ```
+  5. Review the adapter logs for the exact rejection reason.
+</Accordion>
+
+<Accordion title="Authority lease denied">
+  **Symptom:** An assignment is rejected with an authority lease error.
+
+  **Likely cause:** No matching lease, expired lease, or wrong capability name.
+
+  **Resolution:**
+
+  1. List active leases for the robot:
+     ```bash
+     ump-authority --robot-id robot-1 --database authority.sqlite3 list --status active
+     ```
+  2. Verify the lease covers the exact versioned capability name requested.
+  3. Check the lease expiry against receiver-local time, including clock uncertainty.
+  4. Confirm the issuer ID in the lease matches the authenticated coordinator identity.
+  5. If the lease was revoked, create a new lease ID after fresh owner approval rather than reactivating revoked history.
+</Accordion>
+
+<Accordion title="Docker build takes too long">
+  **Symptom:** The first Docker build for ROS 2 or Gazebo profiles appears stuck.
+
+  **Likely cause:** The ROS 2 and Gazebo dependency sets are large and take several minutes on first build.
+
+  **Resolution:**
+
+  1. Allow the build to finish. Watch Docker output for progress.
+  2. Later runs reuse cached layers and are much faster.
+  3. If you do not need ROS 2 or Gazebo, use the smaller profiles:
+     ```bash
+     docker compose -f docker-compose.lab.yml --profile core run --build --rm core
+     ```
+  4. For CI or repeated testing, pre-build the visual profile image:
+     ```bash
+     docker compose -f docker-compose.lab.yml --profile visual build
+     ```
+</Accordion>
+
+<Accordion title="Conformance vector suite fails">
+  **Symptom:** `ump-conformance conformance/v0.1` returns exit status `1` or `2`.
+
+  **Likely cause:** Python version mismatch or a corrupt installation.
+
+  **Resolution:**
+
+  1. Confirm you are using Python 3.11 or newer:
+     ```bash
+     python3 --version
+     ```
+  2. Reinstall UMP in a clean virtual environment:
+     ```bash
+     python3 -m venv .venv
+     . .venv/bin/activate
+     python3 -m pip install --upgrade pip
+     python3 -m pip install .
+     ```
+  3. Re-run the suite:
+     ```bash
+     ump-conformance conformance/v0.1
+     ```
+  4. If the suite still fails, inspect the JSON report for the specific check that failed and verify no local modifications were made to the vector files.
+</Accordion>

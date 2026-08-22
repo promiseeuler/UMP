@@ -1,53 +1,66 @@
 ---
-title: "Safety boundary"
-description: "Understand exactly what UMP coordinates and what remains native to each robot."
+title: "UMP Safety Boundary: What UMP Controls and What It Does Not"
+description: "Understand exactly what UMP coordinates versus what remains under native robot control, including the semantic layer boundary and manufacturer responsibilities."
 icon: "shield"
+sidebarTitle: "Safety Boundary"
 ---
 
-UMP is a semantic coordination layer. It does not replace robot autonomy,
-traffic management, functional safety, or physical emergency controls.
+UMP is a semantic coordination layer, not a robot controller. It exchanges observations, intent, goals, plans, and high-level assignments between heterogeneous robots. A manufacturer adapter acts as the hard boundary between UMP and native robot software. Only the native side may invoke navigation, manipulation, or actuator APIs. This page clarifies what UMP does and does not do so you can integrate safely and correctly.
+
+## UMP vs native responsibilities
 
 ```mermaid
 flowchart TB
-  subgraph UMP[UMP responsibility]
-    A[Awareness] --> B[Plan validation]
-    B --> C[Scoped high-level assignment]
-    C --> D[Outcome recording]
-  end
-  subgraph Native[Robot and facility responsibility]
-    E[Native acceptance]
-    F[Path and motion planning]
-    G[Joint and motor control]
-    H[Safety PLC and emergency stop]
-  end
-  C --> E --> F --> G
-  H -. independent .-> G
+    subgraph UMP["UMP Semantic Layer"]
+        direction TB
+        U1["Identity & Capabilities"]
+        U2["State, Intent, Progress"]
+        U3["Shared Goals & Plans"]
+        U4["Validated Assignments"]
+        U5["Authority Leases"]
+    end
+    subgraph NATIVE["Native Robot / Facility"]
+        direction TB
+        N1["Joint Commands"]
+        N2["Trajectories & Motors"]
+        N3["Gait & Motion"]
+        N4["Collision Avoidance"]
+        N5["Emergency Stops"]
+        N6["Traffic Management"]
+        N7["Functional Safety"]
+    end
+    UMP -->|"requests high-level task"| NATIVE
+    NATIVE -->|"accepts or rejects"| UMP
+    NATIVE -->|"publishes semantic state"| UMP
 ```
 
 ## UMP does
 
-- Describe identity, capabilities, state, intent, progress, health, battery,
-  safety state, pose, units, frames, and timestamps.
-- Validate shared goals and proposed plans.
-- Require explicit capability mappings and authority leases.
-- Deliver bounded, high-level assignments to a robot adapter.
-- Preserve native rejection, cancellation, and terminal outcomes.
+UMP provides the shared semantic contract that lets robots collaborate without sharing native control stacks:
+
+- **Identity and capabilities** — every robot publishes a manifest describing who it is and what high-level capabilities it advertises
+- **Operational state** — current activity, intent, progress, availability, health, battery, and safety condition
+- **Spatial awareness** — named-frame poses with SI-meter positions and normalized quaternions; up to 32 metadata-only sensor references per state message
+- **Shared goals and planning** — coordinators submit goals, planners propose high-level plans, and UMP validates dependencies, capability matching, and authority leases
+- **Validated assignments** — a coordinator requests one advertised high-level capability; the target adapter may accept or reject it
+- **Authority leases** — the robot owner grants scoped, time-bounded authority to a specific issuer for specific capabilities; the participant validates every assignment against its local lease store
+- **Cancellation requests** — a coordinator can request cancellation of an active plan; the native adapter decides whether to accept or reject
+- **Read-only inspection** — the inspector displays only recorded UMP traffic, never inventing robots or telemetry
 
 ## UMP does not
 
-- Generate joint trajectories, velocity commands, or actuator values.
-- Override operating modes, protective stops, emergency stops, or safety PLCs.
-- Replace Open-RMF traffic and facility scheduling.
-- Guess missing telemetry or silently translate unsupported commands.
-- Certify a manufacturer adapter, firmware release, or physical workcell.
+UMP never replaces native autonomy, safety systems, or physical controls. Specifically, UMP does not:
 
-<Warning>
-  UMP cancellation is a high-level request. It must never be treated as an
-  emergency stop or a functional-safety control.
-</Warning>
+- Send joint commands, trajectories, or motor values
+- Issue gait commands or motion primitives
+- Trigger emergency stops or safety-rated stop mechanisms
+- Replace native autonomy, path planning, or collision avoidance
+- Manage facility traffic, doors, lifts, or building maps
+- Assume functional-safety certification or manufacturer endorsement
+- Guess missing telemetry; unknown fields remain `unknown` or `null`
 
-## Failure behavior
+The native controller retains full authority over acceptance, execution, cancellation, and all physical safety behavior. UMP cancellation is a task-coordination operation, not an emergency stop, and must never bypass local controllers.
 
-The system fails closed. Missing mappings, expired leases, stale state, unknown
-frames, unsupported units, conflicting identities, unsafe state, degraded
-health, or native rejection prevent assignment execution.
+## What this means for integration
+
+When you connect a robot to UMP, start read-only: implement `manifest()` and `state()` with no advertised capabilities and reject all assignments. Compare live identity, timestamps, units, frames, health, battery, safety, and freshness against your native tools. Only after this baseline is verified should you add one bounded high-level capability, grant a short authority lease, and conduct the first supervised physical assignment with functioning emergency stops.

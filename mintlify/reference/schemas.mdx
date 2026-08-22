@@ -1,7 +1,8 @@
 ---
-title: "Schema reference"
-description: "Versioned public contracts used by UMP tools and integrations."
+title: "UMP Versioned Public Schema Contracts"
+description: "Reference for all versioned UMP JSON Schema contracts. Use these schemas to validate messages, configurations, and evidence artifacts across the UMP 0.1 protocol."
 icon: "braces"
+sidebarTitle: "Schemas"
 ---
 
 | Schema | Contract |
@@ -19,10 +20,8 @@ icon: "braces"
 | `ump-fault-profile-v1.schema.json` | Deterministic fault profile |
 | `ump-hardware-readiness-report-v1.schema.json` | Signed readiness evidence |
 
-Public schemas live in `schemas/`. Packaged copies are used at runtime so
-installed wheels do not depend on a source checkout.
+Public schemas live in `schemas/`. Packaged copies are used at runtime so installed wheels do not depend on a source checkout.
 
 <Note>
-  UMP 0.1 additions must be optional and backward compatible. Incompatible
-  semantics require a future protocol proposal rather than silent reinterpretation.
+  UMP 0.1 additions must be optional and backward compatible. Incompatible semantics require a future protocol proposal rather than silent reinterpretation.
 </Note>

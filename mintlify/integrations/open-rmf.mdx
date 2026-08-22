@@ -1,24 +1,70 @@
 ---
-title: "Open-RMF"
-description: "Expose eligible UMP participants without replacing RMF traffic and facility scheduling."
+title: "Open-RMF Integration: Fleet Awareness and Task Coordination in UMP"
+description: "Integrate Open-RMF with UMP 0.1 to map fleet identity, participant state, level pose, and task progress. Task categories require capability mapping and a valid authority lease."
 icon: "route"
+sidebarTitle: "Open-RMF"
 ---
 
-Open-RMF remains responsible for traffic, maps, doors, lifts, and facility
-scheduling. UMP exposes eligible participants through a fleet-adapter bridge and
-translates only configured task categories into proposed goals or assignments.
+The Open-RMF integration connects Open-RMF fleet management to the UMP 0.1 semantic model. It maps fleet identity, participant state, level pose, task progress, and capabilities between the two systems. UMP integrates with Open-RMF rather than reproducing building maps, traffic negotiation, doors, lifts, or fleet scheduling. Open-RMF retains responsibility for facility-level coordination while UMP provides cross-manufacturer semantic awareness and high-level assignment authority.
 
-## Boundary
+## Requirements
 
-- RMF owns navigation graph participation and facility resources.
-- UMP owns manufacturer-neutral semantic awareness and owner authority checks.
-- The robot adapter owns final capability acceptance and execution.
+Open-RMF integration requires a supported ROS 2 installation with `rclpy` and `rmf_adapter`. These are loaded only when the Open-RMF runtime is selected.
+
+## Mapped fields
+
+| Open-RMF field | UMP mapping |
+| --- | --- |
+| `name` | Robot identity |
+| `fleet_name` | Manufacturer |
+| `model` | Model |
+| `mode` | Mode |
+| `location` (x, y, yaw, level\_name) | Pose with frame |
+| `task_id` | Assignment correlation |
+| `progress` | Progress |
+| `issues` | Health degradation |
+
+Missing or incomplete Open-RMF location data remains unsupported in UMP rather than being estimated.
+
+## Modes and authority
+
+The default mode is `read_only`. To enable external task assignments through Open-RMF, set `"mode": "task_enabled"`. Task categories require:
+
+1. Explicit capability mapping in the integration config
+2. A valid UMP authority lease granted by the robot owner
+
+The lease must match the mapped capability and the authenticated issuer identity. See the [Authority Leases](/authority/overview) documentation for lease management.
+
+## Runtime check
+
+Confirm the ROS 2 and Open-RMF runtime is available:
 
 ```bash
-python3 examples/standards_mapping_demo.py open_rmf
 ump-integration runtime open_rmf
 ```
 
-Open-RMF requires its supported ROS 2 installation with `rclpy` and
-`rmf_adapter`. The built-in fixture validates mapping and task translation; a
-selected RMF deployment must be qualified separately.
+## Sample integration config
+
+```json
+{
+  "profile": "ump.integration-config/v1",
+  "type": "open_rmf",
+  "standard_version": "2",
+  "endpoint": "ros2://rmf.example/fleet",
+  "mode": "read_only",
+  "identity": {
+    "external_id": "tinyrobot-1",
+    "robot_id": "robot-tiny-1"
+  }
+}
+```
+
+Validate before connecting:
+
+```bash
+ump-integration validate open-rmf-config.json
+```
+
+## Native responsibility
+
+Open-RMF continues to manage traffic negotiation, building maps, doors, lifts, and fleet scheduling. UMP provides the semantic layer that lets heterogeneous robots from different manufacturers share awareness and accept authorized high-level assignments. The native Open-RMF controller retains final execution authority for all motion and facility interaction.

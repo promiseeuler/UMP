@@ -1,40 +1,80 @@
 ---
-title: "Hardware readiness"
-description: "Produce repeatable software evidence before supervised physical trials."
+title: "Hardware Readiness Evidence Gate for UMP Deployments"
+description: "Generate and verify signed UMP hardware-readiness reports. Passing the software gate means ready for supervised hardware trials, not production certification."
 icon: "shield-check"
+sidebarTitle: "Hardware Readiness"
 ---
 
-The software laboratory isolates remaining risk to the manufacturer adapter,
-vendor controller, firmware, safety system, and physical environment.
+The UMP hardware-readiness laboratory tests the manufacturer-neutral boundary without claiming that software simulation certifies arbitrary physical robots. It isolates the remaining hardware risk to a reviewed manufacturer adapter, native controller, firmware, safety system, and operating environment. The readiness report is a signed evidence artifact that proves the software qualification path. Passing the software gate means the stack is ready for supervised hardware trials, not production certified.
 
-## Reference fleet
+## What the laboratory proves
 
-- `mobile-1`: payload transport.
-- `inspector-1`: destination inspection.
-- `manipulator-1`: payload placement after dependencies pass.
+The reference scenario uses three independent controller emulators:
 
-Each emulator has an independent clock, state machine, frame, limits, battery,
-health, safety state, native acceptance, cancellation, disconnection, and
-recovery behavior.
+- `mobile-1` transports a payload to a workcell
+- `inspector-1` reports whether the workcell is ready
+- `manipulator-1` places the payload only after both dependencies succeed
 
-## Acceptance gate
+Every assignment passes through UMP plan validation, a robot-local scoped authority lease, the `RobotAdapter` boundary, and native-style controller acceptance. The controller rejects unsupported capabilities, incorrect frames, low battery, faulted health, unsafe state, and disconnection. Unknown battery telemetry remains absent instead of being guessed.
 
-<Steps>
-  <Step title="Core and protocol">Run all tests and UMP 0.1 vectors.</Step>
-  <Step title="Live transports">Pass MQTT, WebSocket, OPC UA, and ROS 2 round trips.</Step>
-  <Step title="Failure behavior">Pass deterministic faults, restart, and reconciliation tests.</Step>
-  <Step title="Scale">Pass declared 3, 25, 100, and 250 participant profiles.</Step>
-  <Step title="Visual boundary">Load Gazebo and complete the UMP-driven warehouse scenario.</Step>
-  <Step title="Soak">Complete one uninterrupted eight-hour run.</Step>
-  <Step title="Evidence">Generate and verify an owner-signed readiness report.</Step>
-</Steps>
+## Generate a readiness report
+
+Run the deterministic scenario, bounded load profiles, and fault probes, then generate a signed report:
+
+```bash
+ump-lab run --output .ump-lab/scenario.json
+ump-lab load --participants 3 --cycles 10
+ump-lab load --participants 25 --cycles 10
+ump-lab load --participants 100 --cycles 10
+ump-lab load --participants 250 --cycles 10
+ump-lab fault config/fault-baseline.json --output .ump-lab/faults.json
+```
+
+Create the signed evidence:
 
 ```bash
 ump-readiness report \
   --fault-profile config/fault-baseline.json \
   --output .ump-lab/readiness.json
+```
+
+Verify the report:
+
+```bash
 ump-readiness verify .ump-lab/readiness.json
 ```
 
-A valid signature proves that evidence has not changed. It does not prove that
-unlisted middleware, firmware, adapters, or physical equipment behave the same.
+When `--signing-key` is omitted, the report uses an ephemeral Ed25519 key and embeds the public key. This proves report integrity, not operator identity. A release or hardware trial must provide an owner-controlled Ed25519 private key and retain its public-key identity through the owner's evidence process.
+
+## Report contents
+
+The readiness report uses the `ump-hardware-readiness-report-v1` schema and records:
+
+- Runtime versions and canonical configuration hash
+- Scenario outcome, latency fields, and delivery counts
+- Fault decisions and mapping warnings
+- Artifact hashes, public key, and signature
+
+A valid signature proves that the report has not changed. It does not prove that unlisted middleware, vendor firmware, or physical equipment behaves identically.
+
+## What the evidence proves and what it cannot
+
+| Proves | Does not prove |
+| --- | --- |
+| Software qualification evidence for the reviewed revision | Physical compatibility with your specific robot hardware |
+| Protocol conformance results | Safety certification or regulatory approval |
+| Adapter conformance for the inspected implementation | Manufacturer endorsement of the deployment |
+| Integration test results over live transports | Correctness of unlisted middleware or firmware versions |
+| Integrity of the signed report artifact | Operator identity (without owner-controlled signing key) |
+
+## Software gate criteria
+
+The software gate passes when the full test suite, protocol conformance, container scenario, live transport probes, load profiles, Gazebo smoke test, and completed eight-hour soak all pass for the same reviewed revision.
+
+<Note>
+  The eight-hour soak requires a self-hosted Linux runner labeled `ump-soak`. GitHub-hosted jobs cannot provide one continuous eight-hour qualification run. A queued or absent soak job is not passing evidence.
+</Note>
+
+## Next steps
+
+After the software readiness gate passes, recruit one robot owner and begin with a read-only manufacturer adapter. See [Hardware Trials](/validate/hardware-trials) for the progressive validation sequence from read-only rollout to supervised physical operation.

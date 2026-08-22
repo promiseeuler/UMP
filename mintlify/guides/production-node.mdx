@@ -1,50 +1,181 @@
 ---
-title: "Configure a production node"
-description: "Preflight identity, storage, network policy, adapters, and integrations."
+title: "Run a UMP Participant Node in Production"
+description: "Start a production UMP node with enrolled credentials, validated network configuration, and durable local stores for assignments, authority, and inspector recording."
 icon: "server-cog"
+sidebarTitle: "Production Node"
 ---
 
-Production configuration is per participant. Never share private keys,
-assignment stores, authority stores, replay databases, or robot identities.
+`ump-node` runs one trusted manufacturer adapter as a long-lived UMP participant. It provides the operational path for owners who do not want to embed the Python runtime in another service. Before starting, you must enroll credentials, validate the network configuration, and ensure all durable stores use distinct paths on persistent local storage.
 
-<Steps>
-  <Step title="Issue credentials">
-    Each leaf certificate must contain exactly one URI SAN:
-    `urn:ump:robot:<robot-id>`.
-  </Step>
-  <Step title="Configure strict peers">
-    Start from `config/network.example.json`. Pin robot IDs and certificate
-    fingerprints. In awareness-only mode, allow only manifests and states.
-  </Step>
-  <Step title="Validate network configuration">
-    ```bash
-    ump-network-config validate /etc/ump/robot-network.json
-    ```
-  </Step>
-  <Step title="Run non-mutating preflight">
-    ```bash
-    ump-node --preflight \
-      --network /etc/ump/robot-network.json \
-      --adapter manufacturer_package.adapter:create_adapter \
-      --adapter-config /etc/manufacturer/robot.json \
-      --assignment-database /var/lib/ump/assignments.sqlite3 \
-      --authority-database /var/lib/ump/authority.sqlite3 \
-      --credential-database /var/lib/ump/credentials.sqlite3 \
-      --credential-directory /var/lib/ump/credentials \
-      --inspector-database /var/lib/ump/inspector.sqlite3 \
-      --state-hz 2
-    ```
-  </Step>
-  <Step title="Start awareness-only operation">
-    Repeat the same command without `--preflight`, then monitor the inspector
-    and network diagnostics before adding any capability.
-  </Step>
-</Steps>
+## Enroll credentials
+
+UMP does not issue certificates. Obtain leaf certificates from your established PKI, then enroll them into the robot-local credential store.
+
+### Enroll a certificate bundle
 
 ```bash
-ump-network-diagnostics --network /etc/ump/robot-network.json
+ump-credential enroll \
+  --certificate issued/robot-1.pem \
+  --private-key issued/robot-1.key \
+  --ca issued/site-ca.pem
 ```
 
-Preflight validates before opening listeners or creating runtime databases.
-Credential, identity, disclosure, path-collision, and adapter failures stop
-startup.
+Enrollment validates the PEM objects, robot identity, key pair, and validity window before copying them into a private, generation-specific directory. It does not activate the generation.
+
+### Activate a generation
+
+After operational approval, activate the generation printed by enrollment:
+
+```bash
+ump-credential activate --generation 1
+```
+
+Activation retires the prior generation and activates the selected generation in one durable transaction. Restart the UMP network bus after activation because Python TLS contexts load the local certificate and key at construction time.
+
+### Manage and inspect credentials
+
+List the credential inventory:
+
+```bash
+ump-credential list --limit 100
+ump-credential list --status active
+```
+
+Show one exact generation:
+
+```bash
+ump-credential show --generation 1
+```
+
+Show the currently active generation:
+
+```bash
+ump-credential active
+```
+
+View the audit trail:
+
+```bash
+ump-credential events --limit 100
+```
+
+Revoke a certificate fingerprint locally:
+
+```bash
+ump-credential revoke \
+  --fingerprint <sha256> \
+  --reason "device decommissioned"
+```
+
+Revocation is local and fingerprint based. Both inbound and outbound handshakes check it after CA-chain validation. Revoking the active local certificate retires it immediately. Operators must stop the bus and rotate to a valid generation.
+
+## Validate the integration config
+
+<Warning>
+  Always validate your integration configuration before opening any connections. An invalid integration config can cause the node to reject valid messages or expose unintended data.
+</Warning>
+
+```bash
+ump-integration validate integration.json
+```
+
+The integration config uses the `ump.integration-config/v1` profile. The default mode is `read_only`, which only publishes manifest and state. Use `task_enabled` only when the adapter has been reviewed for assignment acceptance.
+
+## Start the node
+
+### Preflight first
+
+Append `--preflight` to validate deployment inputs without binding sockets or creating runtime stores:
+
+```bash
+ump-node --preflight \
+  --network /etc/ump/network.json \
+  --adapter manufacturer_package.adapter:create_adapter \
+  --adapter-config /etc/manufacturer/robot.json \
+  --integration-config /etc/ump/integration.json \
+  --assignment-database /var/lib/ump/assignments.sqlite3 \
+  --authority-database /var/lib/ump/authority.sqlite3 \
+  --credential-database /var/lib/ump/credentials.sqlite3 \
+  --credential-directory /var/lib/ump/credentials \
+  --inspector-database /var/lib/ump/inspector.sqlite3 \
+  --required-peer robot-quadruped-1 \
+  --state-hz 2
+```
+
+Preflight validates:
+
+- Network configuration and peer references
+- Read-only adapter conformance and robot identity
+- Required-peer communication policy support
+- Active managed credential generation and validity window
+- Certificate, key, CA, and TLS context compatibility
+- Owner-only private-key permissions
+- Unique files for all database roles when recording is enabled
+- Writable database parent directories
+
+It emits one machine-readable JSON result. Successful preflight does not grant assignment authority and does not prove that a port will remain available at later startup.
+
+### Run the node
+
+Omit `--preflight` to start the node:
+
+```bash
+ump-node \
+  --network /etc/ump/network.json \
+  --adapter manufacturer_package.adapter:create_adapter \
+  --adapter-config /etc/manufacturer/robot.json \
+  --integration-config /etc/ump/integration.json \
+  --assignment-database /var/lib/ump/assignments.sqlite3 \
+  --authority-database /var/lib/ump/authority.sqlite3 \
+  --credential-database /var/lib/ump/credentials.sqlite3 \
+  --credential-directory /var/lib/ump/credentials \
+  --inspector-database /var/lib/ump/inspector.sqlite3 \
+  --required-peer robot-quadruped-1 \
+  --state-hz 2
+```
+
+The node starts its mutual-TLS listener, publishes its manifest and initial state, then publishes semantic state at the selected rate until `SIGINT` or `SIGTERM`. It emits one JSON `ready` event after successful startup.
+
+## Durable storage requirements
+
+Place all databases on persistent local storage owned by the UMP service account. Do not share one database file between robots or copy a live database between identities. The following roles must each use a distinct resolved path:
+
+- Assignment database
+- Authority database
+- Credential database
+- Replay database
+- Inbox database
+- Outbox database
+- Inspector database (optional)
+
+Startup rejects collisions. Private keys should be readable only by the UMP service account. Use encrypted disks, restricted service accounts, and a hardware-backed key provider where your risk model requires one.
+
+## Authority and assignments
+
+A new authority database contains no leases, so remote assignments are denied by default. Owners grant specific issuer, capability, and time scopes with `ump-authority`:
+
+```bash
+ump-authority grant \
+  --lease-id owner-shift-a \
+  --issuer-id warehouse-coordinator-1 \
+  --capability ump.material.carry/v1 \
+  --expires-at-ms 1800000000000
+```
+
+Use short validity windows and exact capability scopes. Update network policy to permit only the reviewed coordinator messages and capability. Revoke the lease immediately when the supervised session ends.
+
+## Monitor health while running
+
+Inspect the configured durable stores without stopping the service:
+
+```bash
+ump-network-diagnostics --network /etc/ump/network.json
+```
+
+This command is read-only and returns a degraded status for stale retry backlogs or inbox dead letters. It reports status counts, pending work by peer and stream, retry attempts, oldest pending age, and bounded recent retry or dead-letter metadata.
+
+## Next steps
+
+- [Manufacturer Adapter](/guides/manufacturer-adapter) to implement the adapter that the node loads
+- [Local Network](/guides/local-network) to generate a local lab for preflight testing
+- [Inspector](/guides/inspector) to observe the traffic your node records

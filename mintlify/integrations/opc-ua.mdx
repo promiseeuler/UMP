@@ -1,29 +1,76 @@
 ---
-title: "OPC UA Robotics"
-description: "Import authorized industrial telemetry and expose a filtered read-only UMP view."
+title: "OPC UA Robotics Integration: Industrial Telemetry in UMP 0.1"
+description: "Map OPC UA Robotics 1.02 identification, health, battery, and operating mode into UMP 0.1. Requires asyncua. Outbound provides filtered read-only UMP address space."
 icon: "factory"
+sidebarTitle: "OPC UA"
 ---
 
-UMP supports two roles:
+The OPC UA Robotics integration connects industrial robots using the OPC UA Robotics 1.02 specification to the UMP 0.1 semantic model. It maps identification, operating mode, health, battery, and semantic extension nodes into UMP awareness fields. Outbound mapping produces a filtered read-only UMP address space for OPC UA clients. External tasks are not exposed through OPC UA. Plant information models and robot controllers remain native.
 
-- **Client:** imports authorized identification, operating mode, health,
-  battery, and semantic extension nodes from an industrial robot.
-- **Server:** exposes filtered UMP identity, state, health, battery,
-  capabilities, and assignment status without actuator methods.
+## Requirements
 
-```mermaid
-flowchart LR
-  R[Industrial robot OPC UA server] --> C[UMP OPC UA client]
-  C --> U[UMP awareness]
-  U --> S[Filtered UMP OPC UA server]
-  S --> P[Plant observer]
-```
+The integration requires `asyncua`, which is loaded only when the OPC UA runtime is selected.
+
+## Mapped fields
+
+| OPC UA Robotics node | UMP mapping |
+| --- | --- |
+| `SerialNumber` | Robot identity |
+| `Manufacturer` | Manufacturer |
+| `Model` | Model |
+| `DeviceClass` | Robot class |
+| `OperatingMode` | Mode |
+| `Health` | Health state |
+| `BatteryLevel` / `Charging` | Battery level and status |
+| `Activity` / `Intent` / `Progress` / `Summary` | Operational state |
+| `AssignmentId` | Assignment correlation |
+
+Missing OPC UA nodes remain unsupported in UMP rather than being fabricated. The adapter reports each field's mapping status in the conversion evidence.
+
+## Modes and tasks
+
+The default mode is `read_only`. External tasks are not exposed through the OPC UA integration. The `task_enabled` mode is not applicable because OPC UA Robotics does not define actuator or job-control methods in this mapping. UMP provides awareness and a filtered read-only address space only.
+
+## Runtime check
+
+Confirm `asyncua` is available before starting the integration:
 
 ```bash
-python3 examples/standards_mapping_demo.py opc_ua
 ump-integration runtime opc_ua
 ```
 
-The live laboratory uses pinned `asyncua` for a real local server/client round
-trip. Production endpoint security, trust lists, namespaces, and access policy
-remain deployment-owned.
+## Docker profile
+
+Run the standards lab profile to test OPC UA mapping in a containerized environment:
+
+```bash
+docker compose -f docker-compose.lab.yml --profile standards run --rm standards python -m ump.lab_services opc_ua
+```
+
+This runs the OPC UA service probe without requiring a local `asyncua` installation.
+
+## Sample integration config
+
+```json
+{
+  "profile": "ump.integration-config/v1",
+  "type": "opc_ua",
+  "standard_version": "1.02",
+  "endpoint": "opc.tcp://robot.example:4840",
+  "mode": "read_only",
+  "identity": {
+    "external_id": "industrial-robot-001",
+    "robot_id": "robot-industrial-001"
+  }
+}
+```
+
+Validate before connecting:
+
+```bash
+ump-integration validate opc-ua-config.json
+```
+
+## Native responsibility
+
+Plant information models, robot controllers, and industrial safety systems remain under native OPC UA and manufacturer control. UMP maps industrial telemetry to OPC UA models rather than replacing plant-level infrastructure. It does not issue motion commands, override safety interlocks, or modify the controller program.

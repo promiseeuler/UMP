@@ -1,12 +1,11 @@
 ---
-title: "MassRobotics"
-description: "Map MassRobotics identity and status messages into UMP awareness."
+title: "MassRobotics Integration: Map AMR Awareness into UMP 0.1"
+description: "Connect MassRobotics AMR Interoperability Standard 1.0 to UMP 0.1 for bidirectional identity, health, battery, and location mapping. UMP stays read-only by default and never takes over fleet behavior."
 icon: "warehouse"
+sidebarTitle: "MassRobotics"
 ---
 
-The MassRobotics integration is primarily observational. It maps identity,
-operation, task ID, location, health indicators, battery, availability, and
-task state using the standard's JSON/WebSocket conventions.
+The MassRobotics integration is primarily observational. It maps identity, operation, task ID, location, health indicators, battery, availability, and task state using the standard's JSON/WebSocket conventions.
 
 ```bash
 python3 examples/standards_mapping_demo.py massrobotics
@@ -20,5 +19,4 @@ python3 examples/standards_mapping_demo.py massrobotics
 - Apply an explicit disclosure policy before publishing UMP fields outward.
 - Let the robot owner control WebSocket authentication, reconnect, and TLS.
 
-The dependency-free fixture validates conversion only. The Docker standards
-profile exercises a real local WebSocket lifecycle.
+The dependency-free fixture validates conversion only. The Docker standards profile exercises a real local WebSocket lifecycle.

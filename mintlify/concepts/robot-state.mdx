@@ -1,54 +1,120 @@
 ---
-title: "Robot state and awareness"
-description: "Identity, activity, health, battery, safety, pose, and freshness semantics."
+title: "What UMP Shares and What It Never Shares About Robot State"
+description: "Learn which robot state fields UMP publishes, which it deliberately excludes, and how the envelope, health, battery, safety stream, sensor references, and spatial fields are structured."
 icon: "activity"
+sidebarTitle: "Robot State"
 ---
 
-UMP awareness is a bounded semantic snapshot, not a raw sensor stream.
+UMP publishes a bounded, manufacturer-neutral semantic snapshot of robot state so that heterogeneous robots can collaborate without exposing proprietary internals. The protocol shares identity, capabilities, activity, intent, progress, availability, pose, safety state, health, battery, and freshness. It never shares joint trajectories, motor values, gait commands, raw sensor data, or internal diagnostic details.
 
-## Manifest versus state
+## Message envelope
 
-| Record | Purpose | Typical change rate |
+Every UMP message carries a canonical envelope with the following fields:
+
+| Field | Description |
+| --- | --- |
+| `protocol` | Exactly `ump/0.1` |
+| `message_id` | Unique within the sender's operational history |
+| `message_type` | One of the types declared in the schema |
+| `source_id` | Stable identity of the publishing participant |
+| `session_id` | Unique identity for one participant process lifetime |
+| `stream` | Optional sequence namespace: `operational` (default) or `safety` |
+| `sequence` | Positive, monotonically increasing integer within the session |
+| `timestamp_ms` | Source time in Unix epoch milliseconds |
+| `correlation_id` | Optional goal or operation correlation identifier |
+| `payload` | Message-specific object |
+
+Transport authentication binds the authenticated peer to `source_id`. The registry enforces agreement between envelope identity and payload identity even in the in-memory binding.
+
+## Shared state fields
+
+Robot state may include the following manufacturer-neutral fields:
+
+- **Identity**: `robot_id`, `manufacturer`, `model`, `robot_class`
+- **Capabilities**: versioned capability names with input/output schemas and availability
+- **Activity**: current high-level activity description
+- **Intent**: planned next action
+- **Progress**: completion fraction or status string
+- **Availability**: whether the robot is available for new assignments
+- **Pose**: named `frame_id`, Cartesian `position_m` in SI meters, normalized quaternion `orientation_xyzw`
+- **Safety**: safety condition state
+- **Health**: operational fitness for peer awareness
+- **Battery**: level, status, and optional estimated runtime
+- **Freshness**: `fresh_for_ms` declaring how long the state remains valid
+
+## What UMP never shares
+
+UMP deliberately does not publish the following:
+
+- Joint trajectories or motor values
+- Gait commands or locomotion primitives
+- Raw sensor data or point clouds
+- Internal diagnostic logs or controller internals
+- Emergency stop commands or actuator-level signals
+
+Native controllers retain full control over all physical execution.
+
+## Health states
+
+Robot state may publish a `health` condition with one of these values:
+
+| Value | Meaning |
+| --- | --- |
+| `healthy` | Robot is operationally fit |
+| `degraded` | Robot is functional but with reduced capability |
+| `faulted` | Robot has an active fault and should not be assigned new work |
+| `unknown` | Health cannot be determined |
+
+This describes operational fitness for peer awareness and planning. It does not replace robot-local diagnostics or safety systems.
+
+## Battery telemetry
+
+Battery-powered robots may publish a `battery` snapshot:
+
+| Field | Type | Description |
 | --- | --- | --- |
-| Manifest | Stable identity and current capability contracts | On startup or capability change |
-| State | Current operational observation | Periodic, commonly 1-2 Hz |
+| `level` | float (0.0 to 1.0) | Dimensionless charge fraction |
+| `status` | string | One of `charging`, `discharging`, `full`, `not_present`, `unknown` |
+| `observed_at_ms` | integer | Telemetry freshness timestamp |
+| `estimated_runtime_s` | float (optional) | Source estimate, not a guarantee |
 
-A state may include mode, availability, activity, intent, progress, safety,
-health, battery, pose, and observation timestamp. Optional data stays absent
-when the native system cannot provide it.
+Robots without batteries publish `null` or `not_present` with no level or runtime. Planners may use fresh health and battery state when selecting robots, but native adapters retain final assignment acceptance authority.
+
+## Safety stream
+
+The optional `safety` stream carries state messages only. Operational and safety streams have independent monotonically increasing sequence counters within the same authenticated process session. A safety-stream state still requires that the session's operational manifest was accepted first. Receivers keep separate replay floors and prefer the newest source timestamp when streams converge.
 
 <Warning>
-  Never infer battery, health, safety, pose, intent, or progress from unrelated
-  fields. “Unknown” is a valid and safer semantic result.
+  Safety publication is an observability path, not an emergency stop. Assignments, cancellations, goals, plans, and outcomes are forbidden on the safety stream.
 </Warning>
 
-## Health and battery
+## Sensor references
 
-Health uses `healthy`, `degraded`, `faulted`, or `unknown`. Battery includes a
-bounded level and status such as `charging`, `discharging`, `full`,
-`not_present`, or `unknown`. An absent battery is different from a reported
-zero-percent battery.
+Large sensor content is never embedded in a core message. A state may publish up to 32 metadata-only references. Each reference carries:
 
-## Pose, frames, and units
+| Field | Description |
+| --- | --- |
+| `uri` | Absolute URI that cannot use the `data:` scheme |
+| `media_type` | Media type of the referenced content |
+| `byte_length` | Size in bytes |
+| `sha256` | Lowercase SHA-256 digest |
+| `observed_at_ms` | Observation timestamp |
+| `expires_at_ms` | Optional expiry timestamp |
+| `frame_id` | Optional named frame |
 
-Spatial data is frame-qualified and uses SI units. A pose contains a frame ID,
-position in meters, and quaternion orientation in `xyzw` order. Numeric
-capability fields declare supported `x-ump-unit` values. Unknown frames reject
-task mappings rather than being silently treated as a familiar frame.
+A reference grants no access by itself. Retrieval authentication and disclosure authorization remain deployment responsibilities.
 
-## Freshness
+## Spatial fields
 
-Observation time describes when the source measured the state. Receipt time
-describes when UMP recorded it. Freshness policies determine when a participant
-becomes stale; stale state cannot be used as current evidence for planning or
-assignment acceptance.
+Optional shared-state poses use:
 
-```mermaid
-stateDiagram-v2
-  [*] --> Fresh: valid state received
-  Fresh --> Fresh: newer state received
-  Fresh --> Stale: freshness deadline exceeded
-  Stale --> Fresh: newer valid state received
-  Fresh --> Rejected: identity/frame/schema conflict
-  Rejected --> Fresh: corrected newer state
-```
+- `frame_id`: a semantic frame name
+- `position_m`: Cartesian coordinates in SI meters
+- `orientation_xyzw`: a normalized quaternion
+- `observed_at_ms`: source observation time
+
+Frame identifiers are semantic names. UMP does not publish or infer frame transforms.
+
+## Freshness and stale state
+
+State becomes stale after `timestamp_ms + fresh_for_ms`. The `fresh_for_ms` value must be between 1 and 60,000 ms. Stale state must not be used to authorize a collaboration plan. A deployment that depends on peer communication should configure a required-peer watchdog and manufacturer-defined local loss behavior. Loss is derived from declared state freshness, not from sender timestamps alone.

@@ -1,63 +1,149 @@
 ---
-title: "Build a manufacturer adapter"
-description: "Translate a native robot API into UMP without moving the control boundary."
+title: "Build a Manufacturer Adapter for UMP Robot Integration"
+description: "Implement the RobotAdapter protocol to translate native robot state and high-level task APIs into UMP messages without sending joint commands or motor values."
 icon: "plug-zap"
+sidebarTitle: "Manufacturer Adapter"
 ---
 
-Start read-only. The first adapter should expose trustworthy awareness and
-reject every assignment.
+A UMP manufacturer adapter translates your robot's native semantic state and high-level task APIs into UMP messages. It must never translate UMP messages into joint commands, trajectories, motor values, or safety-system actions. Your native software remains authoritative for acceptance, execution, cancellation, collision handling, emergency stops, and all physical safety behavior.
 
-## Contract
+The `RobotAdapter` protocol is structural. You do not need to inherit from a UMP base class, which keeps your vendor SDK ownership and process architecture local.
+
+## RobotAdapter protocol
+
+Import the protocol from `ump.adapter` or directly from `ump`:
 
 ```python
-from typing import Protocol
-
-class RobotAdapter(Protocol):
-    def manifest(self) -> RobotManifest: ...
-    def state(self) -> RobotState: ...
-    def accept(self, assignment: Assignment) -> Outcome: ...
-    def cancel(self, assignment_id: str, reason: str) -> tuple[bool, str]: ...
+from ump import RobotAdapter
 ```
 
-Use `examples/read_only_adapter.py` as the starting point.
+Your implementation supplies four methods:
+
+<ParamField path="manifest()" type="RobotManifest">
+  Returns stable identity and currently advertised capabilities.
+</ParamField>
+
+<ParamField path="state()" type="RobotState">
+  Returns a bounded semantic snapshot with a freshness interval, operational health, and optional battery telemetry when the native API provides them. Missing values remain `unknown` or `null`. Do not estimate them.
+</ParamField>
+
+<ParamField path="accept(assignment)" type="Outcome">
+  Passes an already authorized, schema-valid high-level request to native software and returns its terminal outcome.
+</ParamField>
+
+<ParamField path="cancel(assignment_id, reason)" type="(bool, str)">
+  Asks native software to cancel and reports its decision. This is not an emergency stop.
+</ParamField>
+
+Deployments that declare required peers also require the optional `CommunicationLossHandler` protocol:
+
+```python
+class MyAdapter(RobotAdapter, CommunicationLossHandler):
+    def communication_lost(self, peer_ids: set[str], observed_at_ms: int) -> None:
+        ...
+
+    def communication_restored(self, peer_ids: set[str], observed_at_ms: int) -> None:
+        ...
+```
+
+The adapter defines the local response. Callback exceptions are recorded and retried on the next watchdog evaluation rather than treated as a successful policy transition.
+
+## Start read-only
+
+Begin hardware integration with an empty capability tuple. The robot can publish state and observe authorized peers, but no UMP assignment can target it. The included `examples/read_only_adapter.py` demonstrates this mode:
+
+```bash
+python examples/read_only_adapter.py
+```
+
+Replace only the example's state values with bounded data from the native API. Choose `fresh_for_ms` from the real publication period and failure-detection policy. The core profile allows 1 to 60,000 ms.
+
+## Advertise a capability
+
+Use a contract from `ump.standard/v1` when its semantics match exactly:
+
+```python
+from ump import standard_capability
+
+carry = standard_capability("ump.material.carry/v1")
+```
+
+Otherwise use a manufacturer-owned, versioned name and Draft 2020-12 input and output schemas. Numeric robotics fields require supported `x-ump-unit` values. Spatial fields also require an explicit frame property through `x-ump-frame-field`. Advertise only behavior that the current robot configuration can support, and update availability when native resources become busy, degraded, or unavailable.
+
+Inside `accept()`:
+
+1. Confirm the native controller still supports the requested capability.
+2. Apply local operating-mode, resource, workspace, and safety checks.
+3. Ask the native high-level API to accept or reject the request.
+4. Return the native terminal status without inventing success after uncertainty.
+5. On success, return structured outputs conforming to the advertised schema.
+
+UMP validates authority and capability input schema before calling the adapter, but those checks do not replace native policy. Do not retry physical work merely because a network response was lost.
+
+## Conformance progression
+
+### Read-only inspection
+
+Read-only inspection does not invoke native behavior:
+
+```bash
+ump-adapter-conformance inspect \
+  --adapter your_package.adapter:create_adapter \
+  --adapter-config adapter.json \
+  --output adapter-conformance.json
+```
+
+Provide the exact implementation file with the report so a reviewer can bind the retained result back to source:
+
+```bash
+ump-adapter-conformance verify adapter-conformance.json \
+  --implementation your_package/adapter.py
+```
+
+### Execution fixtures
+
+Execution fixtures require an explicit gate:
+
+```python
+from ump import AdapterConformanceHarness
+
+report = AdapterConformanceHarness().exercise(
+    adapter,
+    controlled_assignments,
+    allow_native_execution=True,
+)
+```
+
+Run execution checks only in a simulator or approved bounded work area with operator supervision and functioning physical emergency stops. Passing the harness proves protocol compatibility, not physical safety certification.
+
+## Deployment checklist
 
 <Steps>
-  <Step title="Bind one stable identity">
-    Map exactly one vendor robot identity to one UMP robot ID. Reject
-    conflicting or changing identity evidence.
+  <Step title="Assign identity and credentials">
+    Assign a stable robot identity and issue a certificate containing exactly one matching `urn:ump:robot:<robot-id>` URI identity.
   </Step>
-  <Step title="Translate observed state">
-    Read bounded manufacturer APIs for mode, activity, intent, safety, health,
-    battery, pose, and timestamps. Omit unavailable optional data.
+  <Step title="Enroll and activate credentials">
+    Enroll credentials locally and configure peer disclosure separately from task authority.
   </Step>
-  <Step title="Advertise no executable capabilities">
-    Keep the capability tuple empty and make `accept()` reject assignments.
+  <Step title="Keep assignments denied by default">
+    Keep remote assignment authority deny-by-default during read-only rollout.
   </Step>
-  <Step title="Run conformance">
-    ```bash
-    ump-adapter-conformance inspect \
-      --adapter manufacturer_package.adapter:create_adapter \
-      --adapter-config /etc/manufacturer/robot.json \
-      --output adapter-conformance.json
-
-    ump-adapter-conformance verify adapter-conformance.json \
-      --implementation manufacturer_package/adapter.py
-    ```
+  <Step title="Configure communication-loss behavior">
+    Configure required-peer communication-loss behavior in native software.
   </Step>
-  <Step title="Compare with native tooling">
-    During awareness-only operation, compare every mapped value, unit, frame,
-    timestamp, and freshness result with the manufacturer's own interface.
+  <Step title="Set up durable local storage">
+    Persist assignment, replay, inbox, outbox, authority, and credential stores on durable local storage.
+  </Step>
+  <Step title="Validate in stages">
+    Validate in deterministic simulation, network-process tests, professional robot simulation, hardware-in-the-loop, and supervised physical operation in order.
+  </Step>
+  <Step title="Record and retain evidence">
+    Record adapter version, firmware version, robot configuration, test fixtures, conformance report, and operator approval for each released adapter build.
   </Step>
 </Steps>
 
-## Add one capability later
+## Next steps
 
-Choose one bounded, high-level capability whose schema exactly matches a native
-API. Implement operating-mode, resource, workspace, safety, and acceptance
-checks inside the adapter. Test it in the manufacturer's supported simulator
-before requesting an owner-issued authority lease.
-
-<Warning>
-  Do not adapt joint commands, velocity commands, trajectories, motor values,
-  emergency stops, or ambiguous vendor actions into UMP capabilities.
-</Warning>
+- [Production Node](/guides/production-node) to run your adapter as a long-lived UMP participant
+- [Local Network](/guides/local-network) to generate a local lab for adapter testing
+- [Inspector](/guides/inspector) to observe your adapter's published state and events

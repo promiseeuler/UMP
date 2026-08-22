@@ -1,29 +1,106 @@
 ---
-title: "Security model"
-description: "Identity, mutual TLS, disclosure, replay, credentials, and operational controls."
+title: "UMP Security Model and Mutual-TLS Controls"
+description: "UMP security uses mutual TLS, per-participant credentials, authority leases, replay protection, and defense in depth. Network encryption alone is not authorization."
 icon: "lock-keyhole"
+sidebarTitle: "Security"
 ---
 
-UMP uses defense in depth; network encryption alone is not authorization.
+UMP uses defense in depth to secure cross-robot collaboration. The security model combines mutual TLS for identity and transport, per-peer disclosure policy for metadata control, scoped authority leases for assignment authorization, and replay protection through sequence enforcement. Network encryption alone is not authorization.
 
-## Controls
+## Supported versions
 
-- One certificate and private key per participant.
-- Exactly one `urn:ump:robot:<robot-id>` certificate URI identity.
-- Mutual TLS and expected peer identity checks.
-- Optional certificate fingerprint pinning from discovery hints.
-- Per-peer message-type and capability disclosure.
-- Durable replay sequence floors and idempotent inboxes.
-- Scoped, expiring, revision-checked authority leases.
-- Credential generation activation, rotation, revocation, and audit.
-- Bounded message sizes, queues, structured outputs, and freshness.
+UMP is pre-1.0. Security fixes are applied to the latest revision of `main`. No released version is currently certified for unsupervised physical operation.
 
-## Operational rules
+## Reporting a vulnerability
 
-Store private keys with owner-only permissions or a deployment-approved
-hardware-backed provider. Keep stores separate by participant and purpose.
-Rotate and revoke credentials through tested procedures. Do not expose lab
-brokers, inspector ports, or simulator streams publicly without deployment-grade
-authentication and TLS.
+Do not open a public issue for a suspected vulnerability. Use GitHub's private security advisory reporting for this repository. Include the affected revision, deployment assumptions, reproduction steps, impact, and any proposed mitigation.
 
-Report vulnerabilities according to the repository `SECURITY.md` policy.
+Maintainers should acknowledge a report within five business days. Disclosure timing is coordinated after triage and a remediation is available. Never include production certificates, private keys, robot telemetry, or owner data in a report.
+
+## Safety boundary
+
+UMP communicates semantic state and high-level assignments. It is not an emergency stop, safety PLC, motion controller, or substitute for manufacturer safety systems. Security findings that could cause unauthorized assignment, identity confusion, state disclosure, or loss of audit integrity are treated as high priority even when native robot controllers retain final authority.
+
+## Mutual TLS and identity
+
+Every UMP participant uses exactly one certificate and private key. Each leaf certificate must contain exactly one URI Subject Alternative Name in this form:
+
+```text
+urn:ump:robot:<robot-id>
+```
+
+Common Names are not used for UMP identity. The authenticated certificate robot ID must equal the envelope `source_id`.
+
+Controls enforced at the transport layer:
+
+- TLS 1.3 minimum
+- Client certificates required by every server
+- Certificate chains validated against the configured local CA bundle
+- ALPN must negotiate `ump/0.1`
+- Optional certificate fingerprint pinning per peer
+
+Mutual TLS proves which peer sent a message. It does not grant permission to inspect metadata or issue assignments.
+
+## Credential lifecycle
+
+Enroll, activate, and revoke credentials using the `ump-credential` CLI:
+
+```bash
+ump-credential --robot-id robot-1 --database credentials.sqlite3 --directory ./creds \
+  enroll --certificate robot-1.pem --private-key robot-1.key --ca site-ca.pem
+
+ump-credential --robot-id robot-1 --database credentials.sqlite3 --directory ./creds \
+  activate --generation 1
+
+ump-credential --robot-id robot-1 --database credentials.sqlite3 --directory ./creds \
+  revoke --fingerprint <sha256> --reason "device decommissioned"
+```
+
+Enrollment validates the PEM objects, robot identity, key pair, and validity window before copying them into a private, generation-specific directory. Activation retires the prior generation and activates the selected generation in one durable transaction. Revocation is local and fingerprint based. Both inbound and outbound handshakes check revocation after CA-chain validation and before any UMP frame is accepted or sent.
+
+Private keys are copied with mode `0600`; managed directories use `0700`. Deployments should additionally use encrypted disks, restricted service accounts, and hardware-backed key providers where their risk model requires one.
+
+## Authority leases
+
+A local authority lease decides whether an authenticated peer may ask a robot to execute a named high-level capability during a bounded time window. Leases are stored and evaluated on the target robot. Remote peers cannot grant themselves authority through a protocol message.
+
+Grant a scoped lease:
+
+```bash
+ump-authority --robot-id robot-1 --database authority.sqlite3 \
+  grant --lease-id owner-shift-a --issuer-id warehouse-coordinator-1 \
+  --capability ump.material.carry/v1 --expires-at-ms 1800000000000
+```
+
+Key properties:
+
+- Deny-by-default: a new authority database contains no leases, so remote assignments are rejected
+- Scoped: one or more exact versioned capability names
+- Time-bounded: issued and expires at explicit Unix epoch milliseconds
+- Receiver-local evaluation: envelope timestamps do not extend lease validity
+- `task_enabled` in integration config does not authorize work alone: a valid lease is still required
+
+## Per-peer disclosure
+
+Each configured peer has an outbound allowlist of message types. The default is empty, so adding a peer discloses no operational metadata. `manifest` permission may additionally name exact versioned capabilities; all other capabilities are removed from that peer's copy before transport. Omitting `state` hides current activity, intent, progress, blockers, resources, and assignment correlation from that peer.
+
+Disclosure filtering occurs before TLS transmission. It does not modify the full local event delivered to local subscribers.
+
+## Replay protection
+
+The receiver binds sequence state to authenticated robot ID and session ID. A sequence less than or equal to the last accepted sequence is rejected before application delivery. Buses persist the highest accepted sequence for every peer session in a configured SQLite WAL database before application delivery. Exact and lower-sequence replays remain rejected after receiver restart.
+
+Session IDs provide additional separation: a new accepted session supersedes state from an older session of the same robot.
+
+## Defense in depth summary
+
+| Layer | Control | What it prevents |
+| --- | --- | --- |
+| Transport | Mutual TLS 1.3 with identity-bound certificates | Impersonation and eavesdropping |
+| Network | Per-peer message-type and capability disclosure | Unauthorized metadata exposure |
+| Application | Replay protection via sequence and session enforcement | Replay and reordering attacks |
+| Authorization | Scoped, time-bounded, receiver-local authority leases | Unauthorized assignment issuance |
+| Credentials | Enroll, activate, revoke lifecycle with fingerprint pinning | Use of compromised or expired identities |
+| Policy | Deny-by-default with explicit owner grants | Accidental capability exposure |
+
+Network encryption alone is not authorization. A peer must pass TLS identity checks, be permitted by disclosure policy, and present a valid authority lease before an assignment is accepted. Native robot controllers retain final acceptance authority and local safety systems always take precedence.

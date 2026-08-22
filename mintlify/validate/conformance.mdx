@@ -1,37 +1,110 @@
 ---
-title: "Conformance testing"
-description: "Validate UMP 0.1 messages and bind adapter evidence to an implementation."
+title: "UMP Protocol and Adapter Conformance Testing"
+description: "Validate UMP 0.1 protocol compatibility with golden vectors and read-only adapter conformance harnesses. Passing confirms wire compatibility, not physical safety certification."
 icon: "badge-check"
+sidebarTitle: "Conformance"
 ---
 
-## Protocol vectors
+UMP ships versioned conformance vectors and an adapter harness so you can verify protocol compatibility and adapter contracts without granting robot control authority. Passing these checks demonstrates compatibility with the UMP 0.1 contract. It does not certify physical safety, timing performance, or manufacturer-specific behavior.
+
+## Wire vector suite
+
+The canonical vector suite validates encoding, decoding, schema compliance, and replay rejection for every UMP 0.1 message type. Vector files contain hexadecimal bytes so line endings or editor normalization cannot alter the wire input.
+
+Run the suite from an installed package:
 
 ```bash
 ump-conformance conformance/v0.1
 ```
 
-The suite contains expected-valid and expected-invalid canonical UMP 0.1
-vectors. It verifies protocol version, message type, stream, sequence, safety
-rules, manifests, states, and structured outcomes.
+From a source checkout, use the equivalent module path:
 
-## Adapter evidence
+```bash
+PYTHONPATH=src python3 -m ump.cli conformance conformance/v0.1
+```
+
+The command emits one JSON report and returns these exit codes:
+
+- `0`: every check passed
+- `1`: at least one conformance failure
+- `2`: the suite could not be loaded
+
+A valid vector must decode, satisfy the JSON Schema, and re-encode to the exact same canonical bytes. Invalid vectors must be rejected.
+
+## Adapter conformance harness
+
+`AdapterConformanceHarness.inspect(adapter)` performs read-only checks on the adapter manifest and state. It validates model types, robot identity agreement, and each advertised capability's input and output schemas.
+
+### Generate a read-only evidence report
+
+Manufacturers can generate a retainable report without writing Python:
 
 ```bash
 ump-adapter-conformance inspect \
-  --adapter manufacturer_package.adapter:create_adapter \
-  --adapter-config /etc/manufacturer/robot.json \
+  --adapter acme_ump.adapter:create_adapter \
+  --adapter-config /etc/acme/ump-adapter.json \
+  --revision "$(git rev-parse HEAD)" \
   --output adapter-conformance.json
-
-ump-adapter-conformance verify adapter-conformance.json \
-  --implementation manufacturer_package/adapter.py
 ```
 
-Read-only inspection verifies identity, manifest, state, bounded values, and
-implementation binding without native execution. Execution fixtures require an
-explicit gate and should only run against a simulator or controlled robot.
+Requirements for the `--revision` value:
 
-<Note>
-  Protocol conformance proves behavior against published UMP vectors. Adapter
-  conformance proves the inspected implementation and fixture. Neither is a
-  manufacturer or physical safety certification.
-</Note>
+- Must be the full lowercase 40-character commit SHA of the UMP checkout whose adapter contract is being tested
+- Binds the revision to the adapter implementation digest, package versions, robot metadata, and observed environment
+
+Exit codes:
+
+- `0`: all checks passed
+- `1`: a report was produced with failed checks
+- `2`: the adapter or report could not be loaded or generated
+
+### Verify retained evidence
+
+Reviewers can rebind the report to the exact implementation file:
+
+```bash
+ump-adapter-conformance verify adapter-conformance.json \
+  --implementation acme_ump/adapter.py
+```
+
+Verification requires the exact three read-only checks, rejects duplicate or contradictory summaries, and recomputes the source digest when `--implementation` is supplied. Use `schemas/ump-adapter-conformance-v1.schema.json` from non-Python tooling.
+
+Print the adapter evidence schema:
+
+```bash
+ump-adapter-conformance schema
+```
+
+<Warning>
+  Adapter factories are trusted local code and may initialize a vendor SDK merely by being loaded. Run the inspect command only with reviewed manufacturer packages. The CLI deliberately exposes no native-execution switch.
+</Warning>
+
+## Native execution testing
+
+Read-only inspection does not invoke native behavior. To exercise capability execution, use the Python harness directly:
+
+```python
+from ump import AdapterConformanceHarness
+
+report = harness.exercise(
+    adapter,
+    assignments,
+    allow_native_execution=True,
+)
+```
+
+Without `allow_native_execution=True`, `exercise` raises `PermissionError`. This gate does not replace robot-local UMP authority leases, native safety controls, supervision, or a controlled test environment.
+
+<Warning>
+  Execution fixtures require operator supervision and functioning physical emergency stops. Passing the harness proves protocol compatibility, not physical safety certification.
+</Warning>
+
+## What conformance proves
+
+| Check | What it validates | What it does not validate |
+| --- | --- | --- |
+| Wire vectors | Encoding, decoding, schema, replay rejection | Network resilience, timing, physical behavior |
+| Adapter inspect | Manifest, state, identity, capability schemas | Native execution correctness, safety, manufacturer logic |
+| Adapter exercise | Assignment acceptance and terminal outcomes | Physical work completion, environmental safety |
+
+Stop if any check fails. Passing the full suite is required before progressing to [hardware readiness](/validate/hardware-readiness) or [supervised hardware trials](/validate/hardware-trials).

@@ -1,44 +1,73 @@
 ---
-title: "Supervised hardware trials"
-description: "Move from software evidence to one controlled physical capability at a time."
+title: "Supervised Hardware Trials for UMP Robot Integration"
+description: "Progress from read-only rollout to supervised physical operation through deterministic simulation, network tests, and hardware-in-the-loop validation. Operator supervision and emergency stops are required."
 icon: "clipboard-check"
+sidebarTitle: "Hardware Trials"
 ---
 
-Begin only after the software gate passes for the exact reviewed revision.
+Supervised hardware trials begin after the software readiness gate passes. This phase validates a manufacturer adapter against real robot hardware in a controlled, observable progression. UMP never sends joint commands, motor values, gait commands, or emergency stops. Native controllers retain full control at every stage.
 
-<Steps>
-  <Step title="Choose one robot and owner">
-    Record model, serial identity, firmware, controller, SDK, network,
-    workcell, operator, safety owner, and rollback procedure.
-  </Step>
-  <Step title="Run read-only">
-    Compare UMP identity, timestamps, units, frames, health, battery, safety,
-    activity, and freshness against the manufacturer's native tooling.
-  </Step>
-  <Step title="Test communication failure">
-    Disconnect and restart UMP while confirming the robot remains safe and
-    locally controllable under its native policy.
-  </Step>
-  <Step title="Select one capability">
-    Choose one bounded high-level native API. Qualify it in the vendor's
-    supported simulator and retain fixtures and evidence.
-  </Step>
-  <Step title="Grant short authority">
-    Issue one exact capability lease to one reviewed coordinator for one
-    supervised window.
-  </Step>
-  <Step title="Execute in a controlled area">
-    Use a bounded workspace, trained operator, physical emergency stop, and
-    independent observation. Abort on any semantic mismatch.
-  </Step>
-  <Step title="Review before expansion">
-    Reconcile every outcome and fault. Add robots or capabilities one at a
-    time, repeating the full gate after changes.
-  </Step>
-</Steps>
+## Read-only rollout first
+
+Start with a read-only adapter that advertises an empty capability tuple. This lets you observe state only without accepting any assignments.
 
 <Warning>
-  A successful first trial qualifies only the reviewed robot, adapter,
-  firmware, configuration, capability, and environment. It does not generalize
-  to other robots or deployments.
+  Keep remote assignment authority deny-by-default during read-only rollout. Do not grant capability leases until the adapter, network, and native tooling observations agree.
 </Warning>
+
+Steps for read-only rollout:
+
+1. Deploy the adapter with empty capabilities
+2. Observe live identity, timestamps, units, coordinate frames, health, battery, safety, activity, and freshness
+3. Compare UMP state against the manufacturer's native tooling
+4. Exercise disconnect, restart, stale state, replay, credential rotation, and storage recovery
+
+## Progressive validation sequence
+
+Advance through these stages in order. Do not skip stages.
+
+| Stage | What you validate | UMP involvement |
+| --- | --- | --- |
+| Deterministic simulation | Core protocol and adapter logic without network | In-memory bus, conformance vectors |
+| Network-process tests | TLS, identity, disclosure, replay, delivery | Localhost mutual-TLS peers |
+| Professional robot simulation | Native controller behavior in manufacturer simulator | Adapter with one bounded capability |
+| Hardware-in-the-loop | Real sensors and actuators through native controller | Same capability, supervised |
+| Supervised physical operation | Full workcell with operator and emergency stop | Short authority leases, one capability at a time |
+
+## Required evidence per adapter build
+
+For each released adapter build, retain these artifacts:
+
+- Adapter version and source revision
+- Firmware version and robot configuration
+- Test fixtures and their results
+- Conformance report (wire vectors and adapter inspect)
+- Operator approval record
+
+## Authority and safety during trials
+
+When you add the first bounded capability:
+
+1. Grant a short, capability-specific authority lease with an explicit expiry
+2. Operate in a controlled area with functioning physical emergency stops
+3. Supervise every assignment with an operator present
+4. Revoke the lease immediately when the session ends
+
+<Warning>
+  UMP cancellation is a high-level coordination request, not an emergency stop. Always rely on the robot's native safety system and physical emergency stops for immediate risk reduction.
+</Warning>
+
+## Repeat qualification for every change
+
+Repeat the full validation sequence for every adapter build, firmware update, robot configuration change, and new capability. The software gate from [Hardware Readiness](/validate/hardware-readiness) must still pass for the same reviewed revision before you begin hardware trials.
+
+## Troubleshooting during trials
+
+| Symptom | Likely cause | Action |
+| --- | --- | --- |
+| Assignment rejected by adapter | Native controller state does not permit the capability | Check native mode, resources, workspace, and safety status |
+| Authority lease denied | No matching lease, expired, or wrong capability name | Verify lease scope, expiry, and issuer identity |
+| Stale state warnings | `fresh_for_ms` too short, network latency, or adapter not publishing | Adjust freshness interval or check adapter loop |
+| mTLS connection refused after hardware switch | Certificate mismatch or wrong bundle root | Re-verify deployment bundle and peer fingerprints |
+
+See [Troubleshooting](/reference/troubleshooting) for additional diagnostic guidance.

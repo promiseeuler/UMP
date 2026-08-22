@@ -1,35 +1,57 @@
 ---
-title: "Project status"
-description: "Current implementation scope, maturity, and remaining hardware work."
+title: "UMP 0.1 Alpha Reference Implementation Status and Roadmap"
+description: "Review what is implemented in UMP 0.1, what is not claimed, and the correct milestone for supervised hardware trials."
 icon: "chart-no-axes-column"
+sidebarTitle: "Project Status"
 ---
 
-UMP 0.1 is an alpha reference implementation with a functioning protocol,
-network, coordinator, inspector, standards adapters, and software qualification
-lab.
+UMP 0.1 is an alpha reference implementation and software qualification laboratory. It provides a complete, bounded semantic protocol for shared robot awareness and high-level collaboration, but it does not claim universal hardware compatibility or production safety certification. This page documents exactly what the current release delivers and what remains outside its scope.
 
-## Implemented
+## What is implemented
 
-- Canonical UMP 0.1 envelopes and conformance vectors.
-- Mutual TLS, identity binding, disclosure controls, replay protection, durable
-  delivery, credentials, leases, and reconciliation.
-- Semantic robot registry and read-only inspector.
-- Deterministic planner boundary and owner-authorized collaboration.
-- MassRobotics, VDA 5050, Open-RMF, ROS 2, and OPC UA mappings.
-- Mixed-fleet emulators, live transport probes, faults, load tests, signed
-  readiness reports, and a Gazebo warehouse scenario.
+The UMP 0.1 reference implementation includes:
 
-## Not claimed
+- **Canonical protocol envelopes** — UTF-8 JSON encoding, lexical key order, size bounds, and schema validation for every message
+- **Mutual-TLS transport** — TLS 1.3 with mandatory client certificates, certificate-to-envelope identity binding, and ALPN negotiation for `ump/0.1`
+- **Identity binding** — one `urn:ump:robot:<robot-id>` URI per certificate, with peer fingerprint pinning and revocation checks
+- **Disclosure controls** — per-peer outbound allowlists for message types and exact versioned capabilities
+- **Replay protection** — durable sequence floors per source and session, persisted in SQLite WAL
+- **Durable delivery** — FIFO outbox with bounded backpressure, exponential retry, and separate safety-stream priority
+- **Credentials lifecycle** — staged enrollment, transactional activation, audit trail, and local revocation
+- **Authority leases** — scoped, time-bounded, capability-specific grants stored and validated on the target robot
+- **Reconciliation** — coordinator restart recovery with `assignment_query` and fingerprint-matched `assignment_snapshot`
+- **Semantic robot registry** — manifest-first session acceptance, stale-state rejection, and capability-filtered peer views
+- **Read-only inspector** — local SQLite-backed UI showing only recorded UMP traffic, with no injected demo data
+- **Deterministic planner** — reference warehouse planner for integration tests; swappable with model-backed implementations
+- **Standards mappings** — MassRobotics 1.0, VDA 5050 3.0, Open-RMF, ROS 2, and OPC UA Robotics 1.02 with conversion evidence
+- **Mixed-fleet emulators** — mobile, inspection, and manipulator controller emulators for lab scenarios
+- **Fault and load tests** — deterministic latency, jitter, loss, duplication, reordering, partition, and broker-restart profiles
+- **Signed readiness reports** — Ed25519-signed evidence bundling runtime versions, scenario outcomes, delivery metrics, and artifact hashes
+- **Gazebo warehouse scenario** — headless Gazebo Harmonic with ROS 2 Jazzy, running assignments through the native execution boundary
 
-- Universal compatibility with arbitrary robot hardware.
-- Production safety certification.
-- Manufacturer endorsement or protocol certification.
-- A replacement for native fleet management, autonomy, or safety systems.
+## What is not claimed
+
+UMP 0.1 explicitly does not claim:
+
+- Universal hardware compatibility with every robot manufacturer or model
+- Production safety certification or functional-safety approval
+- Manufacturer endorsement of any specific integration
+- Replacement for native fleet management, autonomy, or safety systems
+- Guaranteed timing performance, network resilience, or real-time determinism
+- Certification that passing software tests qualifies arbitrary physical robots
 
 <Tip>
-  The correct milestone after the software gate is **ready for supervised
-  hardware trials**, not “production certified.”
+  The correct milestone for UMP 0.1 is **ready for supervised hardware trials** after the readiness gate passes. This means the deterministic software path is verified, but physical compatibility, safety, and manufacturer-specific behavior must still be validated independently by the robot owner.
 </Tip>
 
-See [Hardware readiness](/validate/hardware-readiness) for the evidence gate and
-[Hardware trials](/validate/hardware-trials) for the physical rollout sequence.
+## Readiness gates
+
+Before progressing from software verification to hardware trials, complete:
+
+1. Full unit and integration test suite: `python3 -m unittest discover -s tests -v`
+2. Protocol conformance: `ump-conformance conformance/v0.1`
+3. Container transports, fault profiles, and load tests
+4. Gazebo smoke test and eight-hour soak
+5. Signed readiness report generation and verification
+
+Learn more about the qualification process in [Hardware Readiness](/validate/hardware-readiness) and the trial progression in [Hardware Trials](/validate/hardware-trials).

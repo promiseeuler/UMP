@@ -1,59 +1,88 @@
 ---
-title: "Run your first scenario"
-description: "Complete an authorized mixed-fleet workflow and verify signed evidence."
+title: "Run Your First UMP Mixed-Fleet Warehouse Scenario"
+description: "Run the UMP mixed-fleet warehouse scenario with mobile, inspection, and manipulator robots, then generate and verify a signed readiness report."
 icon: "play"
+sidebarTitle: "First Scenario"
 ---
 
-The reference workflow has three independent robot controllers:
+The UMP mixed-fleet warehouse scenario demonstrates deterministic collaboration across three independent robot emulators. In this scenario, `mobile-1` transports a payload to a workcell, `inspector-1` verifies the destination is ready, and `manipulator-1` places the payload only after both dependencies succeed. Every assignment passes through plan validation, a scoped authority lease, the adapter boundary, and native-style acceptance. This proves the deterministic software path in under five minutes.
 
-1. `mobile-1` transports a payload to a workcell.
-2. `inspector-1` inspects the destination and reports readiness.
-3. `manipulator-1` places the payload after both dependencies succeed.
+## Scenario workflow
 
 ```mermaid
 flowchart LR
-  G[Warehouse transfer goal] --> P[Validated plan]
-  P --> M[mobile-1: carry]
-  P --> I[inspector-1: inspect]
-  M --> A{Dependencies passed?}
-  I --> A
-  A --> R[manipulator-1: place]
-  R --> O[Recorded outcome]
+    M["mobile-1<br/>carries payload"] --> I["inspector-1<br/>inspects workcell"]
+    M --> MAN["manipulator-1<br/>places payload"]
+    I --> MAN
 ```
 
+The manipulator waits for both the mobile robot and the inspector to succeed before it begins. If either dependency fails or becomes unknown, the placement step is blocked.
+
+## Run the scenario
+
 <Steps>
-  <Step title="Run the scenario">
+  <Step title="Run the lab scenario">
+    Execute the deterministic mixed-fleet scenario and save the outcome:
+
     ```bash
     ump-lab run --output .ump-lab/scenario.json
     ```
 
-    Look for `"passed": true` and three `"succeeded"` step statuses.
+    Expected result: `"passed": true` in the scenario output.
   </Step>
-  <Step title="Generate evidence">
+  <Step title="Generate a readiness report">
+    Create a signed machine-readable report containing runtime versions, configuration hashes, scenario outcomes, delivery metrics, fault outcomes, mapping warnings, and artifact checksums:
+
     ```bash
     ump-readiness report --output .ump-lab/readiness.json
     ```
+
+    Without `--signing-key`, UMP uses an ephemeral Ed25519 key. This proves report integrity, not operator identity. For release or hardware trials, supply an owner-controlled key.
   </Step>
-  <Step title="Verify the signature and checksums">
+  <Step title="Verify the report">
+    Validate the signature and report contents:
+
     ```bash
     ump-readiness verify .ump-lab/readiness.json
     ```
 
-    A valid report returns `"valid": true`.
+    Expected result: `"valid": true`.
   </Step>
 </Steps>
 
-## What just happened
+## What this proves
 
-Each controller exposed a manifest and semantic state through `RobotAdapter`.
-The planner produced dependency-ordered high-level steps. UMP validated each
-step, checked a robot-local capability lease, and asked the native-style
-controller to accept it. The controller remained authoritative for execution
-and final outcome.
+Passing the scenario and readiness verification demonstrates:
 
-## What this does not prove
+- The deterministic software path from plan validation through authority lease, adapter boundary, and native-style acceptance
+- Protocol envelope encoding, schema validation, and dependency progression
+- Durable coordinator dispatch and outcome recording
+- Correct behavior across three independent controller emulators
 
-This scenario is deterministic and process-local. It does not prove live
-middleware, network behavior, Gazebo loading, vendor SDK compatibility, or
-physical safety. Continue to the [Docker lab](/quickstart/docker-lab) for those
-software boundaries.
+<Note>
+  Passing this scenario proves **protocol compatibility through the full path**: plan validation, authority lease, adapter boundary, and native-style acceptance. It does **not** prove physical compatibility with your hardware. Physical trials require a separate supervised qualification process.
+</Note>
+
+## Run all tests
+
+After the scenario passes, run the complete test and conformance suite to confirm full compatibility:
+
+### Python unit and integration tests
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+### Protocol conformance vectors
+
+```bash
+ump-conformance conformance/v0.1
+```
+
+The conformance suite validates encoding, size bounds, identity matching, session ordering, replay rejection, state freshness, plan capability matching, dependency validation, input-schema validation, and duplicate assignment handling. Exit status `0` means every check passed.
+
+## Next steps
+
+- Review the [safety boundary](/overview/safety-boundary) to understand what UMP does and does not control
+- Learn how to [connect a real robot](/guides/manufacturer-adapter) by implementing the `RobotAdapter` protocol
+- Explore [hardware readiness](/validate/hardware-readiness) for the full qualification gate before physical trials

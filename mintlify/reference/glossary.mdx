@@ -1,42 +1,39 @@
 ---
-title: "Glossary"
-description: "Precise meanings for UMP protocol and deployment terms."
+title: "UMP Glossary of Terms and Definitions"
+description: "Definitions for UMP-specific terms including participants, adapters, authority leases, shared goals, assignments, outcomes, capabilities, and deployment concepts."
 icon: "book-a"
+sidebarTitle: "Glossary"
 ---
 
-**Adapter** — The manufacturer-controlled semantic boundary implementing
-`RobotAdapter`.
+This glossary defines the core terms used throughout the Universal Machine Protocol documentation. Use it to clarify concepts before reading protocol, deployment, or integration guides.
 
-**Assignment** — One validated, authority-bound high-level capability request
-for one robot.
+| Term | Definition |
+| --- | --- |
+| **UMP participant** | A robot or service running the UMP protocol stack. Participants publish manifests and state, receive assignments, and enforce local authority policy. |
+| **Manufacturer adapter** | The `RobotAdapter` implementation that bridges native robot software and UMP. It implements `manifest()`, `state()`, `accept()`, and `cancel()`. Native controllers retain final authority. |
+| **Authority lease** | A scoped, time-bounded grant from a robot owner authorizing a specific capability. Stored and evaluated on the target robot. Remote peers cannot grant themselves authority. |
+| **Shared goal** | A semantic high-level objective submitted to the coordinator. Contains a goal ID, description, participant IDs, constraints, and an optional deadline. |
+| **Collaborative plan** | A validated, dependency-ordered set of assignments derived from a goal batch. Each step targets one participant and waits for its predecessors to succeed. |
+| **Assignment** | A bounded high-level task sent to one participant under a valid authority lease. Includes a capability name, inputs, and a stable assignment ID. |
+| **Outcome** | The terminal result of an assignment: `succeeded`, `failed`, `rejected`, or `unknown`. Outcomes are durable and immutable once recorded. |
+| **Capability** | A named, versioned, schema-validated behavior a robot advertises in its manifest. Standard capabilities live under `ump.standard/v1`. Vendor capabilities use vendor-owned namespaces. |
+| **Freshness** | The declared validity window (`fresh_for_ms`) for a state message. State becomes stale after `timestamp_ms + fresh_for_ms` and must not be used for planning. |
+| **Disclosure** | Per-peer policy controlling which message types and capabilities a participant reveals. The default is empty: no metadata is disclosed without explicit configuration. |
+| **Safety stream** | The optional second UMP stream carrying state-only safety observability messages. It uses an independent sequence counter within the same session. Not an emergency stop. |
+| **Deployment bundle** | The generated set of certificates, keys, network configurations, and startup scripts for a local UMP network. Created with `ump-deployment generate` or `ump-deployment quickstart`. |
+| **Readiness report** | A signed evidence artifact from the software qualification lab. Contains scenario outcomes, fault decisions, load metrics, and artifact hashes. Gates progression to hardware trials. |
+| **Conformance vector** | A canonical test fixture for the UMP 0.1 protocol encoder/decoder. Contains hex-encoded wire bytes and expected decode/encode results. |
+| **Inspector** | The read-only web UI showing recorded UMP participant state. Serves from a local SQLite database and never invents robots or telemetry. |
 
-**Authority lease** — A local, scoped, expiring robot-owner permission for one
-issuer and capability.
+## Related concepts
 
-**Capability** — A versioned high-level semantic contract with validated inputs,
-outputs, units, and frames.
-
-**Coordinator** — The durable service that validates plans, checks authority,
-dispatches ready assignments, and records outcomes.
-
-**Freshness** — Whether an observed state remains current under configured time
-bounds.
-
-**Manifest** — A robot's identity and currently advertised capability contracts.
-
-**Mapping report** — Loss-aware evidence listing mapped, defaulted,
-unsupported, and rejected fields during standards conversion.
-
-**Native acceptance** — The robot controller or adapter's final decision to
-accept or reject a high-level assignment.
-
-**Participant** — One authenticated robot or coordinator identity on a UMP
-network.
-
-**Plan** — A validated set of capability steps and dependencies proposed for a
-shared goal.
-
-**State** — A bounded semantic observation of current robot operation.
-
-**Unknown outcome** — Work that may have executed but whose terminal result
-cannot be safely proven without reconciliation.
+| Term | Definition |
+| --- | --- |
+| **Session** | A unique identity for one participant process lifetime. A new accepted session supersedes state from older sessions of the same robot. |
+| **Sequence** | A positive, monotonically increasing integer within a session and stream. Used for replay protection. |
+| **Plan revision** | An immutable plan update with an incremented revision number and a predecessor reference. Prior plans remain auditable. |
+| **Reconciliation** | The process of resolving an `unknown` assignment using operator or manufacturer evidence. Prevents blind retry of uncertain physical work. |
+| **Communication loss** | A detected condition when required peer state becomes stale. The adapter's `CommunicationLossHandler` defines the native response. |
+| **mTLS** | Mutual TLS 1.3 with mandatory client certificates. Each peer presents a certificate containing exactly one `urn:ump:robot:<robot-id>` URI identity. |
+| **Credential generation** | A staged, activated, or revoked certificate bundle in the robot-local credential store. Activation retires the prior generation atomically. |
+| **Preflight** | A validation mode that checks deployment inputs without binding sockets or creating runtime stores. Use it before starting a node or coordinator. |

@@ -1,33 +1,82 @@
 ---
-title: "ROS 2"
-description: "Publish UMP awareness and receive bounded high-level assignments on ROS 2."
+title: "ROS 2 Integration: Semantic Awareness Topics for UMP 0.1"
+description: "Bridge ROS 2 and UMP 0.1 using semantic manifest and state topics. Requires rclpy and the ump_interfaces package. High-level tasks use ExecuteCapability action."
 icon: "circle-nodes"
+sidebarTitle: "ROS 2"
 ---
 
-The ROS 2 integration publishes semantic manifest and state topics and exposes
-a high-level assignment action. UMP core is not coupled to a single ROS
-distribution.
+The ROS 2 integration provides bidirectional semantic awareness between ROS 2 and UMP 0.1. It maps manifest and state topics in both directions, letting ROS 2 nodes publish UMP-compatible robot descriptions and receive peer awareness. High-level task coordination uses the `ExecuteCapability` action. ROS graph management, vendor actions, autonomy, and safety remain native to the ROS 2 ecosystem.
 
-The separately buildable interface package is located at
-`ros2_interfaces/ump_interfaces` and defines awareness messages and the
-`ExecuteCapability` action.
+## Requirements
 
-## Recommended adapter pattern
+The integration requires `rclpy` and the separately built `ros2_interfaces/ump_interfaces` package. These are loaded only when the ROS 2 runtime is selected. You must build the `ump_interfaces` package from the `ros2_interfaces/` directory in the UMP repository before using this integration.
 
-```mermaid
-flowchart LR
-  V[Vendor ROS topics/actions] <--> A[Manufacturer ROS adapter]
-  A <--> U[UMP ROS bridge]
-  U <--> N[UMP network]
-```
+## Mapped fields
 
-Do not expose low-level velocity, trajectory, joint, or emergency interfaces as
-UMP assignments. Translate one reviewed high-level vendor action at a time.
+| ROS 2 topic / action | UMP mapping |
+| --- | --- |
+| Semantic manifest topic | Robot identity, capabilities, manufacturer, model |
+| Semantic state topic | Mode, activity, intent, progress, health, battery, pose |
+| `ExecuteCapability` action | High-level assignment request and outcome |
+
+The integration preserves the full UMP 0.1 envelope structure, including protocol version, message identity, timestamps, and correlation IDs.
+
+## Modes and tasks
+
+The default mode is `read_only`. When `task_enabled` is configured, high-level assignments are delivered through the `ExecuteCapability` action. The target adapter must advertise the requested capability, and the robot owner must grant a valid UMP authority lease before the assignment is accepted.
+
+## Runtime check
+
+Confirm the ROS 2 runtime and `ump_interfaces` are available:
 
 ```bash
-python3 examples/standards_mapping_demo.py ros2
 ump-integration runtime ros2
 ```
 
-The Docker ROS 2 profile proves a real `/ump/lab/semantic_state` publish and
-subscribe path under ROS 2 Jazzy.
+## Docker profile
+
+Run the ROS 2 lab profile to test the integration in a containerized environment:
+
+```bash
+docker compose -f docker-compose.lab.yml --profile ros2 run --build --rm ros2
+```
+
+This builds and runs the ROS 2 interfaces and UMP semantic bridge in an isolated environment.
+
+## Sample integration config
+
+```json
+{
+  "profile": "ump.integration-config/v1",
+  "type": "ros2",
+  "standard_version": "0.1",
+  "endpoint": "ros2://ump/semantic",
+  "mode": "read_only",
+  "identity": {
+    "external_id": "ros2-node-1",
+    "robot_id": "robot-ros2-1"
+  }
+}
+```
+
+Validate before connecting:
+
+```bash
+ump-integration validate ros2-config.json
+```
+
+## Building the interfaces
+
+Build the `ump_interfaces` ROS 2 package from the `ros2_interfaces/` directory before starting the integration:
+
+```bash
+cd ros2_interfaces
+colcon build --packages-select ump_interfaces
+source install/setup.bash
+```
+
+The package provides the message and action definitions that the semantic bridge uses to communicate between ROS 2 and UMP.
+
+## Native responsibility
+
+ROS 2 graph management, vendor-specific actions, autonomy stacks, and safety systems remain under native ROS 2 control. UMP provides the cross-manufacturer semantic layer above the ROS 2 transport. It does not replace `move_base`, navigation stacks, or safety nodes.

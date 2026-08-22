@@ -1,22 +1,40 @@
 ---
-title: "Integrations overview"
-description: "Reuse established robotics standards and add UMP only where a coordination gap exists."
+title: "UMP Standards Integrations: Connect Robots Without Replacing Controllers"
+description: "UMP translates MassRobotics, VDA 5050, Open-RMF, ROS 2, and OPC UA Robotics into the UMP 0.1 semantic model. Learn how each integration maps awareness and tasks while keeping native control intact."
 icon: "shuffle"
+sidebarTitle: "Overview"
 ---
 
-UMP preserves each standard's native semantics and responsibilities. Mapping is
-loss-aware: every conversion reports mapped, defaulted, unsupported, and
-rejected fields.
+UMP connects to established robotics standards through translation adapters. Each integration maps external fields into the UMP 0.1 semantic model without merging the standards or taking over native controller responsibilities. This lets heterogeneous robots share awareness and accept high-level assignments while keeping their existing autonomy, safety systems, and fleet software.
 
-| Standard | Primary role | UMP contribution |
-| --- | --- | --- |
-| MassRobotics 1.0 | Interoperable AMR status | Shared awareness mapping |
-| VDA 5050 3.0 | AGV orders and state over MQTT | Cross-fleet semantic bridge and authority |
-| Open-RMF | Traffic and facility orchestration | UMP participant and task bridge |
-| ROS 2 | Robot middleware graph | Awareness topics and high-level assignment action |
-| OPC UA Robotics 1.02 | Industrial information model | Filtered import and read-only exposure |
+All mapping code ships in the main UMP distribution. External libraries such as `paho-mqtt`, `rclpy`, or `asyncua` load only when you select their runtime. Missing runtimes produce `IntegrationUnavailableError` only when the integration is explicitly chosen.
 
-## Common configuration
+## Compatibility matrix
+
+| Integration | Inbound | Outbound | External tasks | Native responsibility |
+| --- | --- | --- | --- | --- |
+| MassRobotics 1.0 | Identity, operation, task ID, location, health, battery | Same plus identity | Mapping available, read-only by default | AMR navigation and fleet behavior |
+| VDA 5050 3.0 | Factsheet identity, state, pose, battery, safety, errors, order ID | Factsheet plus state profile | Orders require explicit capability mapping and a valid UMP authority lease | AGV motion, route, and safety |
+| Open-RMF | Fleet identity, participant state, level pose, task and progress | Participant identity, capabilities, state and pose | Task categories require capability mapping and a valid UMP authority lease | Traffic, maps, doors, lifts, and scheduling |
+| ROS 2 | Semantic manifest and state topics | Semantic manifest and state topics | High-level `ExecuteCapability` action | ROS graph, vendor actions, autonomy, and safety |
+| OPC UA Robotics 1.02 | Identification, operating mode, health, battery, semantic extension | Filtered read-only UMP address space | Not exposed | Plant information model and robot controller |
+
+## Runtime checks
+
+Before starting a node with an integration, confirm the optional runtime is available:
+
+```bash
+ump-integration runtime vda5050
+ump-integration runtime open_rmf
+ump-integration runtime ros2
+ump-integration runtime opc_ua
+```
+
+MassRobotics does not require a separate runtime check because its mapping has no required transport dependency. The robot owner supplies the approved WebSocket lifecycle.
+
+## Configuration profile
+
+Every integration uses the `ump.integration-config/v1` profile. The config identifies the standard version, endpoint, external-to-UMP identity binding, disclosure fields, mode, and optional task mappings.
 
 ```json
 {
@@ -24,25 +42,45 @@ rejected fields.
   "type": "vda5050",
   "standard_version": "3.0.0",
   "endpoint": "mqtts://broker.example:8883",
-  "mode": "read_only",
+  "mode": "task_enabled",
   "identity": {
     "external_id": "agv-17",
     "robot_id": "robot-mobile-17"
   },
-  "task_mappings": []
+  "task_mappings": [
+    {
+      "external_type": "transport",
+      "capability": "ump.material.carry/v1",
+      "input_fields": {"destination": "destination"}
+    }
+  ]
 }
 ```
 
+Validate the configuration before opening external or UMP network connections:
+
 ```bash
 ump-integration validate integration.json
-ump-integration runtime vda5050
 ```
 
-<Warning>
-  `task_enabled` does not authorize work. External tasks also require an
-  explicit capability mapping, an advertised capability, a valid owner lease,
-  correct frames and units, and native acceptance.
-</Warning>
+## Modes and authority
 
-Missing or ambiguous data stays unknown. Mapping failures never invent
-telemetry or silently coerce unsupported commands.
+`read_only` is the default mode for every integration. In this mode, UMP translates awareness fields but does not expose or accept external task assignments.
+
+`task_enabled` allows external work requests, but it does not authorize them by itself. The target adapter must advertise the mapped capability, and the robot owner must grant a matching UMP authority lease. See the [Authority Leases](/authority/overview) documentation for details on granting scoped assignment permission.
+
+## Mapping evidence
+
+Every conversion returns `ump-mapping-report-v1.schema.json` evidence listing mapped, defaulted, unsupported, and rejected fields. Missing data remains unknown. Adapters must not fabricate intent, progress, safety, pose, or battery values.
+
+Run dependency-free mapping fixtures to validate conversion behavior:
+
+```bash
+python3 examples/standards_mapping_demo.py massrobotics
+python3 examples/standards_mapping_demo.py vda5050
+python3 examples/standards_mapping_demo.py open_rmf
+python3 examples/standards_mapping_demo.py ros2
+python3 examples/standards_mapping_demo.py opc_ua
+```
+
+These fixtures prove conversion semantics. They do not validate a broker, ROS graph, Open-RMF deployment, OPC UA server, vendor controller, or physical robot.

@@ -1,41 +1,104 @@
 ---
-title: "Use the inspector"
-description: "Observe recorded robot awareness, mappings, faults, and collaboration progress."
+title: "Inspect Recorded UMP Traffic with the Read-Only Inspector"
+description: "Start the UMP inspector to view robot manifests, semantic state, and correlated events from recorded protocol traffic without exposing raw manufacturer data."
 icon: "monitor-dot"
+sidebarTitle: "Inspector"
 ---
 
-The inspector is a read-only operational UI backed by an inspector SQLite
-database. It displays observed UMP records, not assumptions about external
-robots or middleware.
+The UMP inspector is a local, read-only operational view of observed protocol traffic. It displays robot manifests, current semantic state, advertised capabilities, and a correlated event timeline. The inspector never exposes raw manufacturer SDK data, sensor streams, or native controller internals. It also has no endpoint or UI action for assignments, cancellations, authority changes, or native commands.
 
-```bash
-ump-inspector \
-  --database ump-local-lab/nodes/robot-humanoid-1/state/inspector.sqlite3 \
-  --host 127.0.0.1 \
-  --port 8765
+A robot appears in the inspector only after a running UMP node has loaded a manufacturer adapter, published an authenticated manifest and semantic state, and recorded those messages in the exact inspector database being served. With no recorded messages, the UI deliberately shows zero robots, zero events, and "No UMP robots observed."
+
+## What the inspector shows
+
+For each genuinely observed robot, the inspector displays disclosed fields only:
+
+- Stable robot identity, manufacturer, model, and robot class
+- Operating mode, safety condition, operational health, and state freshness
+- Battery level, charging status, observation time, and estimated runtime when supplied
+- Current activity, intent, progress, assignment, resources, and blockers
+- Advertised high-level capabilities
+- Optional pose metadata and bounded sensor references
+- Correlated manifests, states, assignments, cancellations, plans, and outcomes
+
+Unknown, omitted, or unavailable native telemetry remains visibly unknown. The inspector does not estimate battery, health, task completion, or physical state.
+
+## Start the inspector
+
+<Steps>
+  <Step title="Enable recording on a running node">
+    Pass `--inspector-database` when starting `ump-node` or `ump-coordinator submit`:
+
+    ```bash
+    ump-node \
+      --network /etc/ump/network.json \
+      --adapter manufacturer_package.adapter:create_adapter \
+      --assignment-database /var/lib/ump/assignments.sqlite3 \
+      --authority-database /var/lib/ump/authority.sqlite3 \
+      --credential-database /var/lib/ump/credentials.sqlite3 \
+      --credential-directory /var/lib/ump/credentials \
+      --inspector-database /var/lib/ump/inspector.sqlite3
+    ```
+
+    The path must be unique from every other runtime database role. Participant and coordinator preflight validate it without creating the file. The ready event reports `inspector_recording: true` when capture is active.
+  </Step>
+  <Step title="Serve the inspector UI">
+    From an installed package:
+
+    ```bash
+    ump-inspector --database /var/lib/ump/inspector.sqlite3 --host 127.0.0.1 --port 8765
+    ```
+
+    From a source checkout:
+
+    ```bash
+    PYTHONPATH=src python3 -m ump.cli inspector \
+      --database /var/lib/ump/inspector.sqlite3 --host 127.0.0.1 --port 8765
+    ```
+
+    The server accepts only `127.0.0.1`, `::1`, or `localhost` in v0.1 and sends restrictive content security, cache, referrer, and content-type headers.
+  </Step>
+  <Step title="Open the UI">
+    Navigate to `http://127.0.0.1:8765`. The UI polls the local snapshot endpoint and can run while another process appends to the database.
+  </Step>
+</Steps>
+
+<Note>
+  The database passed to `ump-inspector` must be the same path supplied to the active `ump-node` or coordinator through `--inspector-database`. Serving a different compatible database is valid, but it will show only the traffic recorded in that database.
+</Note>
+
+## How recording works
+
+The `InspectorRecorder` subscribes to all message types and writes canonical envelopes to an append-only SQLite WAL database managed by `InspectorStore`. Repeated message IDs and repeated source or session sequence values are ignored.
+
+Recorder write failures are latched instead of propagating through the message handler that already processed an inbound envelope. Supported owner services include that latch in recurring runtime health checks and fail visibly after a recording fault.
+
+For embedded runtimes, attach one recorder to the same `MessageBus`:
+
+```python
+from ump.inspector import InspectorRecorder, InspectorStore
+
+store = InspectorStore("var/ump-inspector.sqlite3")
+recorder = InspectorRecorder(bus, store)
 ```
 
-Open `http://127.0.0.1:8765/`.
+## Operational limits
 
-## What you can inspect
+The inspector is observational, not a complete audit system. Recording must be enabled to capture traffic, host access still follows local machine permissions, and database retention or export policy remains the deployer's responsibility.
 
-- Robot identity, availability, mode, activity, intent, and progress.
-- Health, battery, safety, pose, observation time, and freshness.
-- Adapter source, integration standard, mapping status, and warnings.
-- Reconnect count, injected faults, authority activity, and scenario progress.
-- Collaborative runs, assignments, cancellation, and terminal outcomes.
+A `Live` indicator in the UI means the browser can reach the local inspector server. It does not by itself mean that any robot is connected. Use robot state freshness and network diagnostics to assess participant connectivity.
 
-## Empty inspector
+## Troubleshooting
 
-An empty inspector means its selected database has no compatible recorded
-messages. Confirm:
+<Accordion title="The UI shows zero robots">
+  Confirm that the running node uses the exact same `--inspector-database` path. An empty UI means no compatible messages have been recorded. It does not prove that hardware, ROS, or a manufacturer SDK is disconnected elsewhere.
+</Accordion>
 
-1. The participant is running.
-2. Its `--inspector-database` path matches the inspector's `--database` path.
-3. Peer disclosure permits manifest and state messages.
-4. Credentials and network preflight pass.
+<Accordion title="ump-inspector exits with status 2">
+  The command requires an existing compatible recorder database and opens it with SQLite `mode=ro` and `query_only`. It validates the read-model columns before binding the HTTP listener. A missing, mistyped, unreadable, or incompatible path returns exit status `2`. The command does not create a parent directory, database, table, or protocol event.
+</Accordion>
 
-<Warning>
-  Opening `src/ump/inspector_static/index.html` directly only renders the static
-  frontend shell. It does not connect to a database or discover robots.
-</Warning>
+## Next steps
+
+- [Production Node](/guides/production-node) to configure a node that records inspector data
+- [Local Network](/guides/local-network) to generate a local lab where you can exercise the inspector

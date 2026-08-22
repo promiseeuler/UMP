@@ -1,17 +1,15 @@
 ---
-title: "VDA 5050"
-description: "Bridge versioned MQTT factsheets, state, visualization, actions, and orders."
+title: "VDA 5050 Integration: Connect AGV State and Orders to UMP 0.1"
+description: "Map VDA 5050 v3.0 factsheet, state, pose, battery, and safety fields into UMP 0.1 over MQTT with TLS. Task mode requires explicit capability mapping and a valid authority lease."
 icon: "truck"
+sidebarTitle: "VDA 5050"
 ---
 
-UMP supports versioned VDA 5050 MQTT topics, factsheets, state, visualization,
-instant actions, and orders while leaving route execution and AGV safety native.
+UMP supports versioned VDA 5050 MQTT topics, factsheets, state, visualization, instant actions, and orders while leaving route execution and AGV safety native.
 
 ## Awareness mapping
 
-Factsheets and state can provide identity, pose, battery, safety, errors,
-operating state, and order identity. UMP preserves version, manufacturer,
-serial number, timestamps, map identity, and units where semantics align.
+Factsheets and state can provide identity, pose, battery, safety, errors, operating state, and order identity. UMP preserves version, manufacturer, serial number, timestamps, map identity, and units where semantics align.
 
 ## Order mapping
 
@@ -25,8 +23,7 @@ flowchart LR
   L -->|yes| A[Native adapter acceptance]
 ```
 
-Read-only is the default. Never infer an executable UMP capability from a VDA
-action name alone.
+Read-only is the default. Never infer an executable UMP capability from a VDA action name alone.
 
 ```bash
 python3 examples/standards_mapping_demo.py vda5050

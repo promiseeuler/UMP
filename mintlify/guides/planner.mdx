@@ -1,43 +1,194 @@
 ---
-title: "Integrate a planner"
-description: "Use deterministic or external reasoning while preserving UMP validation."
+title: "Use the UMP Planner and Coordinator for Multi-Robot Goals"
+description: "Submit shared goals to the UMP coordinator, validate plans against robot capabilities and authority leases, and manage dependency chains across participants."
 icon: "brain-circuit"
+sidebarTitle: "Planner"
 ---
 
-The planner converts a validated shared goal and observed participant context
-into a proposed dependency plan. It does not dispatch work.
+The UMP coordinator converts shared goals into validated, durable high-level assignments across multiple robots. It does not issue actuator commands, trajectories, or emergency stops. Instead, it matches goal steps to robot capabilities, checks authority leases and state freshness, and dispatches assignments only after every validation passes.
 
-## Provider boundary
+## Goal documents
 
-```mermaid
-flowchart LR
-  G[Validated goal] --> P[Planner provider]
-  S[Fresh participant state] --> P
-  P --> Q[Proposed plan]
-  Q --> V{UMP validation}
-  V -->|valid| C[Coordinator]
-  V -->|invalid| R[Reject with reason]
+Goals are JSON documents that describe a multi-robot task. A single goal uses the `ump-shared-goal-v1` schema. A batch of goals uses `ump-shared-goal-batch-v1` and can contain 1 to 256 goal objects.
+
+Example single goal:
+
+```json title="move-package.json"
+{
+  "goal_id": "goal-move-package-1",
+  "description": "Move the sealed package from intake to storage shelf A",
+  "participant_ids": [
+    "robot-humanoid-1",
+    "robot-quadruped-1",
+    "robot-mobile-arm-1"
+  ],
+  "constraints": {"keep_upright": true},
+  "deadline_ms": 1770000000000
+}
 ```
 
-The deterministic planner is the reference provider. An external reasoning
-model may be used only behind the validated provider interface.
+Validate a goal before deployment:
+
+```bash
+ump-goal validate move-package.json
+```
+
+For batches:
+
+```bash
+ump-goal validate-batch shift-tasks.json
+```
+
+Goal documents reject unknown fields, duplicate participants, non-object constraints, invalid identifiers, and non-integer deadlines.
+
+## Explore standard capabilities
+
+Before writing goals, explore what capabilities are available in the UMP standard vocabulary:
+
+```bash
+ump-capability list
+```
+
+Show the full contract for a specific capability:
+
+```bash
+ump-capability show ump.material.carry/v1
+```
+
+Validate that a goal input conforms to a capability's input schema:
+
+```bash
+ump-capability validate-input ump.material.carry/v1 goal.json
+```
+
+## Coordinator commands
+
+The coordinator CLI provides commands to preflight, submit, inspect, and manage goal runs.
+
+### Preflight the coordinator
+
+Validate deployment inputs before loading a planner or binding a listener:
+
+```bash
+ump-coordinator preflight \
+  --network /etc/ump/coordinator-network.json \
+  --credential-database /var/lib/ump/coordinator-credentials.sqlite3 \
+  --credential-directory /var/lib/ump/coordinator-credentials \
+  --database /var/lib/ump/coordinator.sqlite3
+```
+
+Preflight validates the network configuration, current active credential, certificate and key compatibility, owner-only private-key permissions, writable storage parents, and distinct database paths.
+
+### Submit a goal
+
+```bash
+ump-coordinator submit \
+  --network /etc/ump/coordinator-network.json \
+  --credential-database /var/lib/ump/coordinator-credentials.sqlite3 \
+  --credential-directory /var/lib/ump/coordinator-credentials \
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --planner owner_planner:create_planner \
+  --planner-config /etc/ump/planner.json \
+  --goal /etc/ump/goals/move-package.json \
+  --authority-lease robot-humanoid-1=owner-shift-a \
+  --authority-lease robot-quadruped-1=owner-shift-b
+```
+
+The coordinator waits up to 30 seconds for a manifest and fresh semantic state from every participant before invoking the planner. It then waits up to five minutes for a terminal durable run result.
+
+### Submit a batch
+
+Replace `--goal` with `--goals` for batch submission:
+
+```bash
+ump-coordinator submit \
+  ... \
+  --goals /etc/ump/goals/shift-tasks.json \
+  --authority-lease robot-humanoid-1=owner-shift-a
+```
+
+Goal IDs must be unique. The coordinator validates every proposed plan before journaling or publishing any run. Runs progress independently under one bounded completion deadline. Exit status is successful only when every run succeeds.
+
+### Inspect and list runs
+
+Check the status of a specific plan:
+
+```bash
+ump-coordinator status \
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --plan-id PLAN_ID
+```
+
+List recent runs newest first, optionally filtered by status:
+
+```bash
+ump-coordinator runs \
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --status active \
+  --limit 100
+```
+
+Show detailed information about a specific run:
+
+```bash
+ump-coordinator show \
+  --database /var/lib/ump/coordinator.sqlite3 \
+  --plan-id PLAN_ID
+```
 
 ## Plan validation
 
-UMP checks:
+Every returned plan is untrusted. Before publishing assignments, the coordinator validates:
 
-- Stable participant and capability identities.
-- Versioned input and output schemas.
-- Required units and coordinate frames.
-- Acyclic dependencies and immutable revision lineage.
-- Capability availability and disclosure.
-- Explicit external-task mappings where applicable.
+- Message size and goal identity
+- Participants against network disclosure policy
+- Fresh state from every participant
+- Capability availability and matching
+- Deadline feasibility
+- Dependency chains for cycles
+- Authority leases for scope and validity
 
-Provider output remains a proposal until every check passes. Authority is
-checked separately at assignment time.
+Each robot then independently validates its local lease, capability input schema, resource availability, and safety policy. A planner cannot bypass those checks.
 
-## Operational recommendation
+## Dependency chains
 
-Record the provider identity, model or implementation version, prompt or policy
-hash, input context hash, proposed plan, validation report, and final accepted
-plan revision for every reasoning-assisted run.
+Plan steps can declare required predecessor steps. Only `succeeded` satisfies a dependency. A failed, rejected, or unknown step blocks its dependent steps. Independent pending steps remain representable but are not dispatched after a run enters a terminal failed or unknown state.
+
+## Planner contract
+
+Implement `ump.Planner` to create custom planners:
+
+```python
+from pathlib import Path
+from ump import Plan, Planner, RobotManifest, RobotState, SharedGoal
+
+class SitePlanner:
+    planner_id = "example.site/planner/v1"
+
+    def propose(
+        self,
+        goal: SharedGoal,
+        manifests: dict[str, RobotManifest],
+        states: dict[str, RobotState],
+    ) -> Plan:
+        ...
+
+def create_planner(config_path: Path | None) -> Planner:
+    return SitePlanner()
+```
+
+Load the planner factory explicitly:
+
+```python
+from ump import load_planner
+
+planner = load_planner("site_planner:create_planner", "planner.json")
+```
+
+The deterministic reference factory `ump.demo:create_warehouse_planner` is available for integration tests and examples.
+
+## Next steps
+
+- [Manufacturer Adapter](/guides/manufacturer-adapter) to implement the robot-side protocol that the coordinator targets
+- [Production Node](/guides/production-node) to run a robot participant that receives coordinator assignments
+- [Local Network](/guides/local-network) to set up a lab where you can test planner and coordinator interactions

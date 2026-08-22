@@ -1,41 +1,103 @@
 ---
-title: "Delivery and recovery"
-description: "Durable transport, idempotency, replay protection, and restart reconciliation."
+title: "UMP Durable Delivery: Inboxes, Outboxes, and Reconciliation"
+description: "Understand UMP's durable delivery model: persisted inboxes and outboxes, replay protection, sequence enforcement, reconciliation on restart, and communication loss handling."
 icon: "rotate-cw"
+sidebarTitle: "Delivery"
 ---
 
-UMP separates transport acknowledgement from application outcome. Messages are
-framed, authenticated, identity-bound, sequence-checked, and recorded durably.
+UMP guarantees reliable message delivery through durable inboxes and outboxes, replay protection, and sequence enforcement. These mechanisms ensure that assignments, state updates, and collaboration messages survive process restarts and network interruptions without duplicating physical work.
 
-## Delivery guarantees
+## Durable inboxes and outboxes
 
-- Per-peer FIFO delivery within each stream.
-- Independent operational and safety sequence spaces.
-- Idempotent exact retry.
-- Conflict rejection when one message ID is reused with different content.
-- Durable pending delivery across process restart.
-- Bounded queues and reserved safety-stream capacity.
+Configured buses write every peer-specific disclosed envelope to a SQLite WAL outbox before local publication. A bounded queue applies backpressure by raising an error without partially enqueueing a multi-peer batch. Delivery remains FIFO for each peer even across source-session changes.
 
-## Restart behavior
+Failed attempts use capped exponential backoff, survive sender restart, and are retried by a background worker after the peer returns.
 
-```mermaid
-stateDiagram-v2
-  [*] --> Pending
-  Pending --> Accepted
-  Accepted --> Succeeded
-  Accepted --> Failed
-  Accepted --> Cancelled
-  Accepted --> Unknown: coordinator restarts during execution
-  Unknown --> Succeeded: operator evidence
-  Unknown --> Failed: operator evidence
-  Unknown --> Cancelled: operator evidence
+The receiver stages an envelope, commits its replay sequence floor, then activates the inbox row for application workers. This ordering closes the crash windows on both sides of replay persistence. Workers preserve order per source while allowing different sources to execute concurrently.
+
+Handler failures become durable dead letters exposed through `inbox_counts` and `inbox_failures`. They are not blindly re-executed.
+
+## Safety priority
+
+Safety-state envelopes use the `safety` stream. The durable outbox maintains one FIFO head per peer and stream, selects safety heads first, and reserves configured capacity that operational backlog cannot consume. Safety and operational TLS sends use independent serialization locks, so one blocked operational connection does not block opening a safety connection. A currently in-flight kernel or TLS operation is not cancelled.
+
+The durable inbox orders each source, session, and stream independently and selects ready safety rows first. Replay floors are also stream-qualified. Existing v0.1 databases migrate operational rows and replay floors to the `operational` stream without discarding data.
+
+## Replay protection
+
+The receiver binds sequence state to authenticated robot ID and session ID. A sequence less than or equal to the last accepted sequence is rejected before application delivery. Buses created with `TlsNetworkBus.from_config` persist the highest accepted sequence for every peer session in the configured SQLite WAL database before application delivery. Exact and lower-sequence replays remain rejected after receiver restart.
+
+The direct `TlsMessageServer` constructor defaults to a bounded in-memory window of 4,096 sessions for isolated tests. Production code must use the file-based configuration or explicitly supply `SqliteReplayProtector`. Durable session rows are not automatically evicted because UMP v0.1 has not defined a cryptographic session-expiry rule.
+
+## Delivery acknowledgements
+
+The receiver returns `ump-delivery-ack/0.1` with the matching message ID and a status of `received`, `processed`, or `duplicate`:
+
+| Status | Meaning |
+| --- | --- |
+| `received` | Envelope is durable in the inbox |
+| `processed` | Direct test server handled it synchronously |
+| `duplicate` | Exact message is already durable and will not be processed twice |
+
+A delivery acknowledgement proves durable protocol receipt only. It does not prove that a robot accepted an assignment or completed physical work. Assignment acknowledgements, outcomes, reconciliation, and local safety policy remain the authoritative application lifecycle.
+
+## Reconciliation on restart
+
+When a participant or coordinator restarts, the following recovery behavior applies:
+
+### Participant restart
+
+If a process restarts with an accepted assignment but no terminal outcome, the assignment becomes `unknown`. Redelivery does not invoke native code. The participant returns an `unknown` acknowledgement and outcome so an operator or domain-specific reconciliation process can inspect physical reality.
+
+### Coordinator restart
+
+Previously dispatched or accepted work becomes `unknown`; it is not redispatched. Pending and completed records remain durable. The coordinator can publish an `assignment_query` for each unknown assignment. Only the original authenticated issuer may query the participant journal.
+
+If a durable terminal outcome exists, the participant returns an `assignment_snapshot` containing the status, outcome, and canonical assignment fingerprint. The coordinator requires agreement among authenticated source, assigned robot, assignment ID, outcome identity and status, and the fingerprint of its stored assignment. Only this evidence may transition `unknown` to `succeeded`, `failed`, or `rejected`. An unknown snapshot leaves the run unknown and does not cause redispatch. A recovered success may resume ready dependencies.
+
+### Operator evidence
+
+When no native terminal outcome exists, an authorized operator or manufacturer service can inspect domain evidence and record a determination:
+
+```bash
+ump-reconcile \
+  --database var/assignments.sqlite3 \
+  --assignment-id assignment-42 \
+  --status succeeded \
+  --description "Destination sensor and mission log confirm placement" \
+  --resolver-id operator/alice \
+  --evidence "inspection-record:site-a/2026-08-20/42"
 ```
 
-UMP does not redispatch work whose native outcome is unknown. An operator or
-manufacturer status API must provide evidence before reconciliation.
+Allowed determinations are `succeeded`, `failed`, `rejected`, and `cancelled`. The command does not control the robot or infer a status. Afterward, run coordinator reconciliation with the same authenticated identity and journal that submitted the plan.
 
 ## Communication loss
 
-Adapters may implement `communication_lost()` and `communication_restored()`.
-The callback informs the native policy that required semantic peers became
-stale; it does not dictate how the robot should move or stop.
+A deployment that depends on peer communication must configure a required-peer watchdog and manufacturer-defined local loss behavior. Loss is derived from the same declared state freshness used by collaboration (`fresh_for_ms`), not from sender timestamps alone.
+
+The callback receives the complete stale-peer set on an edge transition. It may invoke reviewed native behavior, but UMP does not prescribe motion. Restoration is a separate edge and means only that required peer state is fresh again. It does not resume assignments or physical work automatically.
+
+Callback exceptions are recorded and retried on the next watchdog evaluation. Restoration does not auto-resume assignments.
+
+## Network diagnostics
+
+Inspect configured durable stores without stopping the service:
+
+```bash
+ump-network-diagnostics --network /etc/ump/network.json
+```
+
+The command opens the inbox and outbox in SQLite read-only mode. It reports status counts, pending work by peer and stream, retry attempts, oldest pending age, the next retry time, and bounded recent retry or dead-letter metadata. Encoded envelopes and message payloads are never returned.
+
+Exit status `0` means all checks pass, `1` means the stores are readable but a backlog age, capacity, reserve, clock, or dead-letter check is degraded, and `2` means configuration or database evidence cannot be trusted. Dead letters require operator investigation; the diagnostics command never retries, deletes, stages, or otherwise changes delivery records.
+
+## Configuration validation
+
+Validate a network configuration before starting a participant or coordinator:
+
+```bash
+ump-network-config validate /etc/ump/network.json
+ump-network-config schema
+```
+
+The loader and public `schemas/ump-network-config-v1.schema.json` reject unknown top-level and peer fields, missing fields, booleans used as numbers, duplicate policy entries, malformed certificate pins, unversioned capability names, unsupported message types, oversized peer lists, invalid bounds, and missing credential files. Unknown fields fail closed because silently ignoring a misspelled pin or disclosure key could change security behavior.
