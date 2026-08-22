@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schemas/ump-fault-profile-v1.schema.json",
+  "type": "object",
+  "required": ["profile", "profile_id"],
+  "properties": {
+    "profile": {"const": "ump-fault-profile/v1"}, "profile_id": {"type": "string", "minLength": 1},
+    "seed": {"type": "integer"}, "latency_ms": {"type": "integer", "minimum": 0}, "jitter_ms": {"type": "integer", "minimum": 0},
+    "loss_rate": {"type": "number", "minimum": 0, "maximum": 1}, "duplicate_rate": {"type": "number", "minimum": 0, "maximum": 1},
+    "reorder_rate": {"type": "number", "minimum": 0, "maximum": 1}, "partitioned_sources": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "broker_restart_at": {"type": ["integer", "null"], "minimum": 1}
+  },
+  "additionalProperties": false
+}

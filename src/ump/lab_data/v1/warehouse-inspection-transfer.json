@@ -1,0 +1,11 @@
+{
+  "profile": "ump-lab-scenario/v1",
+  "scenario_id": "warehouse-inspection-transfer",
+  "description": "Inspect a workcell, transport one payload, and place it with independent native controllers.",
+  "participants": ["mobile-1", "inspector-1", "manipulator-1"],
+  "steps": [
+    {"step_id": "transport", "robot_id": "mobile-1", "capability": "ump.material.carry/v1", "description": "Transport payload to the workcell", "inputs": {"destination_m": [8.0, 2.0, 0.0], "frame_id": "warehouse/map"}, "completion_criteria": "Payload is reported at the workcell"},
+    {"step_id": "inspect", "robot_id": "inspector-1", "capability": "ump.inspection.verify-workcell/v1", "description": "Inspect destination workcell", "inputs": {"frame_id": "warehouse/map"}, "completion_criteria": "Workcell is reported ready"},
+    {"step_id": "place", "robot_id": "manipulator-1", "capability": "ump.manipulation.place/v1", "description": "Place payload in the fixture", "inputs": {"target": "fixture-a", "frame_id": "warehouse/map"}, "completion_criteria": "Payload is reported placed", "depends_on": ["transport", "inspect"]}
+  ]
+}

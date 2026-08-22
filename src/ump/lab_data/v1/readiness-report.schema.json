@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schemas/ump-hardware-readiness-report-v1.schema.json",
+  "type": "object",
+  "required": ["profile", "generated_at_ms", "passed", "runtime_versions", "configuration_sha256", "scenario", "latency_ms", "delivery_counts", "fault_outcomes", "mapping_warnings", "artifact_sha256", "public_key", "signature"],
+  "properties": {
+    "profile": {"const": "ump-hardware-readiness/v1"}, "generated_at_ms": {"type": "integer", "minimum": 0}, "passed": {"type": "boolean"},
+    "runtime_versions": {"type": "object", "additionalProperties": {"type": "string"}}, "configuration_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "scenario": {"type": "object"}, "latency_ms": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}},
+    "delivery_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}, "fault_outcomes": {"type": "array", "items": {"type": "object"}},
+    "mapping_warnings": {"type": "array", "items": {"type": "string"}}, "artifact_sha256": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "public_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "signature": {"type": "string", "pattern": "^[0-9a-f]{128}$"}
+  },
+  "additionalProperties": false
+}

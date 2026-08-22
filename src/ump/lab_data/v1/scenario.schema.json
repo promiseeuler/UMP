@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schemas/ump-lab-scenario-v1.schema.json",
+  "type": "object",
+  "required": ["profile", "scenario_id", "description", "participants", "steps"],
+  "properties": {
+    "profile": {"const": "ump-lab-scenario/v1"},
+    "scenario_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "description": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "participants": {"type": "array", "minItems": 1, "maxItems": 256, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "steps": {
+      "type": "array", "minItems": 1, "maxItems": 256,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["step_id", "robot_id", "capability", "description", "completion_criteria"],
+        "properties": {
+          "step_id": {"type": "string", "minLength": 1}, "robot_id": {"type": "string", "minLength": 1},
+          "capability": {"type": "string", "pattern": "/v[0-9]+$"}, "description": {"type": "string", "minLength": 1},
+          "inputs": {"type": "object"}, "completion_criteria": {"type": "string", "minLength": 1},
+          "depends_on": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

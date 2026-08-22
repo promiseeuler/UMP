@@ -70,6 +70,8 @@ from .lan_evidence import (
     lan_evidence_schema,
     validate_lan_evidence_bundle,
 )
+from .lab import ControllerState, FaultProfile, HardwareReadinessReport
+from .lab import ScenarioDefinition, ScenarioResult, VirtualRobotController
 from .models import (
     Assignment,
     AssignmentStatus,
@@ -194,4 +196,10 @@ __all__ = [
     "verify_local_awareness",
     "validate_plan",
     "validate_adapter_evidence",
+    "ControllerState",
+    "FaultProfile",
+    "HardwareReadinessReport",
+    "ScenarioDefinition",
+    "ScenarioResult",
+    "VirtualRobotController",
 ]
