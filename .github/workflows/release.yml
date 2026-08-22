@@ -30,6 +30,7 @@ jobs:
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-v0.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-integration-config-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-mapping-report-v1.schema.json$'
+          tar -tzf dist/*.tar.gz | grep '/schemas/ump-hardware-readiness-report-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/conformance/v0.1/manifest.json$'
           tar -tzf dist/*.tar.gz | grep '/REFERENCE.md$'
       - name: Test installed wheel
@@ -42,6 +43,8 @@ jobs:
           (cd /tmp && /tmp/ump-release/bin/ump-node --help)
           (cd /tmp && /tmp/ump-release/bin/ump-inspector --help)
           (cd /tmp && /tmp/ump-release/bin/ump-integration schema)
+          (cd /tmp && /tmp/ump-release/bin/ump-lab schema readiness)
+          (cd /tmp && /tmp/ump-release/bin/ump-readiness --validate-only)
       - name: Generate checksums
         run: sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
       - uses: actions/upload-artifact@v7

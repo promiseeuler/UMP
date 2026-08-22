@@ -27,4 +27,31 @@ jobs:
       - run: ump-benchmark
       - run: ump-benchmark --profile tls-loopback --samples 100
       - run: ump-readiness --validate-only
+      - run: ump-lab run --workspace /tmp/ump-lab --output /tmp/ump-lab.json
+      - run: ump-lab load --participants 250 --cycles 5
+      - run: python scripts/check_gazebo_world.py
       - run: python -m json.tool schemas/ump-v0.schema.json > /dev/null
+
+  docker-lab:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose profiles
+        run: docker compose -f docker-compose.lab.yml config > /dev/null
+      - name: Run core scenario in container
+        run: docker compose -f docker-compose.lab.yml --profile core run --build --rm core
+      - name: Run live MQTT, OPC UA, and WebSocket probes
+        shell: bash
+        run: |
+          docker compose -f docker-compose.lab.yml --profile standards up -d --wait mqtt
+          docker compose -f docker-compose.lab.yml --profile standards run --build --rm standards
+          docker compose -f docker-compose.lab.yml --profile standards run --rm standards python -m ump.lab_services opc_ua
+          docker compose -f docker-compose.lab.yml --profile standards run --rm standards python -m ump.lab_services massrobotics
+      - name: Run Linux ROS 2 round trip
+        run: docker compose -f docker-compose.lab.yml --profile standards run --build --rm ros2
+      - name: Run proxied MQTT fault path
+        run: docker compose -f docker-compose.lab.yml --profile fault run --build --rm fault-test
+      - name: Load the Gazebo reference world headlessly
+        run: docker compose -f docker-compose.lab.yml --profile visual run --build --rm visual
+      - if: always()
+        run: docker compose -f docker-compose.lab.yml --profile standards --profile fault down --volumes

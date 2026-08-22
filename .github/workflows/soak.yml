@@ -1,0 +1,28 @@
+name: Hardware-readiness soak
+
+on:
+  schedule:
+    - cron: "0 1 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eight-hour-soak:
+    runs-on: [self-hosted, linux, ump-soak]
+    timeout-minutes: 540
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install .
+      - name: Run continuous eight-hour probe
+        run: ump-lab soak --duration-s 28800 --participants 25 --state-hz 2 | tee soak-result.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ump-eight-hour-soak-${{ github.run_id }}
+          path: soak-result.json
+          if-no-files-found: error
+          retention-days: 30
