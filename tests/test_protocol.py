@@ -11,7 +11,16 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from ump.collaboration import Coordinator, PlanValidationError, validate_plan
 from ump.demo import WarehousePlanner, build_demo
-from ump.models import Assignment, PlanStep, RobotState, Safety, SharedGoal
+from ump.models import (
+    Assignment,
+    BatteryState,
+    BatteryStatus,
+    Health,
+    PlanStep,
+    RobotState,
+    Safety,
+    SharedGoal,
+)
 from ump.transport import (
     ProtocolDecodeError,
     SAFETY_STREAM,
@@ -84,6 +93,32 @@ class ProtocolTests(unittest.TestCase):
         state = self.registry.peers["robot-humanoid-1"].state
         with self.assertRaisesRegex(ValueError, "progress"):
             RobotState(**{**state.__dict__, "progress": 1.1})
+
+    def test_health_and_battery_round_trip_between_robots(self):
+        participant = self.participants[0]
+        state = replace(
+            participant.adapter.state(),
+            health=Health.DEGRADED,
+            battery=BatteryState(
+                level=0.24,
+                status=BatteryStatus.DISCHARGING,
+                observed_at_ms=2_000,
+                estimated_runtime_s=900,
+            ),
+        )
+        participant.publish_state(2_000, state=state)
+        observed = self.registry.peers[state.robot_id].state
+        self.assertEqual(observed.health, Health.DEGRADED)
+        self.assertEqual(observed.battery.level, 0.24)
+        self.assertEqual(observed.battery.estimated_runtime_s, 900)
+
+    def test_battery_telemetry_rejects_impossible_values(self):
+        with self.assertRaisesRegex(ValueError, "between 0 and 1"):
+            BatteryState(1.01, BatteryStatus.CHARGING, 1_000)
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            BatteryState(0.5, BatteryStatus.DISCHARGING, 1_000, -1)
+        with self.assertRaisesRegex(ValueError, "no battery"):
+            BatteryState(0.5, BatteryStatus.NOT_PRESENT, 1_000)
 
     def test_envelope_has_canonical_wire_round_trip(self):
         envelope = self.bus.trace[0]

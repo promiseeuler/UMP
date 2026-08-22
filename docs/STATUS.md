@@ -145,7 +145,9 @@ qualification matrix remains fail-closed with eight pending external gates.
 - Optional participant/coordinator-integrated append-only SQLite protocol
   recording with isolated failure health, plus a loopback-only read-only
   inspector UI backed by a validated SQLite query-only connection for robot
-  state, capabilities, and correlated protocol events.
+  state, health, optional battery telemetry, capabilities, and correlated
+  protocol events. Empty recorder databases display no robots or inferred data;
+  the UI populates only from recorded UMP messages.
 - Reproducible reference-runtime benchmark for canonical in-memory state
   propagation, throughput, message size, and incremental idle Python heap.
 - End-to-end mutual-TLS loopback benchmark covering fresh connection setup,

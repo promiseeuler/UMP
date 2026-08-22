@@ -8,35 +8,43 @@
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <strong>UMP Inspector</strong>
-      <span class="protocol">ump/0.1</span>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">U</span>
+      <div><strong>UMP Inspector</strong><span class="brand-subtitle">Fleet awareness</span></div>
     </div>
-    <div class="connection"><span id="connection-dot"></span><span id="connection">Connecting</span></div>
+    <div class="topbar-meta"><span class="protocol">ump/0.1</span><div class="connection"><span id="connection-dot"></span><span id="connection">Connecting</span></div></div>
   </header>
   <main>
     <aside>
-      <div class="section-title"><span>Robots</span><span id="robot-count">0</span></div>
+      <div class="section-title"><span>Fleet</span><span id="robot-count">0</span></div>
       <nav id="robots" aria-label="Connected robots"></nav>
+      <div id="fleet-empty" class="fleet-empty" hidden>No robot manifests observed</div>
     </aside>
     <section class="workspace">
-      <div class="summary-band">
+      <section id="empty-state" class="empty-state" hidden>
+        <span class="empty-icon" aria-hidden="true">0</span>
+        <h1>No UMP robots observed</h1>
+        <p>This inspector is connected to an empty recorder database. Robots will appear after real UMP nodes publish manifests and semantic state.</p>
+      </section>
+      <div id="robot-summary" class="summary-band">
         <div><span class="label">Selected robot</span><strong id="selected-name">No robot observed</strong></div>
-        <div><span class="label">Mode</span><strong id="selected-mode">-</strong></div>
-        <div><span class="label">Safety</span><strong id="selected-safety">-</strong></div>
+        <div><span class="label">Mode</span><strong class="state-value" id="selected-mode">-</strong></div>
+        <div><span class="label">Safety</span><strong class="state-value" id="selected-safety">-</strong></div>
+        <div><span class="label">Health</span><strong class="state-value" id="selected-health">-</strong></div>
+        <div><span class="label">Battery</span><strong id="selected-battery">-</strong></div>
         <div><span class="label">Progress</span><strong id="selected-progress">-</strong></div>
       </div>
-      <div class="detail-grid">
+      <div id="robot-details" class="detail-grid">
         <section class="detail-panel">
-          <h2>Current state</h2>
+          <div class="panel-heading"><h2>Current state</h2><span>Latest semantic report</span></div>
           <dl id="state-detail"></dl>
         </section>
         <section class="detail-panel">
-          <h2>Capabilities</h2>
+          <div class="panel-heading"><h2>Capabilities</h2><span>Advertised contracts</span></div>
           <div id="capabilities" class="capabilities"></div>
         </section>
       </div>
-      <section class="events-panel">
+      <section id="events-panel" class="events-panel">
         <div class="events-heading"><h2>Protocol events</h2><span id="event-count">0 events</span></div>
         <div class="table-wrap">
           <table>

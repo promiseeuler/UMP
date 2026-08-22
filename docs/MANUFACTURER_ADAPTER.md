@@ -18,7 +18,10 @@ from ump import RobotAdapter
 An implementation supplies four methods:
 
 - `manifest()` returns stable identity and currently advertised capabilities.
-- `state()` returns a bounded semantic snapshot with a freshness interval.
+- `state()` returns a bounded semantic snapshot with a freshness interval,
+  operational health, and optional battery telemetry when the native API
+  provides them. Missing values remain `unknown` or `null`; adapters must not
+  estimate them.
 - `accept()` passes an already authorized, schema-valid high-level request to
   native software and returns its terminal outcome.
 - `cancel()` asks native software to cancel and reports its decision. It is not

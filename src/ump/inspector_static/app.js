@@ -12,8 +12,24 @@ function selectRobot(robotId) {
   render();
 }
 
+function batterySummary(battery) {
+  if (!battery) return "No telemetry";
+  if (battery.status === "not_present") return "Not present";
+  const level = battery.level === null || battery.level === undefined ? "Unknown" : `${Math.round(battery.level * 100)}%`;
+  return `${level} · ${battery.status}`;
+}
+
+function statusClass(value) {
+  return `state-value status-${String(value || "unknown").replaceAll("_", "-")}`;
+}
+
 function render() {
   byId("robot-count").textContent = view.robots.length;
+  const hasRobots = view.robots.length > 0;
+  byId("fleet-empty").hidden = hasRobots;
+  byId("empty-state").hidden = hasRobots;
+  byId("robot-summary").hidden = !hasRobots;
+  byId("robot-details").hidden = !hasRobots;
   byId("robots").replaceChildren(...view.robots.map((robot) => {
     const button = document.createElement("button");
     button.className = robot.robot_id === view.selected ? "active" : "";
@@ -24,7 +40,10 @@ function render() {
     const meta = document.createElement("span");
     meta.className = "robot-meta";
     meta.textContent = robot.manifest ? `${robot.manifest.manufacturer} · ${robot.manifest.robot_class}` : "Manifest pending";
-    button.append(name, meta);
+    const condition = document.createElement("span");
+    condition.className = `robot-condition status-${robot.state?.health || "unknown"}`;
+    condition.textContent = robot.state ? `${robot.state.health || "unknown"} · ${batterySummary(robot.state.battery)}` : "State pending";
+    button.append(name, meta, condition);
     return button;
   }));
   const robot = view.robots.find((item) => item.robot_id === view.selected);
@@ -32,9 +51,18 @@ function render() {
   byId("selected-name").textContent = robot?.robot_id || "No robot observed";
   byId("selected-mode").textContent = text(state?.mode);
   byId("selected-safety").textContent = text(state?.safety);
+  byId("selected-health").textContent = text(state?.health || "unknown");
+  byId("selected-mode").className = statusClass(state?.mode);
+  byId("selected-safety").className = statusClass(state?.safety);
+  byId("selected-health").className = statusClass(state?.health);
+  byId("selected-battery").textContent = batterySummary(state?.battery);
   byId("selected-progress").textContent = state ? `${Math.round(state.progress * 100)}%` : "-";
   const details = [
     ["Activity", state?.activity], ["Intent", state?.intent], ["Summary", state?.summary],
+    ["Health", state?.health || "unknown"],
+    ["Battery", batterySummary(state?.battery)],
+    ["Runtime", state?.battery?.estimated_runtime_s === null || state?.battery?.estimated_runtime_s === undefined ? null : `${state.battery.estimated_runtime_s} s`],
+    ["Battery observed", state?.battery?.observed_at_ms === undefined ? null : new Date(state.battery.observed_at_ms).toLocaleString()],
     ["Assignment", state?.assignment_id],
     ["Pose", state?.pose ? `${state.pose.frame_id} · ${state.pose.position_m.join(", ")} m` : null],
     ["Sensor refs", state?.sensor_references?.length],

@@ -42,6 +42,21 @@ still enforces agreement between envelope identity and payload identity.
 5. State becomes stale after `timestamp_ms + fresh_for_ms`.
 6. Stale state MUST NOT be used to authorize a collaboration plan.
 
+### Health and battery state
+
+Robot state may publish a manufacturer-neutral `health` condition: `healthy`,
+`degraded`, `faulted`, or `unknown`. This describes operational fitness for peer
+awareness and planning; it does not replace robot-local diagnostics or safety
+systems.
+
+Battery-powered robots may also publish a `battery` snapshot. `level` is a
+dimensionless fraction from `0` to `1`, `status` is `charging`, `discharging`,
+`full`, `not_present`, or `unknown`, and `observed_at_ms` identifies telemetry
+freshness. `estimated_runtime_s` is optional and remains a source estimate, not a
+guarantee. Robots without batteries publish `null` or `not_present` with no level
+or runtime. Planners may use fresh health and battery state when selecting robots,
+but native adapters retain final assignment acceptance authority.
+
 ### Safety state stream
 
 The optional `safety` stream carries state messages only. Operational and safety

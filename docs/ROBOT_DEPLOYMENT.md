@@ -122,8 +122,10 @@ robot and for the owner coordinator.
 ## 6. Operate in awareness-only mode
 
 Start each participant with the same arguments, omitting `--preflight`. Observe
-manifests, activity, intent, safety state, freshness, and communication-loss
-behavior through the read-only inspector. Exercise disconnect, restart,
+manifests, activity, intent, safety state, health, optional battery telemetry,
+freshness, and communication-loss behavior through the read-only inspector.
+Never substitute guessed values when a native API does not expose a field; use
+`unknown` or omit optional battery telemetry. Exercise disconnect, restart,
 certificate rotation, replay, stale-state, and storage recovery procedures.
 
 ```sh
@@ -132,6 +134,10 @@ ump-inspector --database /var/lib/ump/inspector.sqlite3 \
 
 ump-network-diagnostics --network /etc/ump/robot-humanoid-network.json
 ```
+
+The inspector database path must match the path used by the running node. An
+empty UI means no compatible messages have been recorded there; it does not prove
+that hardware, ROS, or a manufacturer SDK is disconnected elsewhere.
 
 Keep this stage running for an owner-defined soak period. Do not progress while
 there are dead letters, stale retry backlogs, unexplained identity changes, or

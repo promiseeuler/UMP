@@ -26,6 +26,9 @@ from .models import (
     CancellationAcknowledgement,
     CancellationRequest,
     CancellationStatus,
+    BatteryState,
+    BatteryStatus,
+    Health,
     Outcome,
     RobotManifest,
     RobotState,
@@ -135,6 +138,17 @@ class Registry:
             )
             for item in data.get("sensor_references", ())
         )
+        battery_data = data.get("battery")
+        battery = (
+            BatteryState(
+                level=battery_data.get("level"),
+                status=BatteryStatus(battery_data["status"]),
+                observed_at_ms=battery_data["observed_at_ms"],
+                estimated_runtime_s=battery_data.get("estimated_runtime_s"),
+            )
+            if battery_data is not None
+            else None
+        )
         state = RobotState(
             robot_id=data["robot_id"],
             mode=Mode(data["mode"]),
@@ -143,6 +157,8 @@ class Registry:
             intent=data["intent"],
             progress=data["progress"],
             summary=data["summary"],
+            health=Health(data.get("health", "unknown")),
+            battery=battery,
             fresh_for_ms=data.get("fresh_for_ms", 2_000),
             blockers=tuple(data.get("blockers", ())),
             resources=tuple(data.get("resources", ())),

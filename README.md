@@ -95,6 +95,11 @@ ump-inspector \
   --port 8765
 ```
 
+The inspector shows only messages recorded by that node. It starts empty when
+no UMP node has published into the selected database and never invents connected
+robots or telemetry. Physical hardware requires a manufacturer adapter that maps
+native identity, activity, safety, health, and optional battery data into UMP.
+
 Use the interactive setup when choosing your own identities and robot classes:
 
 ```sh
@@ -155,6 +160,10 @@ staged credential process in [`docs/CREDENTIALS.md`](docs/CREDENTIALS.md).
 The reference runtime is transport-neutral. The repository includes a mutual-TLS
 network profile and a ROS 2/Gazebo conformance adapter. Isaac Sim and physical
 robot adapters remain later layers over the same contracts.
+
+Shared robot state includes activity, intent, progress, safety, operational
+health, optional battery telemetry, resources, pose metadata, and bounded sensor
+references so peers and planners can make informed collaboration decisions.
 
 This repository is currently a reference foundation. It is not yet suitable for
 unsupervised physical robot operation; see `docs/STATUS.md` for the exact gap list.

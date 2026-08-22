@@ -134,6 +134,21 @@ class Safety(str, Enum):
     UNKNOWN = "unknown"
 
 
+class Health(str, Enum):
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    FAULTED = "faulted"
+    UNKNOWN = "unknown"
+
+
+class BatteryStatus(str, Enum):
+    CHARGING = "charging"
+    DISCHARGING = "discharging"
+    FULL = "full"
+    NOT_PRESENT = "not_present"
+    UNKNOWN = "unknown"
+
+
 class AssignmentStatus(str, Enum):
     ACCEPTED = "accepted"
     SUCCEEDED = "succeeded"
@@ -219,6 +234,33 @@ class SensorReference:
 
 
 @dataclass(frozen=True)
+class BatteryState:
+    """Manufacturer-neutral energy telemetry for collaboration decisions."""
+
+    level: float | None
+    status: BatteryStatus
+    observed_at_ms: int
+    estimated_runtime_s: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.level is not None and (
+            not math.isfinite(self.level) or not 0.0 <= self.level <= 1.0
+        ):
+            raise ValueError("battery level must be null or between 0 and 1")
+        if type(self.observed_at_ms) is not int or self.observed_at_ms < 0:
+            raise ValueError("battery observed_at_ms must be a non-negative integer")
+        if self.estimated_runtime_s is not None and (
+            type(self.estimated_runtime_s) is not int
+            or self.estimated_runtime_s < 0
+        ):
+            raise ValueError("battery estimated_runtime_s must be non-negative")
+        if self.status is BatteryStatus.NOT_PRESENT and (
+            self.level is not None or self.estimated_runtime_s is not None
+        ):
+            raise ValueError("battery telemetry must be null when no battery is present")
+
+
+@dataclass(frozen=True)
 class Capability:
     name: str
     description: str
@@ -268,6 +310,8 @@ class RobotState:
     intent: str
     progress: float
     summary: str
+    health: Health = Health.UNKNOWN
+    battery: BatteryState | None = None
     fresh_for_ms: int = 2_000
     blockers: tuple[str, ...] = ()
     resources: tuple[str, ...] = ()

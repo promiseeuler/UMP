@@ -142,10 +142,12 @@ plain-language description, input schema, output schema, and availability.
 
 ### 9.3 Semantic robot state
 
-State includes mode, safety state, current activity, next intent, progress,
-blockers, active assignment, optional pose reference, and a bounded summary.
-The structured fields are authoritative; the summary must faithfully describe
-them and must not introduce actions or claims absent from those fields.
+State includes mode, safety state, operational health, optional battery
+telemetry, current activity, next intent, progress, blockers, active assignment,
+optional pose reference, and a bounded summary. The structured fields are
+authoritative; the summary must faithfully describe them and must not introduce
+actions or claims absent from those fields. Adapters and user interfaces must
+show unknown or unavailable telemetry honestly rather than infer values.
 
 Example summary:
 

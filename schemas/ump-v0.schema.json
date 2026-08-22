@@ -100,6 +100,13 @@
         "robot_id": { "type": "string", "minLength": 1, "maxLength": 128 },
         "mode": { "enum": ["starting", "idle", "working", "waiting", "paused", "faulted", "offline"] },
         "safety": { "enum": ["normal", "protective_stop", "emergency_stop", "recovery_required", "unknown"] },
+        "health": { "enum": ["healthy", "degraded", "faulted", "unknown"] },
+        "battery": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/batteryState" }
+          ]
+        },
         "activity": { "type": "string", "maxLength": 1024 },
         "intent": { "type": "string", "maxLength": 1024 },
         "progress": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -121,6 +128,17 @@
         "fresh_for_ms": { "type": "integer", "minimum": 1, "maximum": 60000 }
       },
       "additionalProperties": true
+    },
+    "batteryState": {
+      "type": "object",
+      "required": ["level", "status", "observed_at_ms", "estimated_runtime_s"],
+      "properties": {
+        "level": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "status": { "enum": ["charging", "discharging", "full", "not_present", "unknown"] },
+        "observed_at_ms": { "type": "integer", "minimum": 0 },
+        "estimated_runtime_s": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "additionalProperties": false
     },
     "poseReference": {
       "type": "object",

@@ -5,6 +5,34 @@ traffic. It exposes robot manifests, current semantic state, capabilities, and a
 correlated event timeline. It has no endpoint or UI action for assignments,
 cancellation, authority changes, or native robot commands.
 
+The inspector does not discover arbitrary hardware, scan ROS graphs, or connect
+directly to manufacturer SDKs. A robot appears only after a running UMP node has:
+
+1. loaded a manufacturer adapter;
+2. published an authenticated UMP manifest and semantic state; and
+3. recorded those messages in the exact inspector database being served.
+
+With no recorded messages, the production UI deliberately shows `0` robots,
+`0` events, and `No UMP robots observed`. It never inserts demonstration robots
+or inferred telemetry.
+
+## What connected users see
+
+For each genuinely observed robot, the UI shows disclosed fields only:
+
+- stable robot identity, manufacturer, model, and robot class;
+- operating mode, safety condition, operational health, and state freshness;
+- battery level, charging status, observation time, and estimated runtime when
+  supplied by the adapter;
+- current activity, intent, progress, assignment, resources, and blockers;
+- advertised high-level capabilities;
+- optional pose metadata and bounded sensor references; and
+- correlated manifests, states, assignments, cancellations, plans, and outcomes.
+
+Unknown, omitted, or unavailable native telemetry remains visibly unknown. UMP
+and the inspector must not estimate battery, health, task completion, or physical
+state.
+
 ## Record events
 
 Supported owner services can attach the recorder directly:
@@ -64,9 +92,16 @@ returns exit status `2`; the command does not create a parent directory, databas
 table, or protocol event. Schema creation remains confined to the explicitly
 enabled participant/coordinator recording path or an embedded `InspectorStore`.
 
+The database passed to `ump-inspector` must be the same path supplied to the
+active `ump-node` or coordinator through `--inspector-database`. Serving a
+different compatible database is valid, but it will show only the traffic
+recorded in that database.
+
 ## Operational limits
 
 The inspector is observational, not a complete audit system. Recording must be
 enabled to capture traffic, host access still follows local machine
 permissions, and database retention or export policy remains the deployer's
-responsibility.
+responsibility. A `Live` indicator means the browser can reach the local
+inspector server; it does not by itself mean that any robot is connected. Use
+robot state freshness and network diagnostics to assess participant connectivity.
