@@ -1,4 +1,4 @@
-const view = { selected: null, robots: [], events: [] };
+const view = { selected: null, robots: [], events: [], labEvents: [] };
 const byId = (id) => document.getElementById(id);
 const text = (value) => value === null || value === undefined || value === "" ? "-" : String(value);
 
@@ -64,6 +64,9 @@ function render() {
     ["Runtime", state?.battery?.estimated_runtime_s === null || state?.battery?.estimated_runtime_s === undefined ? null : `${state.battery.estimated_runtime_s} s`],
     ["Battery observed", state?.battery?.observed_at_ms === undefined ? null : new Date(state.battery.observed_at_ms).toLocaleString()],
     ["Assignment", state?.assignment_id],
+    ["State freshness", robot?.state_observed_at_ms === undefined ? null : `${Math.max(0, Date.now() - robot.state_observed_at_ms)} ms old`],
+    ["Session", robot?.session_id],
+    ["Reconnects", robot?.reconnect_count],
     ["Pose", state?.pose ? `${state.pose.frame_id} · ${state.pose.position_m.join(", ")} m` : null],
     ["Sensor refs", state?.sensor_references?.length],
     ["Resources", state?.resources?.join(", ")], ["Blockers", state?.blockers?.join(", ")],
@@ -91,6 +94,13 @@ function render() {
     values.forEach((value, index) => { const cell = document.createElement("td"); cell.textContent = text(value); if (index === 1) cell.className = "event-type"; row.append(cell); });
     return row;
   }));
+  byId("lab-events").replaceChildren(...(view.labEvents.length ? view.labEvents.map((event) => {
+    const row = document.createElement("tr");
+    [new Date(event.observed_at_ms).toLocaleTimeString(), event.event_type, event.robot_id, event.status, JSON.stringify(event.detail)].forEach((value) => {
+      const cell = document.createElement("td"); cell.textContent = text(value); row.append(cell);
+    });
+    return row;
+  }) : [Object.assign(document.createElement("tr"), { innerHTML: '<td colspan="5">No lab faults or scenario events recorded</td>' })]));
 }
 
 async function refresh() {
@@ -98,7 +108,7 @@ async function refresh() {
     const response = await fetch("/api/snapshot?limit=200", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    view.robots = data.robots; view.events = data.events;
+    view.robots = data.robots; view.events = data.events; view.labEvents = data.lab_events || [];
     if (!view.selected || !view.robots.some((item) => item.robot_id === view.selected)) view.selected = view.robots[0]?.robot_id || null;
     byId("event-count").textContent = `${data.event_count} events`;
     byId("connection").textContent = "Live"; byId("connection-dot").className = "online";

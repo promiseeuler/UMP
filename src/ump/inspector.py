@@ -80,6 +80,18 @@ class InspectorStore:
             )
             """
         )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS lab_events (
+                event_order INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL,
+                robot_id TEXT,
+                status TEXT NOT NULL,
+                observed_at_ms INTEGER NOT NULL,
+                detail_json TEXT NOT NULL
+            )
+            """
+        )
 
     def record(self, envelope: Envelope) -> bool:
         encoded = encode_envelope(envelope)
@@ -141,13 +153,31 @@ class InspectorStore:
                 ),
             )
 
+    def record_lab_event(
+        self,
+        event_type: str,
+        status: str,
+        observed_at_ms: int,
+        *,
+        robot_id: str | None = None,
+        detail: dict[str, Any] | None = None,
+    ) -> None:
+        if not event_type.strip() or not status.strip() or observed_at_ms < 0:
+            raise ValueError("lab event type, status, and timestamp are required")
+        encoded = json.dumps(detail or {}, sort_keys=True, separators=(",", ":"))
+        with self._lock:
+            self._connection.execute(
+                "INSERT INTO lab_events (event_type, robot_id, status, observed_at_ms, detail_json) VALUES (?, ?, ?, ?, ?)",
+                (event_type, robot_id, status, observed_at_ms, encoded),
+            )
+
     def snapshot(self, event_limit: int = 100) -> dict[str, Any]:
         events = self.events(event_limit)
         robots: dict[str, dict[str, Any]] = {}
         with self._lock:
             latest_rows = self._connection.execute(
                 """
-                SELECT envelope FROM protocol_events AS candidate
+                SELECT envelope, timestamp_ms, session_id FROM protocol_events AS candidate
                 WHERE message_type IN ('manifest', 'state')
                   AND event_order = (
                     SELECT MAX(event_order) FROM protocol_events AS latest
@@ -164,6 +194,18 @@ class InspectorStore:
                 {"robot_id": event["source_id"], "manifest": None, "state": None},
             )
             robot[event["message_type"]] = event["payload"]
+            if event["message_type"] == "state":
+                robot["state_observed_at_ms"] = row[1]
+                robot["session_id"] = row[2]
+        with self._lock:
+            reconnect_rows = self._connection.execute(
+                "SELECT source_id, COUNT(DISTINCT session_id) - 1 FROM protocol_events GROUP BY source_id"
+            ).fetchall()
+        for robot_id, reconnect_count in reconnect_rows:
+            robot = robots.setdefault(
+                robot_id, {"robot_id": robot_id, "manifest": None, "state": None}
+            )
+            robot["reconnect_count"] = reconnect_count
         with self._lock:
             has_reports = self._connection.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='integration_reports'"
@@ -198,10 +240,24 @@ class InspectorStore:
             total = self._connection.execute(
                 "SELECT COUNT(*) FROM protocol_events"
             ).fetchone()[0]
+            has_lab_events = self._connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='lab_events'"
+            ).fetchone()
+            lab_rows = (
+                self._connection.execute(
+                    "SELECT event_type, robot_id, status, observed_at_ms, detail_json FROM lab_events ORDER BY event_order DESC LIMIT 200"
+                ).fetchall()
+                if has_lab_events
+                else ()
+            )
         return {
             "robots": sorted(robots.values(), key=lambda item: item["robot_id"]),
             "events": events,
             "event_count": total,
+            "lab_events": [
+                {"event_type": row[0], "robot_id": row[1], "status": row[2], "observed_at_ms": row[3], "detail": json.loads(row[4])}
+                for row in lab_rows
+            ],
         }
 
     def close(self) -> None:
@@ -255,6 +311,10 @@ class ReadOnlyInspectorStore(InspectorStore):
     ) -> None:
         del robot_id, provenance
         raise InspectorStoreError("read-only inspector store cannot record integration reports")
+
+    def record_lab_event(self, *args, **kwargs) -> None:
+        del args, kwargs
+        raise InspectorStoreError("read-only inspector store cannot record lab events")
 
 
 class InspectorRecorder:

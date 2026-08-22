@@ -98,6 +98,21 @@ class InspectorTests(unittest.TestCase):
         self.assertEqual(snapshot["event_count"], 2)
         self.assertEqual(snapshot["robots"][0]["manifest"]["model"], "I1")
         self.assertEqual(snapshot["robots"][0]["state"]["mode"], "idle")
+        self.assertEqual(snapshot["robots"][0]["state_observed_at_ms"], 1_001)
+        self.assertEqual(snapshot["robots"][0]["reconnect_count"], 0)
+
+    def test_lab_events_remain_separate_from_observed_robot_telemetry(self):
+        self.store.record_lab_event(
+            "network_partition",
+            "injected",
+            2_000,
+            robot_id="robot-inspector-1",
+            detail={"duration_ms": 500},
+        )
+        snapshot = self.store.snapshot()
+        self.assertEqual(snapshot["event_count"], 0)
+        self.assertEqual(snapshot["robots"], [])
+        self.assertEqual(snapshot["lab_events"][0]["event_type"], "network_partition")
 
     def test_http_api_and_static_ui_have_restrictive_headers(self):
         for item in messages():
