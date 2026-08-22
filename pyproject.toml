@@ -12,8 +12,6 @@ license = "Apache-2.0"
 authors = [{ name = "UMP Contributors" }]
 dependencies = ["cryptography>=43,<47", "jsonschema>=4.23,<5"]
 
-[project.optional-dependencies]
-lab = ["paho-mqtt==2.1.0", "asyncua==1.1.8", "websockets==15.0.1"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -24,6 +22,9 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
 ]
+
+[project.optional-dependencies]
+lab = ["paho-mqtt==2.1.0", "asyncua==1.1.8", "websockets==15.0.1"]
 
 [project.urls]
 Homepage = "https://github.com/promiseeuler/UMP"
