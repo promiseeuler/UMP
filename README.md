@@ -74,6 +74,7 @@ database. It does not invent robots or telemetry.
 - [`docs/NETWORK_PROFILE.md`](docs/NETWORK_PROFILE.md): secure network profile.
 - [`docs/ROBOT_DEPLOYMENT.md`](docs/ROBOT_DEPLOYMENT.md): staged robot integration.
 - [`docs/INSPECTOR.md`](docs/INSPECTOR.md): read-only operational UI.
+- [`docs/STANDARDS_INTEGRATIONS.md`](docs/STANDARDS_INTEGRATIONS.md): standards mappings and setup.
 - [`REFERENCE.md`](REFERENCE.md): related standards, reuse policy, and UMP gaps.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): commit and filename conventions.
 
@@ -82,3 +83,10 @@ database. It does not invent robots or telemetry.
 UMP is an alpha reference implementation. Physical deployments require a
 manufacturer adapter, robot-owner authorization, independent safety review, and
 the robot's existing native safety controls.
+
+Run a dependency-free standards mapping fixture with:
+
+```sh
+python3 examples/standards_mapping_demo.py massrobotics
+ump-integration schema
+```

@@ -18,3 +18,15 @@ Each specification remains subject to its publisher's terms. External runtime
 libraries are imported only when their integration is selected and retain their
 own licenses and notices. Before adding a runtime dependency, update this file
 with its exact package name, version range, license, and source URL.
+
+## Optional runtime libraries
+
+UMP does not vendor or install these libraries automatically:
+
+- `paho-mqtt`: optional VDA 5050 MQTT transport.
+- `rclpy` and `rmf_adapter`: optional ROS 2 and Open-RMF runtimes supplied by a
+  compatible ROS installation.
+- `asyncua`: optional OPC UA client/server runtime.
+
+Deployers must review and retain the license notices for the exact versions they
+install.

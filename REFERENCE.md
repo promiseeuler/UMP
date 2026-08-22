@@ -84,3 +84,11 @@ stops, vendor autonomy, facility traffic management, or the reasoning model.
 5. Record specification versions and licenses before merging an integration.
 6. Describe UMP differentiation as an intended design scope, not an unsupported
    claim that no comparable implementation exists.
+
+## Implemented compatibility
+
+The reference implementation now includes loss-aware mapping profiles for all
+five referenced ecosystems. The detailed field and authority matrix is in
+[`docs/STANDARDS_INTEGRATIONS.md`](docs/STANDARDS_INTEGRATIONS.md). Unsupported
+fields are reported explicitly and are not treated as evidence that the source
+standard lacks the concept in every version or vendor extension.
