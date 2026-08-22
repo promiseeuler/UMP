@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schemas/ump-integration-config-v1.schema.json",
+  "title": "UMP integration configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profile", "type", "standard_version", "endpoint", "identity"],
+  "properties": {
+    "profile": {"const": "ump.integration-config/v1"},
+    "type": {"enum": ["massrobotics", "vda5050", "open_rmf", "ros2", "opc_ua"]},
+    "standard_version": {"type": "string", "minLength": 1, "maxLength": 32},
+    "endpoint": {"type": "string", "minLength": 1, "maxLength": 2048},
+    "mode": {"enum": ["read_only", "task_enabled"], "default": "read_only"},
+    "identity": {"type": "object", "additionalProperties": false, "required": ["external_id", "robot_id"], "properties": {"external_id": {"type": "string", "minLength": 1, "maxLength": 256}, "robot_id": {"type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"}}},
+    "disclosure": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128}},
+    "task_mappings": {"type": "array", "maxItems": 64, "items": {"type": "object", "additionalProperties": false, "required": ["external_type", "capability"], "properties": {"external_type": {"type": "string", "minLength": 1, "maxLength": 128}, "capability": {"type": "string", "pattern": "^.+/v[0-9]+$"}, "input_fields": {"type": "object", "maxProperties": 64, "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 128}}}}},
+    "options": {"type": "object", "maxProperties": 64}
+  }
+}
