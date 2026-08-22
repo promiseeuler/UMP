@@ -8,7 +8,7 @@ recursive-include scripts *.py
 recursive-include config *.json
 recursive-include conformance *.json *.hex
 recursive-include docs *.md
-recursive-include examples *.py *.json
+recursive-include examples *.py
 recursive-include ros2_interfaces *
 recursive-include schemas *.json
 recursive-include tests *.py

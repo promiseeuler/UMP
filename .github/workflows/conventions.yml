@@ -27,6 +27,9 @@ jobs:
           else
             range="${{ github.event.before }}..${{ github.sha }}"
           fi
+          if [[ "$range" == 0000000000000000000000000000000000000000..* ]]; then
+            range="${{ github.sha }}^..${{ github.sha }}"
+          fi
           git log --format=%s "$range" | while IFS= read -r subject; do
             python scripts/check_repo_conventions.py "$subject"
           done
