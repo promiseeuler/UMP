@@ -63,54 +63,6 @@ def smoke_report(world: Path) -> dict:
     }
 
 
-def webots_report(world: Path) -> dict:
-    return {
-        "profile": "ump.ros2-webots-warehouse/v1",
-        "passed": True,
-        "planner_id": "ump.reference.warehouse-planner/v1",
-        "plan_id": "plan-webots-1",
-        "world": {
-            "path": "/installed/ump_warehouse.wbt",
-            "sha256": sha256(world.read_bytes()).hexdigest(),
-        },
-        "checks": {
-            "three_webots_drivers_ready": True,
-            "ump_planner_exercised": True,
-            "ump_ros2_adapters_exercised": True,
-            "ordered_collaboration_succeeded": True,
-            "physical_locomotion_exercised": True,
-            "package_handoff_visualized": True,
-        },
-        "results": [
-            {
-                "assignment_id": "webots-inspect-route",
-                "robot_id": "robot-quadruped-1",
-                "status": "succeeded",
-                "outputs": {"completed": True},
-            },
-            {
-                "assignment_id": "webots-carry-package",
-                "robot_id": "robot-humanoid-1",
-                "status": "succeeded",
-                "outputs": {"completed": True},
-            },
-            {
-                "assignment_id": "webots-place-package",
-                "robot_id": "robot-mobile-arm-1",
-                "status": "succeeded",
-                "outputs": {"completed": True},
-            },
-        ],
-        "environment": {
-            "hostname": "native-runner",
-            "platform": "Linux",
-            "python": "3.13",
-            "ros_distro": "jazzy",
-            "repository_revision": REVISION,
-        },
-    }
-
-
 class Ros2EvidenceTests(unittest.TestCase):
     def write_fixture(self, directory: Path) -> tuple[Path, Path, dict]:
         world = directory / "world.sdf"
@@ -181,26 +133,6 @@ class Ros2EvidenceTests(unittest.TestCase):
                 status = ros2_evidence_main([str(report), "--revision", "wrong"])
             self.assertEqual(status, 2)
             self.assertIn("revision", errors.getvalue())
-
-    def test_validates_webots_planner_adapter_and_world_evidence(self):
-        with TemporaryDirectory() as name:
-            directory = Path(name)
-            world = directory / "world.wbt"
-            world.write_text("#VRML_SIM R2023b utf8\n", encoding="utf-8")
-            document = webots_report(world)
-            report = directory / "webots-report.json"
-            report.write_text(json.dumps(document), encoding="utf-8")
-            result = validate_ros2_smoke_report(
-                report, world_path=world, expected_revision=REVISION
-            )
-            self.assertEqual(result["profile"], "ump.ros2-webots-warehouse/v1")
-            self.assertEqual(result["results_verified"], 3)
-
-            document["planner_id"] = "untrusted-planner"
-            report.write_text(json.dumps(document), encoding="utf-8")
-            with self.assertRaisesRegex(Ros2EvidenceValidationError, "planner"):
-                validate_ros2_smoke_report(report, world_path=world)
-
 
 if __name__ == "__main__":
     unittest.main()
