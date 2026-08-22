@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+.ump-lab/
 dist/
 build/
 ros2_ws/build/

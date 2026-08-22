@@ -1,0 +1,13 @@
+FROM ros:jazzy-ros-base-noble
+
+WORKDIR /opt/ump
+COPY . .
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3-pip python3-venv \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m venv --system-site-packages /opt/ump-venv \
+    && /opt/ump-venv/bin/python -m pip install --no-cache-dir .
+
+ENV PATH="/opt/ump-venv/bin:${PATH}"
+
+ENTRYPOINT ["/ros_entrypoint.sh"]

@@ -494,8 +494,8 @@ def run_scenario(
     bus = InMemoryBus()
     registry = Registry(bus)
     participants: list[Participant] = []
-    authority_stores: list[SqliteAuthorityStore] = []
     lease_ids: dict[str, str] = {}
+    coordinator: Coordinator | None = None
     started_at_ms = clock()
     plan_id: str | None = None
     failure: str | None = None
@@ -514,27 +514,27 @@ def run_scenario(
             store = SqliteAuthorityStore(robot_id, authority_root / f"{robot_id}.sqlite3")
             lease_id = f"{robot_id}-lab-lease"
             store.grant(AuthorityLease(lease_id, robot_id, "lab-coordinator", capabilities_by_robot[robot_id], 0, 60_000), clock())
-            authority_stores.append(store)
             lease_ids[robot_id] = lease_id
             participant = Participant(controller, bus, authorizer=store, clock_ms=clock)
             participant.announce(clock())
             participants.append(participant)
         goal = SharedGoal(f"{scenario.scenario_id}-goal", scenario.description, scenario.participants)
         coordinator = Coordinator("lab-coordinator", bus, registry, authority_lease_ids=lease_ids)
-        plan = coordinator.execute(goal, _ScenarioPlanner(scenario), clock())
+        plan = coordinator.submit(goal, _ScenarioPlanner(scenario), clock())
         plan_id = plan.plan_id
         snapshot = coordinator.snapshot(plan.plan_id)
         statuses = {
             step_id: status.value for step_id, status in snapshot.steps.items()
         }
         passed = all(value == "succeeded" for value in statuses.values())
-        coordinator.close()
     except Exception as error:
         passed = False
         failure = f"{type(error).__name__}: {error}"
     finally:
         for participant in participants:
             participant.close()
+        if coordinator is not None:
+            coordinator.close()
         shutil.rmtree(authority_root, ignore_errors=True)
     clock.advance(100)
     return ScenarioResult(
@@ -633,6 +633,13 @@ def create_readiness_report(
     outcomes = tuple(fault_outcomes)
     delivered = sum(1 for item in outcomes if item.get("delivered"))
     dropped = len(outcomes) - delivered
+    delays = sorted(float(item.get("delay_ms", 0)) for item in outcomes if item.get("delivered"))
+
+    def percentile(fraction: float) -> float:
+        if not delays:
+            return 0.0
+        return delays[min(len(delays) - 1, max(0, int((len(delays) - 1) * fraction)))]
+
     return HardwareReadinessReport(
         "ump-hardware-readiness/v1",
         generated_at_ms if generated_at_ms is not None else int(time.time() * 1_000),
@@ -640,8 +647,14 @@ def create_readiness_report(
         {"python": platform.python_version(), "ump": "0.1.0", "platform": platform.platform()},
         hashlib.sha256(canonical_configuration).hexdigest(),
         scenario.as_dict(),
-        {"p50": 0.0, "p95": 0.0, "p99": 0.0},
-        {"attempted": len(outcomes), "delivered": delivered, "dropped": dropped},
+        {"p50": percentile(0.50), "p95": percentile(0.95), "p99": percentile(0.99)},
+        {
+            "attempted": len(outcomes),
+            "delivered": delivered,
+            "dropped": dropped,
+            "duplicates": sum(max(0, int(item.get("copies", 1)) - 1) for item in outcomes),
+            "reordered": sum(bool(item.get("reordered")) for item in outcomes),
+        },
         outcomes,
         (),
         {str(Path(path)): file_sha256(path) for path in artifacts},

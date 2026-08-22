@@ -10,6 +10,8 @@ import queue
 import threading
 import time
 from typing import Any
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 from .integrations.base import IntegrationUnavailableError
 
@@ -139,10 +141,48 @@ def ros2_round_trip(document: dict[str, Any]) -> dict[str, Any]:
         rclpy.shutdown()
 
 
+def configure_toxiproxy(api_endpoint: str, *, latency_ms: int = 100) -> dict[str, Any]:
+    base = api_endpoint.rstrip("/")
+
+    def post(path: str, document: dict[str, Any]) -> dict[str, Any]:
+        request = Request(
+            f"{base}{path}",
+            data=json.dumps(document).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=5) as response:
+                return json.loads(response.read())
+        except HTTPError as error:
+            if error.code == 409:
+                return {"existing": True}
+            raise
+
+    deadline = time.monotonic() + 10
+    while True:
+        try:
+            proxy = post(
+                "/proxies",
+                {"name": "mqtt", "listen": "0.0.0.0:1884", "upstream": "mqtt:1883", "enabled": True},
+            )
+            break
+        except OSError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(0.2)
+    toxic = post(
+        "/proxies/mqtt/toxics",
+        {"name": "latency", "type": "latency", "stream": "downstream", "toxicity": 1.0, "attributes": {"latency": latency_ms, "jitter": 10}},
+    )
+    return {"proxy": proxy, "toxic": toxic, "latency_ms": latency_ms}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m ump.lab_services")
-    parser.add_argument("standard", choices=("massrobotics", "vda5050", "opc_ua", "ros2"))
+    parser.add_argument("standard", choices=("massrobotics", "vda5050", "opc_ua", "ros2", "toxiproxy"))
     parser.add_argument("--mqtt-endpoint", default=os.environ.get("UMP_MQTT_ENDPOINT", "127.0.0.1:1883"))
+    parser.add_argument("--toxiproxy-api", default=os.environ.get("UMP_TOXIPROXY_API", "http://127.0.0.1:8474"))
     arguments = parser.parse_args(argv)
     document = {"identity": "ump-lab-robot", "sequence": 1, "health": "healthy", "battery": 0.8}
     try:
@@ -152,8 +192,12 @@ def main(argv: list[str] | None = None) -> int:
             result = mqtt_round_trip(document, arguments.mqtt_endpoint, "uagv/v3/UMP/lab/state")
         elif arguments.standard == "opc_ua":
             result = opcua_round_trip(document)
-        else:
+        elif arguments.standard == "ros2":
             result = ros2_round_trip(document)
+        else:
+            result = configure_toxiproxy(arguments.toxiproxy_api)
+            print(json.dumps({"passed": True, **result}, sort_keys=True))
+            return 0
         print(json.dumps({"passed": result["sent"] == result["received"], **result}, sort_keys=True))
         return 0
     except Exception as error:

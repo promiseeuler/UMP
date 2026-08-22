@@ -17,7 +17,7 @@ services:
       - ./config/mosquitto-lab.conf:/mosquitto/config/lab.conf:ro
     ports:
       - "1883:1883"
-    profiles: ["standards"]
+    profiles: ["standards", "fault"]
     healthcheck:
       test: ["CMD", "mosquitto_sub", "-h", "127.0.0.1", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "2"]
       interval: 2s
@@ -41,6 +41,25 @@ services:
       - "1884:1884"
     profiles: ["fault"]
 
+  fault-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.lab
+    command: ["sh", "-c", "python -m ump.lab_services toxiproxy --toxiproxy-api http://fault-proxy:8474 && python -m ump.lab_services vda5050 --mqtt-endpoint fault-proxy:1884"]
+    depends_on:
+      mqtt:
+        condition: service_healthy
+      fault-proxy:
+        condition: service_started
+    profiles: ["fault"]
+
+  ros2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ros2
+    command: ["python3", "-m", "ump.lab_services", "ros2"]
+    profiles: ["standards"]
+
   soak:
     build:
       context: .
@@ -52,5 +71,5 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.gazebo
-    command: ["gz", "sim", "-s", "-r", "/opt/ump/gazebo/warehouse.sdf"]
+    command: ["gz", "sim", "-s", "-r", "--iterations", "10", "/opt/ump/gazebo/warehouse.sdf"]
     profiles: ["visual"]
