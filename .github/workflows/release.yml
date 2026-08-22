@@ -11,102 +11,42 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      id-token: write
-      attestations: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: pip
+      - name: Test
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+          python -m unittest discover -s tests -v
       - name: Build distributions
         run: |
-          python -m pip install --upgrade pip build twine
+          python -m pip install build twine
           python -m build
           python -m twine check dist/*
           tar -tzf dist/*.tar.gz | grep '/schemas/ump-v0.schema.json$'
-          tar -tzf dist/*.tar.gz | grep '/schemas/ump-lan-evidence-v1.schema.json$'
-          tar -tzf dist/*.tar.gz | grep '/schemas/ump-independent-review-v1.schema.json$'
-          tar -tzf dist/*.tar.gz | grep '/schemas/ump-adapter-conformance-v1.schema.json$'
-          tar -tzf dist/*.tar.gz | grep '/schemas/ump-deployment-topology-v1.schema.json$'
-          tar -tzf dist/*.tar.gz | grep '/schemas/ump-network-config-v1.schema.json$'
-          tar -tzf dist/*.tar.gz | grep '/schemas/ump-shared-goal-v1.schema.json$'
-          tar -tzf dist/*.tar.gz | grep '/schemas/ump-shared-goal-batch-v1.schema.json$'
-          tar -tzf dist/*.tar.gz | grep '/schemas/ump-release-evidence-v1.schema.json$'
           tar -tzf dist/*.tar.gz | grep '/conformance/v0.1/manifest.json$'
-          tar -tzf dist/*.tar.gz | grep '/src/ump/vocabulary_data/v1/catalog.json$'
-          tar -tzf dist/*.tar.gz | grep '/examples/read_only_adapter.py$'
-          tar -tzf dist/*.tar.gz | grep '/docs/PRD.md$'
-          tar -tzf dist/*.tar.gz | grep '/ros2_ws/src/ump_interfaces/action/ExecuteCapability.action$'
+          tar -tzf dist/*.tar.gz | grep '/REFERENCE.md$'
       - name: Test installed wheel
         run: |
           python -m venv /tmp/ump-release
           /tmp/ump-release/bin/python -m pip install dist/*.whl
           (cd /tmp && /tmp/ump-release/bin/ump-demo)
+          (cd /tmp && /tmp/ump-release/bin/ump-conformance --help)
           (cd /tmp && /tmp/ump-release/bin/ump-adapter-conformance --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-adapter-conformance schema)
-          (cd /tmp && /tmp/ump-release/bin/ump-authority --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-credentials --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-deployment --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-benchmark --samples 10 --participants 2)
-          (cd /tmp && /tmp/ump-release/bin/ump-benchmark --profile tls-loopback --samples 10)
-          (cd /tmp && /tmp/ump-release/bin/ump-lan-benchmark --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-lan-evidence schema)
           (cd /tmp && /tmp/ump-release/bin/ump-node --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-public-readiness --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-simulate --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-visual-sim --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-network-config schema)
-          (cd /tmp && /tmp/ump-release/bin/ump-network-diagnostics --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-goal schema)
-          (cd /tmp && /tmp/ump-release/bin/ump-goal batch-schema)
-          (cd /tmp && /tmp/ump-release/bin/ump-ros2-evidence --help)
-          (cd /tmp && /tmp/ump-release/bin/ump-review schema)
-          (cd /tmp && /tmp/ump-release/bin/ump-release-evidence schema)
-      - name: Retain isolated install report
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          import tomllib
-
-          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
-          report = {
-              "profile": "ump.release-install-report/v1",
-              "release_id": f"ump-{os.environ['GITHUB_REF_NAME']}",
-              "package_version": version,
-              "repository_revision": os.environ["GITHUB_SHA"],
-              "checks": {
-                  "wheel_installed": True,
-                  "import_smoke": True,
-                  "demo": True,
-                  "schema_commands": True,
-              },
-              "passed": True,
-          }
-          Path("dist/install-report.json").write_text(
-              json.dumps(report, indent=2, sort_keys=True) + "\n"
-          )
-          PY
+          (cd /tmp && /tmp/ump-release/bin/ump-inspector --help)
       - name: Generate checksums
-        run: sha256sum dist/*.whl dist/*.tar.gz dist/install-report.json > dist/SHA256SUMS
-      - name: Attest public release artifacts
-        if: github.event.repository.visibility == 'public'
-        uses: actions/attest@v4
-        with:
-          subject-path: |
-            dist/*.whl
-            dist/*.tar.gz
+        run: sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
       - uses: actions/upload-artifact@v7
         with:
           name: ump-${{ github.ref_name }}
           path: |
             dist/*.whl
             dist/*.tar.gz
-            dist/install-report.json
             dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 30

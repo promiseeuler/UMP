@@ -1,1 +1,0 @@
-"""UMP Gazebo conformance package."""

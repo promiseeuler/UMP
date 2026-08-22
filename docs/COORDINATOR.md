@@ -188,4 +188,4 @@ The automated integration suite runs one coordinator and three participant
 identities through a complete dependency-ordered collaboration over mutual TLS
 TCP sockets, with CA identity checks, explicit disclosure policies, durable
 inboxes/outboxes, and zero failed deliveries. This is localhost transport
-evidence only; it does not replace the required two-host LAN or hardware pilot.
+evidence only; it does not qualify a network or physical robot deployment.

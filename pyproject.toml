@@ -43,15 +43,7 @@ ump-lan-evidence = "ump.cli:lan_evidence_main"
 ump-node = "ump.cli:node_main"
 ump-network-config = "ump.cli:network_config_main"
 ump-network-diagnostics = "ump.cli:network_diagnostics_main"
-ump-pilot = "ump.cli:pilot_main"
-ump-public-readiness = "ump.cli:public_readiness_main"
-ump-simulate = "ump.cli:simulated_qualification_main"
-ump-visual-sim = "ump.cli:visual_simulation_main"
 ump-reconcile = "ump.cli:reconcile_main"
-ump-readiness = "ump.cli:readiness_main"
-ump-release-evidence = "ump.cli:release_evidence_main"
-ump-ros2-evidence = "ump.cli:ros2_evidence_main"
-ump-review = "ump.cli:review_main"
 ump-vocabulary = "ump.cli:vocabulary_main"
 
 [tool.setuptools]
@@ -68,14 +60,7 @@ ump = [
   "inspector_static/*.css",
   "inspector_static/*.js",
   "vocabulary_data/**/*.json",
-  "pilot_data/**/*.json",
   "lan_evidence_data/**/*.json",
   "network_config_data/**/*.json",
   "goal_data/**/*.json",
-  "review_data/**/*.json",
-  "simulated_qualification_data/**/*.json",
-  "visual_simulation_static/*.html",
-  "visual_simulation_static/*.css",
-  "visual_simulation_static/*.js",
-  "release_evidence_data/**/*.json",
 ]

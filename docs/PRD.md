@@ -244,24 +244,23 @@ operation without internet access. A deployment must be able to hide sensitive
 capabilities or state from unauthorized peers. Planner providers receive a
 filtered snapshot and must not receive raw sensor data by default.
 
-## 13. Simulation and real-robot strategy
+## 13. Validation and real-robot strategy
 
-### Level 1: deterministic reference simulation
+### Level 1: deterministic reference tests
 
 In-process adapters test manifests, state convergence, planning, validation,
 dependencies, outcomes, stale peers, and malformed messages.
 
-### Level 2: network process simulation
+### Level 2: network process tests
 
 Separate participants run over a secure network binding under latency, loss,
 duplication, reordering, disconnection, and restart.
 
-### Level 3: professional robot simulation
+### Level 3: external integration tests
 
-The professional simulation profile targets ROS 2 Jazzy with Gazebo Harmonic.
-The architecture must also support NVIDIA Isaac Sim and manufacturer simulator
-adapters without changing core schemas. The reference scenario uses a humanoid,
-quadruped, and mobile arm to inspect a route, transport an object, and place it.
+ROS 2, Open-RMF, VDA 5050, OPC UA, professional simulators, and manufacturer
+SDKs connect through optional adapters. None of these integrations may change
+the core semantic schema solely to mirror one vendor or runtime.
 
 ### Level 4: hardware in the loop and physical robots
 
@@ -279,7 +278,7 @@ safety review, bounded work areas, physical emergency stops, and operator approv
 - Valid dependencies execute in order while independent work can run concurrently.
 - State and task outcomes remain visible in a correlated event trace.
 - No UMP component calls an actuator-level API.
-- The same adapter interface is documented for a ROS 2/Gazebo implementation.
+- The adapter interface remains independent of transport and manufacturer SDK.
 - The complete reference test suite runs with one command and no robot hardware.
 
 ## 15. Delivery milestones
@@ -287,10 +286,9 @@ safety review, bounded work areas, physical emergency stops, and operator approv
 1. **Protocol seed:** schemas, semantic state, in-memory transport, registry, tests.
 2. **Collaboration seed:** planner interface, validation, assignment lifecycle, demo.
 3. **Network alpha:** secure local transport, discovery, identity, replay protection.
-4. **ROS 2 simulator alpha:** Gazebo integration, adapters, three-robot scenario,
-   and fault injection.
-5. **Conformance alpha:** golden vectors, independent adapter test harness, inspector.
-6. **Hardware pilot:** one simulated plus two physical participants in supervised work.
+4. **Conformance alpha:** golden vectors, adapter test harness, and inspector.
+5. **Standards adapters:** field mappings for selected established standards.
+6. **Hardware pilot:** supervised awareness first, then one bounded capability.
 
 ## 16. Decisions and evidence
 
@@ -302,7 +300,6 @@ Still deferred until deployment evidence:
 Resolved in the reference implementation:
 
 - mutual-TLS network profile and robot-local credential lifecycle;
-- Ubuntu Noble, ROS 2 Jazzy, and Gazebo Harmonic compatibility matrix;
 - durable SQLite journals for assignments, coordination, authority, delivery,
   replay protection, credentials, and inspection; and
 - `ump.standard/v1`, the first bounded domain capability vocabulary.

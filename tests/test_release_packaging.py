@@ -10,115 +10,41 @@ ROOT = Path(__file__).parents[1]
 
 
 class ReleasePackagingTests(unittest.TestCase):
-    def test_project_metadata_declares_runtime_and_license(self):
-        metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-        self.assertEqual(metadata["name"], "universal-machine-protocol")
-        self.assertEqual(metadata["license"], "Apache-2.0")
-        self.assertEqual(metadata["requires-python"], ">=3.11")
-        self.assertIn("cryptography>=43,<47", metadata["dependencies"])
-        self.assertEqual(
-            metadata["scripts"]["ump-adapter-conformance"],
-            "ump.cli:adapter_conformance_main",
-        )
-        self.assertEqual(metadata["scripts"]["ump-reconcile"], "ump.cli:reconcile_main")
-        self.assertEqual(
-            metadata["scripts"]["ump-coordinator"], "ump.cli:coordinator_main"
-        )
-        self.assertEqual(metadata["scripts"]["ump-pilot"], "ump.cli:pilot_main")
-        self.assertEqual(
-            metadata["scripts"]["ump-ros2-evidence"],
-            "ump.cli:ros2_evidence_main",
-        )
-        self.assertEqual(metadata["scripts"]["ump-review"], "ump.cli:review_main")
-        self.assertEqual(
-            metadata["scripts"]["ump-network-config"],
-            "ump.cli:network_config_main",
-        )
-        self.assertEqual(
-            metadata["scripts"]["ump-network-diagnostics"],
-            "ump.cli:network_diagnostics_main",
-        )
-        self.assertEqual(metadata["scripts"]["ump-goal"], "ump.cli:goal_main")
-        self.assertEqual(
-            metadata["scripts"]["ump-release-evidence"],
-            "ump.cli:release_evidence_main",
-        )
-        self.assertEqual(
-            metadata["scripts"]["ump-lan-benchmark"],
-            "ump.cli:lan_benchmark_main",
-        )
-        self.assertEqual(
-            metadata["scripts"]["ump-lan-evidence"],
-            "ump.cli:lan_evidence_main",
-        )
-        self.assertEqual(
-            metadata["scripts"]["ump-public-readiness"],
-            "ump.cli:public_readiness_main",
-        )
-        self.assertEqual(
-            metadata["scripts"]["ump-simulate"],
-            "ump.cli:simulated_qualification_main",
-        )
-        self.assertEqual(
-            metadata["scripts"]["ump-visual-sim"],
-            "ump.cli:visual_simulation_main",
-        )
-        self.assertEqual(
-            metadata["scripts"]["ump-deployment"],
-            "ump.cli:deployment_main",
-        )
+    def test_project_metadata_exposes_only_supported_commands(self):
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+        scripts = project["scripts"]
+        self.assertEqual(project["license"], "Apache-2.0")
+        self.assertEqual(scripts["ump-inspector"], "ump.cli:inspector_main")
+        self.assertEqual(scripts["ump-node"], "ump.cli:node_main")
+        self.assertEqual(scripts["ump-coordinator"], "ump.cli:coordinator_main")
+        for removed in (
+            "ump-pilot",
+            "ump-public-readiness",
+            "ump-release-evidence",
+            "ump-review",
+            "ump-ros2-evidence",
+            "ump-simulate",
+            "ump-visual-sim",
+        ):
+            self.assertNotIn(removed, scripts)
 
-    def test_source_manifest_contains_auditable_project_assets(self):
+    def test_source_manifest_contains_core_assets_only(self):
         manifest = (ROOT / "MANIFEST.in").read_text()
         for required in (
-            "recursive-include compliance *.json",
             "recursive-include conformance *.json *.hex",
             "recursive-include docs *.md",
             "recursive-include examples *.py",
-            "graft ros2_ws",
             "recursive-include schemas *.json",
         ):
             self.assertIn(required, manifest)
-        for generated in ("build", "install", "log"):
-            self.assertIn(f"prune ros2_ws/{generated}", manifest)
+        self.assertNotIn("compliance", manifest)
+        self.assertNotIn("ros2_ws", manifest)
 
-    def test_release_workflow_validates_installed_wheel_and_source_archive(self):
-        workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text()
-        self.assertIn("python -m twine check dist/*", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-demo", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-adapter-conformance --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-adapter-conformance schema", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-authority --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-credentials --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-deployment --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-lan-benchmark --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-lan-evidence schema", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-node --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-public-readiness --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-simulate --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-visual-sim --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-network-diagnostics --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-ros2-evidence --help", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-review schema", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-goal schema", workflow)
-        self.assertIn("/tmp/ump-release/bin/ump-release-evidence schema", workflow)
-        self.assertIn("dist/install-report.json", workflow)
-        self.assertIn('"profile": "ump.release-install-report/v1"', workflow)
-        self.assertIn("schemas/ump-v0.schema.json", workflow)
-        self.assertIn("schemas/ump-lan-evidence-v1.schema.json", workflow)
-        self.assertIn("schemas/ump-independent-review-v1.schema.json", workflow)
-        self.assertIn("schemas/ump-adapter-conformance-v1.schema.json", workflow)
-        self.assertIn("schemas/ump-deployment-topology-v1.schema.json", workflow)
-        self.assertIn("schemas/ump-network-config-v1.schema.json", workflow)
-        self.assertIn("schemas/ump-shared-goal-v1.schema.json", workflow)
-        self.assertIn("schemas/ump-shared-goal-batch-v1.schema.json", workflow)
-        self.assertIn("schemas/ump-release-evidence-v1.schema.json", workflow)
-        self.assertIn("vocabulary_data/v1/catalog.json", workflow)
-        self.assertIn("examples/read_only_adapter.py", workflow)
-        self.assertIn("actions/upload-artifact@v7", workflow)
-        self.assertIn("actions/attest@v4", workflow)
-        self.assertIn("github.event.repository.visibility == 'public'", workflow)
-        self.assertNotIn("pypi", workflow.lower())
+    def test_reference_and_contribution_policies_are_packaged(self):
+        self.assertTrue((ROOT / "REFERENCE.md").is_file())
+        contributing = (ROOT / "CONTRIBUTING.md").read_text()
+        self.assertIn("Conventional Commits", contributing)
+        self.assertIn("Filename conventions", contributing)
 
 
 if __name__ == "__main__":

@@ -37,18 +37,16 @@ use `ump-deployment generate --topology <file> --output <directory>
 short-lived, include a local CA private key, and are never eligible for physical
 or production deployment.
 
-## 2. Run the reference simulation
+## 2. Run the reference checks
 
 Install the reviewed UMP build in an isolated environment and run:
 
 ```sh
-ump-simulate run --project-root . --output simulated-qualification.json
-ump-simulate validate simulated-qualification.json
 ump-conformance conformance/v0.1
+python3 -m unittest discover -s tests -v
 ```
 
-Stop if any check fails. A passing report verifies the software workflow, not
-the physical robot.
+Stop if any check fails. Passing software tests do not qualify a physical robot.
 
 ## 3. Implement a read-only adapter
 
@@ -151,8 +149,8 @@ versioned schema. Implement native operating-mode, workspace, resource, and
 safety checks inside `accept()`. Native software retains final acceptance and
 cancellation authority.
 
-Exercise the adapter first in deterministic simulation, then ROS 2/Gazebo or
-the manufacturer's professional simulator. Run execution
+Exercise the adapter first in deterministic tests, then through the robot
+manufacturer's supported simulator or test environment. Run execution
 conformance only with its
 explicit native-execution gate and retain the adapter version, firmware,
 configuration, fixtures, and result.
@@ -204,9 +202,7 @@ must never replace the robot's safety system.
 
 ## 10. Expand and qualify
 
-Add capabilities and robots one at a time. Repeat conformance, simulation,
-preflight, authority, and supervised pilot evidence for every adapter build.
-Before production claims, complete the two-host LAN measurement, native
-professional-simulator run, hardware pilot, independent security/safety/
-interoperability reviews, and tagged release evidence listed in
-`compliance/qualification.json`.
+Add capabilities and robots one at a time. Repeat conformance, network preflight,
+authority review, and supervised operation for every adapter build. Before any
+production claim, the robot owner must independently assess the adapter,
+network, native safety controls, operating environment, and recovery behavior.

@@ -1,43 +1,30 @@
 # Universal Machine Protocol
 
-Universal Machine Protocol (UMP) is a manufacturer-neutral
-communication layer for shared robot awareness and collaboration.
+Universal Machine Protocol (UMP) is a manufacturer-neutral semantic layer for
+shared robot awareness and high-level collaboration.
 
-UMP lets robots describe their capabilities, current activity, intent, and
-state in a common format. It can carry shared goals and validated microtask
-plans, but it never controls actuators or replaces a robot's native autonomy
-and safety systems.
+Robots use a common schema to publish identity, capabilities, activity, intent,
+progress, availability, safety, health, battery, and spatial context. UMP may
+carry shared goals and validated assignments, but it never issues actuator,
+navigation, manipulation, or emergency-stop commands. Those remain inside each
+robot's native controller and safety system.
 
-## Run the reference demo
+## Current core
 
-UMP v0 requires Python 3.11 or newer and has a dependency-light runtime.
+- Versioned protocol models and canonical encoding.
+- Manufacturer adapter contract with a read-only starting mode.
+- In-memory and mutual-TLS network transports.
+- Peer discovery, authentication, replay protection, and disclosure controls.
+- Robot registry and expiring semantic state.
+- Shared goals, planner boundary, assignments, outcomes, and cancellation.
+- Durable coordinator, authority, credential, and assignment stores.
+- Conformance vectors and adapter validation.
+- Read-only inspector that displays only recorded UMP traffic.
+- Local awareness-network generator for development.
 
-```sh
-PYTHONPATH=src python3 -m ump.demo
-python3 -m unittest discover -s tests -v
-PYTHONPATH=src python3 -m ump.cli conformance conformance/v0.1
-PYTHONPATH=src python3 -m ump.cli benchmark
-PYTHONPATH=src python3 -m ump.cli simulate run --project-root .
-PYTHONPATH=src python3 -m ump.cli visual-sim --port 8766
-```
+## Install
 
-For two-host deployment measurements, see [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
-
-Manufacturers can begin with the documented [adapter contract](docs/MANUFACTURER_ADAPTER.md)
-and the runnable read-only example in `examples/read_only_adapter.py`.
-Robot owners can follow the staged [deployment path](docs/ROBOT_DEPLOYMENT.md),
-starting with simulation and awareness-only operation before granting work.
-Hardware teams joining the alpha should use the
-[design-partner process](docs/DESIGN_PARTNER_PROGRAM.md).
-
-The demo connects three simulated robots from different manufacturers through
-an in-memory transport. A replaceable planner assigns route inspection,
-transport, and placement steps from one shared goal.
-
-## Install UMP
-
-UMP v0 requires Python 3.11 or newer. Until the first signed release is
-published, install the reviewed checkout into an isolated environment:
+UMP requires Python 3.11 or newer.
 
 ```sh
 git clone https://github.com/promiseeuler/UMP.git
@@ -45,125 +32,53 @@ cd UMP
 python3 -m venv .venv
 . .venv/bin/activate
 python3 -m pip install .
-ump-demo
 ```
 
-Install the runtime on each robot's onboard or companion computer, not inside a
-motor controller or safety PLC. UMP does not replace native autonomy, emergency
-stops, or manufacturer safety systems. Physical robots require a reviewed
-manufacturer adapter and owner-issued certificates; follow
-[`docs/ROBOT_DEPLOYMENT.md`](docs/ROBOT_DEPLOYMENT.md).
+## Run the core checks
 
-## Run a local robot network
+```sh
+python3 -m unittest discover -s tests -v
+ump-demo
+ump-conformance conformance/v0.1
+```
 
-Create a three-robot, awareness-only localhost lab with no external services:
+## Run a local awareness network
 
 ```sh
 ump-deployment quickstart --output ump-local-lab
 ump-deployment verify-local ump-local-lab
 ```
 
-`quickstart` generates unique short-lived development certificates,
-fingerprint-pinned mutual-TLS peer configurations, isolated durable stores,
-read-only adapters, preflight scripts, and launch scripts. `verify-local` starts
-all generated TLS endpoints and succeeds only when every robot receives every
-peer manifest and semantic state.
+The generated nodes use development-only certificates and read-only adapters.
+They advertise no executable capabilities and must not be used as a physical
+robot deployment.
 
-Run preflight for each generated node:
-
-```sh
-ump-local-lab/nodes/robot-humanoid-1/preflight.sh
-ump-local-lab/nodes/robot-quadruped-2/preflight.sh
-ump-local-lab/nodes/robot-mobile-arm-3/preflight.sh
-```
-
-Then start each node in a separate terminal:
+Start the generated nodes, then inspect one node's local view:
 
 ```sh
 ump-local-lab/nodes/robot-humanoid-1/run.sh
-ump-local-lab/nodes/robot-quadruped-2/run.sh
-ump-local-lab/nodes/robot-mobile-arm-3/run.sh
-```
-
-Each node now publishes identity and semantic state over mutual TLS and observes
-the other two nodes. The generated adapters advertise no capabilities, so the
-network cannot assign physical work. Inspect one node's local view with:
-
-```sh
 ump-inspector \
   --database ump-local-lab/nodes/robot-humanoid-1/state/inspector.sqlite3 \
   --port 8765
 ```
 
-The inspector shows only messages recorded by that node. It starts empty when
-no UMP node has published into the selected database and never invents connected
-robots or telemetry. Physical hardware requires a manufacturer adapter that maps
-native identity, activity, safety, health, and optional battery data into UMP.
+The inspector starts empty when no node has published into its selected
+database. It does not invent robots or telemetry.
 
-Use the interactive setup when choosing your own identities and robot classes:
+## Documentation
 
-```sh
-ump-deployment wizard --output my-ump-lab
-```
+- [`docs/PRD.md`](docs/PRD.md): product definition and requirements.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): boundaries and data flow.
+- [`docs/PROTOCOL.md`](docs/PROTOCOL.md): normative protocol behavior.
+- [`docs/MANUFACTURER_ADAPTER.md`](docs/MANUFACTURER_ADAPTER.md): native adapter contract.
+- [`docs/NETWORK_PROFILE.md`](docs/NETWORK_PROFILE.md): secure network profile.
+- [`docs/ROBOT_DEPLOYMENT.md`](docs/ROBOT_DEPLOYMENT.md): staged robot integration.
+- [`docs/INSPECTOR.md`](docs/INSPECTOR.md): read-only operational UI.
+- [`REFERENCE.md`](REFERENCE.md): related standards, reuse policy, and UMP gaps.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): commit and filename conventions.
 
-For repeatable automation, edit [`config/local-lab.example.json`](config/local-lab.example.json)
-and run:
+## Project status
 
-```sh
-ump-deployment generate \
-  --topology config/local-lab.example.json \
-  --output my-ump-lab \
-  --development-pki
-```
-
-Development PKI bundles are marked `production_eligible: false` and must never
-be installed on physical deployments. Replace them with the owner's PKI and the
-staged credential process in [`docs/CREDENTIALS.md`](docs/CREDENTIALS.md).
-
-## Repository map
-
-- `docs/PRD.md`: product requirements and delivery milestones.
-- `docs/ARCHITECTURE.md`: component boundaries and data flow.
-- `docs/PROTOCOL.md`: normative v0.1 encoding and lifecycle rules.
-- `docs/NETWORK_PROFILE.md`: mutual-TLS and discovery alpha profile.
-- `docs/AUTHORITY.md`: robot-local assignment leases and owner CLI.
-- `docs/CREDENTIALS.md`: issued-certificate enrollment, rotation, and revocation.
-- `docs/COORDINATOR.md`: owner goal submission and durable run status workflow.
-- `docs/NODE.md`: owner-facing long-running participant service.
-- `docs/PLANNER.md`: reasoning-provider contract and validation boundary.
-- `docs/RECONCILIATION.md`: evidence-based resolution of uncertain native work.
-- `docs/ROS2_GAZEBO.md`: manufacturer ROS action adapter and simulator profile.
-- `docs/SIMULATED_QUALIFICATION.md`: repeatable non-production simulation report.
-- `docs/ROBOT_DEPLOYMENT.md`: staged owner and manufacturer deployment path.
-- `docs/CONFORMANCE.md`: golden vectors and safe adapter validation workflow.
-- `docs/INTEROPERABILITY.md`: SI unit and coordinate-frame schema profile.
-- `docs/VOCABULARY.md`: versioned standard high-level capability contracts.
-- `docs/BENCHMARKS.md`: local and two-host benchmarks and evidence validation.
-- `docs/READINESS.md`: functional traceability and production qualification policy.
-- `docs/VERSIONING.md`: package versioning and release-artifact verification.
-- `docs/PUBLIC_RELEASE.md`: public-visibility audit and GitHub publication checklist.
-- `docs/INSPECTOR.md`: read-only local protocol inspector setup.
-- `docs/HARDWARE_PILOT.md`: physical-pilot evidence profile and verifier.
-- `docs/INDEPENDENT_REVIEWS.md`: external review evidence and finding policy.
-- `docs/DESIGN_PARTNER_PROGRAM.md`: partner intake, staged tests, and evidence process.
-- `docs/STATUS.md`: implemented behavior and explicit production gaps.
-- `conformance/v0.1`: byte-exact valid and invalid protocol vectors.
-- `schemas/ump-v0.schema.json`: canonical JSON Schema for wire messages.
-- `schemas/ump-network-config-v1.schema.json`: strict deployment configuration.
-- `schemas/ump-deployment-topology-v1.schema.json`: local-lab topology contract.
-- `schemas/ump-shared-goal-v1.schema.json`: strict owner goal document contract.
-- `schemas/ump-shared-goal-batch-v1.schema.json`: bounded atomic goal-batch contract.
-- `schemas/ump-release-evidence-v1.schema.json`: retained release qualification bundle.
-- `src/ump`: dependency-light reference implementation.
-- `tests`: protocol and collaboration tests.
-
-The reference runtime is transport-neutral. The repository includes a mutual-TLS
-network profile and a ROS 2/Gazebo conformance adapter. Isaac Sim and physical
-robot adapters remain later layers over the same contracts.
-
-Shared robot state includes activity, intent, progress, safety, operational
-health, optional battery telemetry, resources, pose metadata, and bounded sensor
-references so peers and planners can make informed collaboration decisions.
-
-This repository is currently a reference foundation. It is not yet suitable for
-unsupervised physical robot operation; see `docs/STATUS.md` for the exact gap list.
+UMP is an alpha reference implementation. Physical deployments require a
+manufacturer adapter, robot-owner authorization, independent safety review, and
+the robot's existing native safety controls.

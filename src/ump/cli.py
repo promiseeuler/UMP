@@ -102,25 +102,8 @@ from .network_config import network_config_schema, validate_network_config
 from .network_diagnostics import NetworkDiagnosticsError, inspect_network_databases
 from .node import ParticipantService, load_adapter
 from .planner import load_planner
-from .pilot import PilotValidationError, pilot_schema, validate_pilot_bundle
-from .public_release import PublicReadinessError, audit_public_release
-from .readiness import load_readiness_report
-from .release_evidence import (
-    ReleaseEvidenceValidationError,
-    release_evidence_schema,
-    validate_release_evidence_bundle,
-)
-from .ros2_evidence import Ros2EvidenceValidationError, validate_ros2_smoke_report
-from .review import ReviewValidationError, review_schema, validate_review_bundle
 from .runtime import Registry
-from .simulated_qualification import (
-    SimulatedQualificationError,
-    run_simulated_qualification,
-    simulated_qualification_schema,
-    validate_simulated_qualification,
-)
 from .vocabulary import standard_capability, vocabulary_document
-from .visual_simulation import VisualSimulationServer
 
 
 def authority_parser() -> argparse.ArgumentParser:
@@ -1559,29 +1542,6 @@ def coordinator_main(argv: list[str] | None = None) -> int:
             inspector_store.close()
 
 
-def pilot_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="ump-pilot",
-        description="Validate an integrity-bound UMP hardware pilot evidence bundle.",
-    )
-    commands = parser.add_subparsers(dest="command", required=True)
-    validate = commands.add_parser("validate", help="Validate one pilot manifest")
-    validate.add_argument("manifest")
-    commands.add_parser("schema", help="Print the hardware pilot JSON Schema")
-    arguments = parser.parse_args(argv)
-    try:
-        result = (
-            pilot_schema()
-            if arguments.command == "schema"
-            else validate_pilot_bundle(arguments.manifest)
-        )
-        print(json.dumps(result, sort_keys=True))
-        return 0
-    except PilotValidationError as error:
-        print(f"ump-pilot: {error}", file=sys.stderr)
-        return 2
-
-
 def lan_evidence_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ump-lan-evidence",
@@ -1603,210 +1563,6 @@ def lan_evidence_main(argv: list[str] | None = None) -> int:
     except LanEvidenceValidationError as error:
         print(f"ump-lan-evidence: {error}", file=sys.stderr)
         return 2
-
-
-def ros2_evidence_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="ump-ros2-evidence",
-        description="Validate a native ROS 2/Gazebo smoke report.",
-    )
-    parser.add_argument("report")
-    parser.add_argument("--world")
-    parser.add_argument("--revision")
-    arguments = parser.parse_args(argv)
-    try:
-        result = validate_ros2_smoke_report(
-            arguments.report,
-            world_path=arguments.world,
-            expected_revision=arguments.revision,
-        )
-        print(json.dumps(result, sort_keys=True))
-        return 0
-    except Ros2EvidenceValidationError as error:
-        print(f"ump-ros2-evidence: {error}", file=sys.stderr)
-        return 2
-
-
-def review_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="ump-review",
-        description="Validate integrity-bound independent review evidence.",
-    )
-    commands = parser.add_subparsers(dest="command", required=True)
-    validate = commands.add_parser("validate", help="Validate one review manifest")
-    validate.add_argument("manifest")
-    commands.add_parser("schema", help="Print the independent review JSON Schema")
-    arguments = parser.parse_args(argv)
-    try:
-        result = (
-            review_schema()
-            if arguments.command == "schema"
-            else validate_review_bundle(arguments.manifest)
-        )
-        print(json.dumps(result, sort_keys=True))
-        if arguments.command == "validate" and not result["passed"]:
-            return 1
-        return 0
-    except ReviewValidationError as error:
-        print(f"ump-review: {error}", file=sys.stderr)
-        return 2
-
-
-def release_evidence_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="ump-release-evidence",
-        description="Validate integrity-bound retained UMP release evidence.",
-    )
-    commands = parser.add_subparsers(dest="command", required=True)
-    validate = commands.add_parser("validate", help="Validate one release manifest")
-    validate.add_argument("manifest")
-    commands.add_parser("schema", help="Print the release evidence JSON Schema")
-    arguments = parser.parse_args(argv)
-    try:
-        result = (
-            release_evidence_schema()
-            if arguments.command == "schema"
-            else validate_release_evidence_bundle(arguments.manifest)
-        )
-        print(json.dumps(result, sort_keys=True))
-        return 0
-    except ReleaseEvidenceValidationError as error:
-        print(f"ump-release-evidence: {error}", file=sys.stderr)
-        return 2
-
-
-def readiness_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="ump-readiness",
-        description="Audit the UMP PRD requirement traceability matrix.",
-    )
-    parser.add_argument("project_root", nargs="?", default=".")
-    parser.add_argument(
-        "--validate-only",
-        action="store_true",
-        help="Validate matrix coverage and evidence paths without requiring readiness",
-    )
-    parser.add_argument(
-        "--functional-only",
-        action="store_true",
-        help="Require functional completeness without claiming production readiness",
-    )
-    arguments = parser.parse_args(argv)
-    try:
-        report = load_readiness_report(arguments.project_root)
-    except (OSError, ValueError, json.JSONDecodeError) as error:
-        print(f"ump-readiness: {error}", file=sys.stderr)
-        return 2
-    print(json.dumps(report, sort_keys=True))
-    if arguments.validate_only:
-        return 0
-    if arguments.functional_only:
-        return 0 if report["functional_ready"] else 1
-    return 0 if report["ready"] else 1
-
-
-def public_readiness_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="ump-public-readiness",
-        description="Audit a Git repository before changing it to public visibility.",
-    )
-    parser.add_argument("project_root", nargs="?", default=".")
-    parser.add_argument(
-        "--accept-historical-tree",
-        action="store_true",
-        help="Record that deleted historical roots were intentionally reviewed",
-    )
-    arguments = parser.parse_args(argv)
-    try:
-        report = audit_public_release(
-            arguments.project_root,
-            accept_historical_tree=arguments.accept_historical_tree,
-        )
-    except PublicReadinessError as error:
-        print(f"ump-public-readiness: {error}", file=sys.stderr)
-        return 2
-    print(json.dumps(report, sort_keys=True))
-    return 0 if report["ready"] else 1
-
-
-def simulated_qualification_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="ump-simulate",
-        description="Run or validate the explicitly non-production UMP simulation suite.",
-    )
-    commands = parser.add_subparsers(dest="command", required=True)
-    run = commands.add_parser("run", help="Run simulated qualification scenarios")
-    run.add_argument("--project-root", default=".")
-    run.add_argument("--tls-samples", type=int, default=25)
-    run.add_argument("--output")
-    validate = commands.add_parser("validate", help="Validate a retained report")
-    validate.add_argument("report")
-    commands.add_parser("schema", help="Print the report schema")
-    arguments = parser.parse_args(argv)
-    try:
-        if arguments.command == "schema":
-            result = simulated_qualification_schema()
-        elif arguments.command == "validate":
-            result = json.loads(Path(arguments.report).read_text(encoding="utf-8"))
-            validate_simulated_qualification(result)
-        else:
-            result = run_simulated_qualification(
-                arguments.project_root, tls_samples=arguments.tls_samples
-            )
-            if arguments.output:
-                output = Path(arguments.output)
-                output.parent.mkdir(parents=True, exist_ok=True)
-                output.write_text(
-                    json.dumps(result, indent=2, sort_keys=True) + "\n",
-                    encoding="utf-8",
-                )
-        print(json.dumps(result, sort_keys=True))
-        return 0 if arguments.command != "run" or result["passed"] else 1
-    except (
-        SimulatedQualificationError,
-        OSError,
-        json.JSONDecodeError,
-        ValidationError,
-        ValueError,
-    ) as error:
-        print(f"ump-simulate: {error}", file=sys.stderr)
-        return 2
-
-
-def visual_simulation_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="ump-visual-sim",
-        description="Serve the dependency-free UMP warehouse visual simulation.",
-    )
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8766)
-    arguments = parser.parse_args(argv)
-    server = None
-    try:
-        server = VisualSimulationServer(arguments.host, arguments.port)
-        address = server.address
-        print(
-            json.dumps(
-                {
-                    "ready": True,
-                    "url": f"http://{address.host}:{address.port}/",
-                    "scope": "semantic_digital_twin",
-                    "physical_dynamics": False,
-                },
-                sort_keys=True,
-            ),
-            flush=True,
-        )
-        server.serve_forever()
-        return 0
-    except (OSError, ValueError) as error:
-        print(f"ump-visual-sim: {error}", file=sys.stderr)
-        return 2
-    except KeyboardInterrupt:
-        return 0
-    finally:
-        if server is not None:
-            server.close()
 
 
 def inspector_main(argv: list[str] | None = None) -> int:
@@ -1857,16 +1613,8 @@ def main(argv: list[str] | None = None) -> int:
         "node": node_main,
         "network-config": network_config_main,
         "network-diagnostics": network_diagnostics_main,
-        "pilot": pilot_main,
         "reconcile": reconcile_main,
         "vocabulary": vocabulary_main,
-        "readiness": readiness_main,
-        "public-readiness": public_readiness_main,
-        "simulate": simulated_qualification_main,
-        "visual-sim": visual_simulation_main,
-        "release-evidence": release_evidence_main,
-        "ros2-evidence": ros2_evidence_main,
-        "review": review_main,
     }
     if not arguments or arguments[0] not in commands:
         choices = ",".join(commands)
