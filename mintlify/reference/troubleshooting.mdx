@@ -1,0 +1,41 @@
+---
+title: "Troubleshooting"
+description: "Diagnose empty views, unavailable runtimes, rejected assignments, and lab failures."
+icon: "life-buoy"
+---
+
+<AccordionGroup>
+  <Accordion title="The inspector is empty" icon="monitor-x">
+    Confirm the participant is running and both processes use the same inspector
+    database. Verify manifest/state disclosure and network preflight. Opening
+    the static HTML file directly does not connect to recorded data.
+  </Accordion>
+  <Accordion title="An optional integration is unavailable" icon="package-x">
+    Install `.[lab]` for MQTT, OPC UA, and WebSocket probes. Use the Docker
+    profiles or a supported system install for ROS 2, Open-RMF, and Gazebo. Run
+    `ump-integration runtime <type>` for a focused result.
+  </Accordion>
+  <Accordion title="An assignment is rejected" icon="circle-x">
+    Check identity binding, explicit mapping, advertised capability, lease ID,
+    issuer, scope, expiry, frame, units, freshness, health, battery, safety,
+    operating mode, and the native rejection reason.
+  </Accordion>
+  <Accordion title="The coordinator reports unknown" icon="circle-help">
+    Execution may have started before communication or process loss. Do not
+    redispatch blindly. Query the native controller and reconcile with retained
+    operator evidence using `ump-reconcile`.
+  </Accordion>
+  <Accordion title="Docker cannot bind a port" icon="unplug">
+    Run `docker compose -f docker-compose.lab.yml down`, inspect local listeners,
+    and stop the conflicting service before restarting the profile.
+  </Accordion>
+  <Accordion title="The first Gazebo build appears stuck" icon="clock">
+    The image installs a large ROS 2 and Gazebo dependency set. Watch build
+    output and allow the first build to complete. Later runs reuse cached layers.
+  </Accordion>
+  <Accordion title="Readiness signature is invalid" icon="file-warning">
+    Treat the report as modified or incomplete. Restore the original artifacts
+    and public key identity, regenerate from the reviewed revision, and never
+    override verification for a release or hardware trial.
+  </Accordion>
+</AccordionGroup>

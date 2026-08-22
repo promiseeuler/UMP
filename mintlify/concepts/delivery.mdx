@@ -1,0 +1,41 @@
+---
+title: "Delivery and recovery"
+description: "Durable transport, idempotency, replay protection, and restart reconciliation."
+icon: "rotate-cw"
+---
+
+UMP separates transport acknowledgement from application outcome. Messages are
+framed, authenticated, identity-bound, sequence-checked, and recorded durably.
+
+## Delivery guarantees
+
+- Per-peer FIFO delivery within each stream.
+- Independent operational and safety sequence spaces.
+- Idempotent exact retry.
+- Conflict rejection when one message ID is reused with different content.
+- Durable pending delivery across process restart.
+- Bounded queues and reserved safety-stream capacity.
+
+## Restart behavior
+
+```mermaid
+stateDiagram-v2
+  [*] --> Pending
+  Pending --> Accepted
+  Accepted --> Succeeded
+  Accepted --> Failed
+  Accepted --> Cancelled
+  Accepted --> Unknown: coordinator restarts during execution
+  Unknown --> Succeeded: operator evidence
+  Unknown --> Failed: operator evidence
+  Unknown --> Cancelled: operator evidence
+```
+
+UMP does not redispatch work whose native outcome is unknown. An operator or
+manufacturer status API must provide evidence before reconciliation.
+
+## Communication loss
+
+Adapters may implement `communication_lost()` and `communication_restored()`.
+The callback informs the native policy that required semantic peers became
+stale; it does not dictate how the robot should move or stop.

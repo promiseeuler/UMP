@@ -1,0 +1,29 @@
+---
+title: "Security model"
+description: "Identity, mutual TLS, disclosure, replay, credentials, and operational controls."
+icon: "lock-keyhole"
+---
+
+UMP uses defense in depth; network encryption alone is not authorization.
+
+## Controls
+
+- One certificate and private key per participant.
+- Exactly one `urn:ump:robot:<robot-id>` certificate URI identity.
+- Mutual TLS and expected peer identity checks.
+- Optional certificate fingerprint pinning from discovery hints.
+- Per-peer message-type and capability disclosure.
+- Durable replay sequence floors and idempotent inboxes.
+- Scoped, expiring, revision-checked authority leases.
+- Credential generation activation, rotation, revocation, and audit.
+- Bounded message sizes, queues, structured outputs, and freshness.
+
+## Operational rules
+
+Store private keys with owner-only permissions or a deployment-approved
+hardware-backed provider. Keep stores separate by participant and purpose.
+Rotate and revoke credentials through tested procedures. Do not expose lab
+brokers, inspector ports, or simulator streams publicly without deployment-grade
+authentication and TLS.
+
+Report vulnerabilities according to the repository `SECURITY.md` policy.

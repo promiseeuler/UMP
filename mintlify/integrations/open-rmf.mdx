@@ -1,0 +1,24 @@
+---
+title: "Open-RMF"
+description: "Expose eligible UMP participants without replacing RMF traffic and facility scheduling."
+icon: "route"
+---
+
+Open-RMF remains responsible for traffic, maps, doors, lifts, and facility
+scheduling. UMP exposes eligible participants through a fleet-adapter bridge and
+translates only configured task categories into proposed goals or assignments.
+
+## Boundary
+
+- RMF owns navigation graph participation and facility resources.
+- UMP owns manufacturer-neutral semantic awareness and owner authority checks.
+- The robot adapter owns final capability acceptance and execution.
+
+```bash
+python3 examples/standards_mapping_demo.py open_rmf
+ump-integration runtime open_rmf
+```
+
+Open-RMF requires its supported ROS 2 installation with `rclpy` and
+`rmf_adapter`. The built-in fixture validates mapping and task translation; a
+selected RMF deployment must be qualified separately.

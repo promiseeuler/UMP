@@ -1,0 +1,35 @@
+---
+title: "Project status"
+description: "Current implementation scope, maturity, and remaining hardware work."
+icon: "chart-no-axes-column"
+---
+
+UMP 0.1 is an alpha reference implementation with a functioning protocol,
+network, coordinator, inspector, standards adapters, and software qualification
+lab.
+
+## Implemented
+
+- Canonical UMP 0.1 envelopes and conformance vectors.
+- Mutual TLS, identity binding, disclosure controls, replay protection, durable
+  delivery, credentials, leases, and reconciliation.
+- Semantic robot registry and read-only inspector.
+- Deterministic planner boundary and owner-authorized collaboration.
+- MassRobotics, VDA 5050, Open-RMF, ROS 2, and OPC UA mappings.
+- Mixed-fleet emulators, live transport probes, faults, load tests, signed
+  readiness reports, and a Gazebo warehouse scenario.
+
+## Not claimed
+
+- Universal compatibility with arbitrary robot hardware.
+- Production safety certification.
+- Manufacturer endorsement or protocol certification.
+- A replacement for native fleet management, autonomy, or safety systems.
+
+<Tip>
+  The correct milestone after the software gate is **ready for supervised
+  hardware trials**, not “production certified.”
+</Tip>
+
+See [Hardware readiness](/validate/hardware-readiness) for the evidence gate and
+[Hardware trials](/validate/hardware-trials) for the physical rollout sequence.

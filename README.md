@@ -313,6 +313,9 @@ docs/                    normative and operational documentation
 
 ## Documentation
 
+The publishable Mintlify site lives in [`mintlify/`](mintlify/). Its maintainer
+guide explains local validation and repository-based deployment.
+
 - [`docs/PRD.md`](docs/PRD.md): product definition and requirements.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): boundaries and data flow.
 - [`docs/PROTOCOL.md`](docs/PROTOCOL.md): normative UMP 0.1 behavior.

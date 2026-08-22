@@ -1,0 +1,106 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Universal Machine Protocol",
+  "description": "Manufacturer-neutral awareness and collaboration for heterogeneous robots",
+  "colors": {
+    "primary": "#007F73",
+    "light": "#00A693",
+    "dark": "#16847A"
+  },
+  "favicon": "/images/favicon.svg",
+  "logo": {
+    "light": "/images/logo-light.svg",
+    "dark": "/images/logo-dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/promiseeuler/UMP"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get started",
+      "href": "/quickstart/install"
+    }
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Overview",
+        "icon": "house",
+        "pages": ["index", "overview/safety-boundary", "overview/project-status"]
+      },
+      {
+        "group": "Get started",
+        "icon": "rocket",
+        "pages": ["quickstart/install", "quickstart/first-scenario", "quickstart/docker-lab"]
+      },
+      {
+        "group": "Core concepts",
+        "icon": "network",
+        "pages": [
+          "concepts/architecture",
+          "concepts/robot-state",
+          "concepts/collaboration",
+          "concepts/authority",
+          "concepts/delivery"
+        ]
+      },
+      {
+        "group": "Build with UMP",
+        "icon": "wrench",
+        "pages": [
+          "build/local-network",
+          "build/inspector",
+          "build/manufacturer-adapter",
+          "build/planner",
+          "build/production-node"
+        ]
+      },
+      {
+        "group": "Standards integrations",
+        "icon": "shuffle",
+        "pages": [
+          "integrations/overview",
+          "integrations/massrobotics",
+          "integrations/vda5050",
+          "integrations/open-rmf",
+          "integrations/ros2",
+          "integrations/opc-ua"
+        ]
+      },
+      {
+        "group": "Validate and deploy",
+        "icon": "shield-check",
+        "pages": [
+          "validate/conformance",
+          "validate/hardware-readiness",
+          "validate/fault-load-soak",
+          "validate/hardware-trials"
+        ]
+      },
+      {
+        "group": "Reference",
+        "icon": "book-open",
+        "pages": [
+          "reference/cli",
+          "reference/schemas",
+          "reference/security",
+          "reference/troubleshooting",
+          "reference/glossary"
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/promiseeuler/UMP"
+    }
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs"
+  }
+}

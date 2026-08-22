@@ -1,0 +1,28 @@
+---
+title: "Schema reference"
+description: "Versioned public contracts used by UMP tools and integrations."
+icon: "braces"
+---
+
+| Schema | Contract |
+| --- | --- |
+| `ump-v0.schema.json` | UMP 0.1 protocol envelope and messages |
+| `ump-network-config-v1.schema.json` | Participant network and disclosure configuration |
+| `ump-integration-config-v1.schema.json` | Standards integration configuration |
+| `ump-mapping-report-v1.schema.json` | Loss-aware conversion evidence |
+| `ump-shared-goal-v1.schema.json` | One semantic shared goal |
+| `ump-shared-goal-batch-v1.schema.json` | Ordered or grouped goals |
+| `ump-deployment-topology-v1.schema.json` | Generated local network topology |
+| `ump-adapter-conformance-v1.schema.json` | Adapter evidence |
+| `ump-lan-evidence-v1.schema.json` | Two-host network evidence |
+| `ump-lab-scenario-v1.schema.json` | Mixed-fleet scenario definition |
+| `ump-fault-profile-v1.schema.json` | Deterministic fault profile |
+| `ump-hardware-readiness-report-v1.schema.json` | Signed readiness evidence |
+
+Public schemas live in `schemas/`. Packaged copies are used at runtime so
+installed wheels do not depend on a source checkout.
+
+<Note>
+  UMP 0.1 additions must be optional and backward compatible. Incompatible
+  semantics require a future protocol proposal rather than silent reinterpretation.
+</Note>

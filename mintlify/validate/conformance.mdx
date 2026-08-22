@@ -1,0 +1,37 @@
+---
+title: "Conformance testing"
+description: "Validate UMP 0.1 messages and bind adapter evidence to an implementation."
+icon: "badge-check"
+---
+
+## Protocol vectors
+
+```bash
+ump-conformance conformance/v0.1
+```
+
+The suite contains expected-valid and expected-invalid canonical UMP 0.1
+vectors. It verifies protocol version, message type, stream, sequence, safety
+rules, manifests, states, and structured outcomes.
+
+## Adapter evidence
+
+```bash
+ump-adapter-conformance inspect \
+  --adapter manufacturer_package.adapter:create_adapter \
+  --adapter-config /etc/manufacturer/robot.json \
+  --output adapter-conformance.json
+
+ump-adapter-conformance verify adapter-conformance.json \
+  --implementation manufacturer_package/adapter.py
+```
+
+Read-only inspection verifies identity, manifest, state, bounded values, and
+implementation binding without native execution. Execution fixtures require an
+explicit gate and should only run against a simulator or controlled robot.
+
+<Note>
+  Protocol conformance proves behavior against published UMP vectors. Adapter
+  conformance proves the inspected implementation and fixture. Neither is a
+  manufacturer or physical safety certification.
+</Note>

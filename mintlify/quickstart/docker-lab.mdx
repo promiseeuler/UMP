@@ -1,0 +1,66 @@
+---
+title: "Run the Docker lab"
+description: "Exercise UMP with clean containers, live middleware, faults, ROS 2, and Gazebo."
+icon: "container"
+---
+
+Docker is the repeatable workflow for Apple Silicon macOS and Linux. The first
+ROS 2 and Gazebo builds download a large dependency set and can take several
+minutes.
+
+<Tabs>
+  <Tab title="Core">
+    ```bash
+    docker compose -f docker-compose.lab.yml \
+      --profile core run --build --rm core
+    ```
+  </Tab>
+  <Tab title="Standards">
+    ```bash
+    docker compose -f docker-compose.lab.yml \
+      --profile standards up -d --wait mqtt
+    docker compose -f docker-compose.lab.yml \
+      --profile standards run --build --rm standards
+    docker compose -f docker-compose.lab.yml \
+      --profile standards run --rm standards python -m ump.lab_services opc_ua
+    docker compose -f docker-compose.lab.yml \
+      --profile standards run --build --rm ros2
+    ```
+  </Tab>
+  <Tab title="Faults">
+    ```bash
+    docker compose -f docker-compose.lab.yml \
+      --profile fault run --build --rm fault-test
+    ```
+  </Tab>
+  <Tab title="Gazebo">
+    ```bash
+    docker compose -f docker-compose.lab.yml \
+      --profile visual run --build --rm visual
+    ```
+  </Tab>
+</Tabs>
+
+## Expected outcomes
+
+| Profile | Boundary exercised | Passing evidence |
+| --- | --- | --- |
+| `core` | Clean package and scenario | Three successful terminal outcomes |
+| `standards` | MQTT, WebSocket, OPC UA, ROS 2 | Real local round trips |
+| `fault` | Toxiproxy delayed socket | Successful documented recovery path |
+| `visual` | Gazebo Harmonic native executor | Models load and scenario succeeds |
+
+The Gazebo executor attaches to the same controller boundary a manufacturer
+adapter replaces. UMP core contains no simulator-specific command path.
+
+## Stop services
+
+```bash
+docker compose -f docker-compose.lab.yml --profile standards down
+docker compose -f docker-compose.lab.yml --profile fault down
+```
+
+<Warning>
+  A passing container lab is software qualification evidence. It is not a
+  physical robot or workcell safety certificate.
+</Warning>

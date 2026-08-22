@@ -1,0 +1,66 @@
+---
+title: "Install UMP"
+description: "Install the core package and optional laboratory transports."
+icon: "download"
+---
+
+## Prerequisites
+
+- Python 3.11 or newer
+- Git
+- macOS or Linux
+- Docker Desktop or Docker Engine with Compose for container labs
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/promiseeuler/UMP.git
+    cd UMP
+    ```
+  </Step>
+  <Step title="Create an isolated environment">
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python3 -m pip install --upgrade pip
+    ```
+  </Step>
+  <Step title="Install the core">
+    ```bash
+    python3 -m pip install .
+    ```
+  </Step>
+  <Step title="Check the tools">
+    ```bash
+    ump-demo --help
+    ump-lab --help
+    ump-readiness --help
+    ```
+  </Step>
+</Steps>
+
+## Optional transport dependencies
+
+Install the pinned laboratory extra for MQTT, OPC UA, and WebSocket probes:
+
+```bash
+python3 -m pip install '.[lab]'
+```
+
+ROS 2, Open-RMF, and Gazebo require their supported system runtime. Use the
+provided Docker profiles when you do not already maintain those runtimes.
+
+<Note>
+  The base package deliberately has no hard dependency on ROS 2, Open-RMF,
+  MQTT, OPC UA, or Gazebo. Selecting a missing runtime produces a focused
+  `IntegrationUnavailableError` instead of breaking core UMP imports.
+</Note>
+
+## Verify the source checkout
+
+```bash
+python3 -m unittest discover -s tests -v
+ump-conformance conformance/v0.1
+```
+
+Continue to [Run your first scenario](/quickstart/first-scenario).

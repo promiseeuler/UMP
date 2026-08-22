@@ -1,0 +1,41 @@
+---
+title: "Fault, load, and soak tests"
+description: "Reproduce network failures, measure reference loads, and run the release soak."
+icon: "gauge"
+---
+
+## Deterministic network faults
+
+`FaultProfile` models latency, jitter, packet loss, duplication, reordering,
+partitions, reconnects, and broker restart checkpoints from a fixed seed.
+
+```bash
+ump-lab fault config/fault-baseline.json \
+  --output .ump-lab/faults.json
+```
+
+The Docker fault profile routes MQTT through Toxiproxy so delay is exercised on
+a real socket path.
+
+## Load profiles
+
+```bash
+ump-lab load --participants 3 --cycles 10
+ump-lab load --participants 25 --cycles 10
+ump-lab load --participants 100 --cycles 10
+ump-lab load --participants 250 --cycles 10
+```
+
+Record runtime, participant count, cycles, delivery totals, latency
+percentiles, throughput, memory, stale participants, and terminal outcomes.
+
+## Eight-hour soak
+
+```bash
+ump-lab soak --duration-s 28800 --participants 25 --state-hz 2
+```
+
+Pass criteria include no lost terminal outcomes, identity corruption, unbounded
+queues, or unexplained stale participants. The scheduled workflow requires a
+self-hosted Linux runner labeled `ump-soak`; GitHub-hosted jobs cannot provide a
+single continuous eight-hour qualification window.

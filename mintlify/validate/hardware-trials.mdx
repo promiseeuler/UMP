@@ -1,0 +1,44 @@
+---
+title: "Supervised hardware trials"
+description: "Move from software evidence to one controlled physical capability at a time."
+icon: "clipboard-check"
+---
+
+Begin only after the software gate passes for the exact reviewed revision.
+
+<Steps>
+  <Step title="Choose one robot and owner">
+    Record model, serial identity, firmware, controller, SDK, network,
+    workcell, operator, safety owner, and rollback procedure.
+  </Step>
+  <Step title="Run read-only">
+    Compare UMP identity, timestamps, units, frames, health, battery, safety,
+    activity, and freshness against the manufacturer's native tooling.
+  </Step>
+  <Step title="Test communication failure">
+    Disconnect and restart UMP while confirming the robot remains safe and
+    locally controllable under its native policy.
+  </Step>
+  <Step title="Select one capability">
+    Choose one bounded high-level native API. Qualify it in the vendor's
+    supported simulator and retain fixtures and evidence.
+  </Step>
+  <Step title="Grant short authority">
+    Issue one exact capability lease to one reviewed coordinator for one
+    supervised window.
+  </Step>
+  <Step title="Execute in a controlled area">
+    Use a bounded workspace, trained operator, physical emergency stop, and
+    independent observation. Abort on any semantic mismatch.
+  </Step>
+  <Step title="Review before expansion">
+    Reconcile every outcome and fault. Add robots or capabilities one at a
+    time, repeating the full gate after changes.
+  </Step>
+</Steps>
+
+<Warning>
+  A successful first trial qualifies only the reviewed robot, adapter,
+  firmware, configuration, capability, and environment. It does not generalize
+  to other robots or deployments.
+</Warning>

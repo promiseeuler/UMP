@@ -1,0 +1,29 @@
+---
+title: "OPC UA Robotics"
+description: "Import authorized industrial telemetry and expose a filtered read-only UMP view."
+icon: "factory"
+---
+
+UMP supports two roles:
+
+- **Client:** imports authorized identification, operating mode, health,
+  battery, and semantic extension nodes from an industrial robot.
+- **Server:** exposes filtered UMP identity, state, health, battery,
+  capabilities, and assignment status without actuator methods.
+
+```mermaid
+flowchart LR
+  R[Industrial robot OPC UA server] --> C[UMP OPC UA client]
+  C --> U[UMP awareness]
+  U --> S[Filtered UMP OPC UA server]
+  S --> P[Plant observer]
+```
+
+```bash
+python3 examples/standards_mapping_demo.py opc_ua
+ump-integration runtime opc_ua
+```
+
+The live laboratory uses pinned `asyncua` for a real local server/client round
+trip. Production endpoint security, trust lists, namespaces, and access policy
+remain deployment-owned.

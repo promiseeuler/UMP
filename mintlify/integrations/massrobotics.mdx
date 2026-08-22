@@ -1,0 +1,24 @@
+---
+title: "MassRobotics"
+description: "Map MassRobotics identity and status messages into UMP awareness."
+icon: "warehouse"
+---
+
+The MassRobotics integration is primarily observational. It maps identity,
+operation, task ID, location, health indicators, battery, availability, and
+task state using the standard's JSON/WebSocket conventions.
+
+```bash
+python3 examples/standards_mapping_demo.py massrobotics
+```
+
+## Production notes
+
+- Bind the MassRobotics UUID to one stable UMP robot identity.
+- Preserve source timestamps and coordinate-frame semantics.
+- Treat unavailable intent or progress as unknown.
+- Apply an explicit disclosure policy before publishing UMP fields outward.
+- Let the robot owner control WebSocket authentication, reconnect, and TLS.
+
+The dependency-free fixture validates conversion only. The Docker standards
+profile exercises a real local WebSocket lifecycle.

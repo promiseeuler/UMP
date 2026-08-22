@@ -1,0 +1,40 @@
+---
+title: "Hardware readiness"
+description: "Produce repeatable software evidence before supervised physical trials."
+icon: "shield-check"
+---
+
+The software laboratory isolates remaining risk to the manufacturer adapter,
+vendor controller, firmware, safety system, and physical environment.
+
+## Reference fleet
+
+- `mobile-1`: payload transport.
+- `inspector-1`: destination inspection.
+- `manipulator-1`: payload placement after dependencies pass.
+
+Each emulator has an independent clock, state machine, frame, limits, battery,
+health, safety state, native acceptance, cancellation, disconnection, and
+recovery behavior.
+
+## Acceptance gate
+
+<Steps>
+  <Step title="Core and protocol">Run all tests and UMP 0.1 vectors.</Step>
+  <Step title="Live transports">Pass MQTT, WebSocket, OPC UA, and ROS 2 round trips.</Step>
+  <Step title="Failure behavior">Pass deterministic faults, restart, and reconciliation tests.</Step>
+  <Step title="Scale">Pass declared 3, 25, 100, and 250 participant profiles.</Step>
+  <Step title="Visual boundary">Load Gazebo and complete the UMP-driven warehouse scenario.</Step>
+  <Step title="Soak">Complete one uninterrupted eight-hour run.</Step>
+  <Step title="Evidence">Generate and verify an owner-signed readiness report.</Step>
+</Steps>
+
+```bash
+ump-readiness report \
+  --fault-profile config/fault-baseline.json \
+  --output .ump-lab/readiness.json
+ump-readiness verify .ump-lab/readiness.json
+```
+
+A valid signature proves that evidence has not changed. It does not prove that
+unlisted middleware, firmware, adapters, or physical equipment behave the same.

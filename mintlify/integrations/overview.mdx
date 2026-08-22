@@ -1,0 +1,48 @@
+---
+title: "Integrations overview"
+description: "Reuse established robotics standards and add UMP only where a coordination gap exists."
+icon: "shuffle"
+---
+
+UMP preserves each standard's native semantics and responsibilities. Mapping is
+loss-aware: every conversion reports mapped, defaulted, unsupported, and
+rejected fields.
+
+| Standard | Primary role | UMP contribution |
+| --- | --- | --- |
+| MassRobotics 1.0 | Interoperable AMR status | Shared awareness mapping |
+| VDA 5050 3.0 | AGV orders and state over MQTT | Cross-fleet semantic bridge and authority |
+| Open-RMF | Traffic and facility orchestration | UMP participant and task bridge |
+| ROS 2 | Robot middleware graph | Awareness topics and high-level assignment action |
+| OPC UA Robotics 1.02 | Industrial information model | Filtered import and read-only exposure |
+
+## Common configuration
+
+```json
+{
+  "profile": "ump.integration-config/v1",
+  "type": "vda5050",
+  "standard_version": "3.0.0",
+  "endpoint": "mqtts://broker.example:8883",
+  "mode": "read_only",
+  "identity": {
+    "external_id": "agv-17",
+    "robot_id": "robot-mobile-17"
+  },
+  "task_mappings": []
+}
+```
+
+```bash
+ump-integration validate integration.json
+ump-integration runtime vda5050
+```
+
+<Warning>
+  `task_enabled` does not authorize work. External tasks also require an
+  explicit capability mapping, an advertised capability, a valid owner lease,
+  correct frames and units, and native acceptance.
+</Warning>
+
+Missing or ambiguous data stays unknown. Mapping failures never invent
+telemetry or silently coerce unsupported commands.

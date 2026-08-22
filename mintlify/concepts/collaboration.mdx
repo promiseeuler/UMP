@@ -1,0 +1,57 @@
+---
+title: "Goals, plans, and assignments"
+description: "How high-level collaboration remains bounded and traceable."
+icon: "list-checks"
+---
+
+Collaboration separates what a user wants from what any one robot is asked to
+accept.
+
+## Lifecycle
+
+```mermaid
+sequenceDiagram
+  actor Owner
+  participant Coordinator
+  participant Planner
+  participant Authority
+  participant Robot
+  Owner->>Coordinator: Shared goal
+  Coordinator->>Planner: Validated goal + observed participants
+  Planner-->>Coordinator: Proposed dependency plan
+  Coordinator->>Coordinator: Validate schemas, identities, frames, capabilities
+  Coordinator->>Authority: Check scoped lease
+  Authority-->>Coordinator: Active lease
+  Coordinator->>Robot: High-level assignment
+  Robot-->>Coordinator: Accepted or rejected
+  Robot-->>Coordinator: Terminal outcome
+  Coordinator-->>Owner: Durable run result
+```
+
+## Shared goal
+
+A goal defines the desired semantic outcome and eligible participants. It does
+not prescribe joints, trajectories, or vendor commands.
+
+## Plan
+
+A plan contains versioned capability steps and dependencies. Only dependency-
+ready steps may dispatch. Independent steps may execute concurrently when the
+coordinator is explicitly configured for bounded concurrency.
+
+## Assignment
+
+An assignment binds one validated step to one robot, plan revision, issuer,
+correlation identity, and authority lease. The target adapter still performs
+native acceptance.
+
+## Outcome
+
+Terminal outcomes are `succeeded`, `failed`, `rejected`, `cancelled`, or
+`unknown`. `Unknown` is used when execution may have occurred but UMP cannot
+safely prove the terminal result. It must be reconciled, not retried blindly.
+
+<Note>
+  External reasoning providers produce proposed plans only. Provider output
+  cannot become assignments until UMP validation succeeds.
+</Note>
