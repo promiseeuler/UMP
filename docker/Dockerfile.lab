@@ -1,0 +1,7 @@
+FROM python:3.13.7-slim-bookworm
+
+WORKDIR /opt/ump
+COPY . .
+RUN python -m pip install --no-cache-dir . "paho-mqtt==2.1.0" "asyncua==1.1.8" "websockets==15.0.1"
+
+ENTRYPOINT []

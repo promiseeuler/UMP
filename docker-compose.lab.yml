@@ -1,0 +1,56 @@
+name: ump-hardware-readiness
+
+services:
+  core:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.lab
+    command: ["ump-lab", "run", "--workspace", "/evidence/run", "--output", "/evidence/scenario.json"]
+    volumes:
+      - ./.ump-lab:/evidence
+    profiles: ["core"]
+
+  mqtt:
+    image: eclipse-mosquitto:2.0.22
+    command: ["mosquitto", "-c", "/mosquitto/config/lab.conf"]
+    volumes:
+      - ./config/mosquitto-lab.conf:/mosquitto/config/lab.conf:ro
+    ports:
+      - "1883:1883"
+    profiles: ["standards"]
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "127.0.0.1", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "2"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  standards:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.lab
+    command: ["python", "-m", "ump.lab_services", "vda5050", "--mqtt-endpoint", "mqtt:1883"]
+    depends_on:
+      mqtt:
+        condition: service_healthy
+    profiles: ["standards"]
+
+  fault-proxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    ports:
+      - "8474:8474"
+      - "1884:1884"
+    profiles: ["fault"]
+
+  soak:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.lab
+    command: ["ump-lab", "soak", "--duration-s", "28800", "--participants", "25", "--state-hz", "2"]
+    profiles: ["soak"]
+
+  visual:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gazebo
+    command: ["gz", "sim", "-s", "-r", "/opt/ump/gazebo/warehouse.sdf"]
+    profiles: ["visual"]

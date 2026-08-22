@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<sdf version="1.10">
+  <world name="ump_warehouse">
+    <physics name="step" type="ignored"><max_step_size>0.01</max_step_size><real_time_factor>1</real_time_factor></physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <scene><ambient>0.7 0.7 0.7 1</ambient><background>0.2 0.25 0.28 1</background></scene>
+    <light type="directional" name="sun"><pose>0 0 10 0 0 0</pose><direction>-0.5 0.2 -1</direction></light>
+    <model name="floor"><static>true</static><link name="floor"><collision name="collision"><geometry><box><size>20 12 0.1</size></box></geometry></collision><visual name="visual"><geometry><box><size>20 12 0.1</size></box></geometry><material><diffuse>0.35 0.38 0.4 1</diffuse></material></visual></link></model>
+    <model name="mobile-1"><pose>0 0 0.35 0 0 0</pose><link name="base"><collision name="collision"><geometry><box><size>1.2 0.8 0.6</size></box></geometry></collision><visual name="visual"><geometry><box><size>1.2 0.8 0.6</size></box></geometry><material><diffuse>0.1 0.55 0.8 1</diffuse></material></visual></link></model>
+    <model name="inspector-1"><pose>4 1 0.4 0 0 0</pose><link name="body"><collision name="collision"><geometry><box><size>0.9 0.45 0.35</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.9 0.45 0.35</size></box></geometry><material><diffuse>0.25 0.75 0.35 1</diffuse></material></visual></link></model>
+    <model name="manipulator-1"><pose>8 2 0.75 0 0 0</pose><static>true</static><link name="pedestal"><collision name="collision"><geometry><cylinder><radius>0.45</radius><length>1.5</length></cylinder></geometry></collision><visual name="visual"><geometry><cylinder><radius>0.45</radius><length>1.5</length></cylinder></geometry><material><diffuse>0.9 0.55 0.1 1</diffuse></material></visual></link></model>
+    <model name="workcell"><pose>8 2 0.25 0 0 0</pose><static>true</static><link name="fixture"><visual name="visual"><geometry><box><size>3 3 0.4</size></box></geometry><material><diffuse>0.55 0.55 0.58 1</diffuse></material></visual></link></model>
+  </world>
+</sdf>

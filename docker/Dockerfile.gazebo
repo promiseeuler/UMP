@@ -1,0 +1,8 @@
+FROM ros:jazzy-ros-base-noble
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ros-jazzy-ros-gz-sim \
+    && rm -rf /var/lib/apt/lists/*
+COPY gazebo /opt/ump/gazebo
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
