@@ -37,6 +37,7 @@ sudo dpkg -i /tmp/ros2-apt-source.deb
 
 sudo apt-get update
 sudo apt-get install -y \
+  python3-dev \
   python3-pip \
   python3-rosdep \
   ros-dev-tools \
@@ -45,10 +46,12 @@ sudo apt-get install -y \
   xauth \
   xvfb
 
-curl -fL --retry 12 --retry-delay 10 --retry-all-errors \
-  --continue-at - -o "/tmp/${WEBOTS_DEB}" \
-  "https://github.com/cyberbotics/webots/releases/download/${WEBOTS_VERSION}/${WEBOTS_DEB}"
-sudo apt-get install -y "/tmp/${WEBOTS_DEB}"
+if ! dpkg-query -W -f='${db:Status-Abbrev}' webots 2>/dev/null | grep -q '^ii '; then
+  curl -fL --retry 12 --retry-delay 10 --retry-all-errors \
+    --continue-at - -o "/tmp/${WEBOTS_DEB}" \
+    "https://github.com/cyberbotics/webots/releases/download/${WEBOTS_VERSION}/${WEBOTS_DEB}"
+  sudo apt-get install -y "/tmp/${WEBOTS_DEB}"
+fi
 
 if [[ ! -f "$REPOSITORY_ROOT/pyproject.toml" ]]; then
   echo "Repository root not found at $REPOSITORY_ROOT." >&2
@@ -56,6 +59,9 @@ if [[ ! -f "$REPOSITORY_ROOT/pyproject.toml" ]]; then
 fi
 
 cd "$REPOSITORY_ROOT"
+# Archives created on macOS can contain AppleDouble sidecars that pip mistakes
+# for package metadata. They are not part of the project and are safe to drop.
+find . -type f \( -name '._*' -o -name '.DS_Store' \) -delete
 python3 -m pip install --break-system-packages --ignore-installed -e .
 sudo rosdep init 2>/dev/null || true
 rosdep update
