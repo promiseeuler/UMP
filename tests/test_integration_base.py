@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from ump.integrations import ExternalTaskMapping, FieldMapping, FieldMappingStatus, MappingReport
 from ump.integrations.base import TaskAuthorizationError, require_task_authorization
 from ump.integrations.config import load_integration_config
+from ump.cli import integration_main
 
 
 class IntegrationBaseTests(unittest.TestCase):
@@ -55,6 +56,20 @@ class IntegrationBaseTests(unittest.TestCase):
             config = load_integration_config(path)
         self.assertTrue(config.read_only)
         self.assertIsInstance(config.task_mappings[0], ExternalTaskMapping)
+
+    def test_integration_cli_validates_config_and_builtin_runtime(self):
+        document = {
+            "profile": "ump.integration-config/v1",
+            "type": "massrobotics",
+            "standard_version": "1.0",
+            "endpoint": "ws://127.0.0.1:9000",
+            "identity": {"external_id": "amr-1", "robot_id": "robot-1"},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "integration.json"
+            path.write_text(json.dumps(document))
+            self.assertEqual(integration_main(["validate", str(path)]), 0)
+        self.assertEqual(integration_main(["runtime", "massrobotics"]), 0)
 
 
 if __name__ == "__main__":

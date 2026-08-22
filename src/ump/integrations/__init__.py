@@ -13,6 +13,7 @@ from .base import (
 from .config import (
     IntegrationConfig,
     IntegrationConfigError,
+    integration_config_schema,
     load_integration_config,
     validate_integration_config,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "MappingReport",
     "StandardsAdapter",
     "TaskAuthorizationError",
+    "integration_config_schema",
     "load_integration_config",
     "validate_integration_config",
 ]

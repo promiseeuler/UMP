@@ -85,6 +85,18 @@ from .inspector import (
     InspectorStoreError,
     ReadOnlyInspectorStore,
 )
+from .integrations import (
+    IntegrationConfigError,
+    IntegrationUnavailableError,
+    integration_config_schema,
+    load_integration_config,
+    validate_integration_config,
+)
+from .integrations.massrobotics import MassRoboticsAdapter
+from .integrations.open_rmf import OpenRmfAdapter
+from .integrations.opc_ua import OpcUaRoboticsAdapter
+from .integrations.ros2 import Ros2SemanticBridge
+from .integrations.vda5050 import Vda5050Adapter
 from .journal import SqliteAssignmentJournal
 from .lan_evidence import (
     LanEvidenceValidationError,
@@ -809,6 +821,7 @@ def node_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--network", required=True)
     parser.add_argument("--adapter", required=True, help="Trusted module:factory")
     parser.add_argument("--adapter-config")
+    parser.add_argument("--integration-config")
     parser.add_argument("--assignment-database", required=True)
     parser.add_argument("--authority-database", required=True)
     parser.add_argument("--credential-database", required=True)
@@ -845,6 +858,11 @@ def node_main(argv: list[str] | None = None) -> int:
                 "communication check interval must be between 0.05 and 60 seconds"
             )
         config = load_network_config(arguments.network)
+        integration = (
+            load_integration_config(arguments.integration_config)
+            if arguments.integration_config
+            else None
+        )
         database_paths = {
             "assignment": Path(arguments.assignment_database).resolve(),
             "authority": Path(arguments.authority_database).resolve(),
@@ -863,6 +881,8 @@ def node_main(argv: list[str] | None = None) -> int:
                 f"required peers are not configured: {sorted(unknown_required_peers)}"
             )
         adapter = load_adapter(arguments.adapter, arguments.adapter_config)
+        if integration is not None and integration.robot_id != adapter.manifest().robot_id:
+            raise ValueError("integration and adapter robot identities differ")
         adapter_report = AdapterConformanceHarness().inspect(adapter)
         if not adapter_report.passed:
             failures = "; ".join(
@@ -908,6 +928,15 @@ def node_main(argv: list[str] | None = None) -> int:
                         "adapter_subject": adapter_report.subject,
                         "credential_generation": generation.generation,
                         "configured_peers": len(config.peers),
+                        "integration": (
+                            {
+                                "type": integration.integration_type,
+                                "standard_version": integration.standard_version,
+                                "read_only": integration.read_only,
+                            }
+                            if integration is not None
+                            else None
+                        ),
                         "database_roles": sorted(database_paths),
                         "checks": [
                             "network_configuration",
@@ -987,6 +1016,7 @@ def node_main(argv: list[str] | None = None) -> int:
                     "port": port,
                     "state_hz": arguments.state_hz,
                     "inspector_recording": inspector_store is not None,
+                    "integration": integration.integration_type if integration else None,
                 },
                 sort_keys=True,
             ),
@@ -1596,6 +1626,67 @@ def inspector_main(argv: list[str] | None = None) -> int:
             store.close()
 
 
+def integration_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-integration",
+        description="Validate and inspect standards integration mappings.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    validate = commands.add_parser("validate", help="Validate an integration config")
+    validate.add_argument("config")
+    commands.add_parser("schema", help="Print the integration JSON Schema")
+    runtime = commands.add_parser("runtime", help="Check a selected external runtime")
+    runtime.add_argument("standard", choices=("massrobotics", "vda5050", "open_rmf", "ros2", "opc_ua"))
+    inspect = commands.add_parser("inspect", help="Map one external document through a trusted adapter")
+    inspect.add_argument("--adapter", required=True)
+    inspect.add_argument("--adapter-config")
+    inspect.add_argument("--kind", choices=("manifest", "state"), required=True)
+    inspect.add_argument("--document", required=True)
+    inspect.add_argument("--observed-at-ms", type=int, required=True)
+    arguments = parser.parse_args(argv)
+    try:
+        if arguments.command == "schema":
+            result = integration_config_schema()
+        elif arguments.command == "validate":
+            result = validate_integration_config(arguments.config)
+        elif arguments.command == "runtime":
+            if arguments.standard == "massrobotics":
+                detail = "built-in mapping; WebSocket transport is owner supplied"
+            elif arguments.standard == "vda5050":
+                Vda5050Adapter.mqtt_client()
+                detail = "paho-mqtt available"
+            elif arguments.standard == "open_rmf":
+                OpenRmfAdapter.require_runtime()
+                detail = "rclpy and rmf_adapter available"
+            elif arguments.standard == "ros2":
+                Ros2SemanticBridge.require_runtime()
+                detail = "rclpy and ump_interfaces available"
+            else:
+                OpcUaRoboticsAdapter.require_runtime()
+                detail = "asyncua available"
+            result = {"available": True, "standard": arguments.standard, "detail": detail}
+        else:
+            adapter = load_adapter(arguments.adapter, arguments.adapter_config)
+            document = json.loads(Path(arguments.document).read_text(encoding="utf-8"))
+            method = getattr(adapter, f"ingest_{arguments.kind}", None)
+            if not callable(method):
+                raise TypeError("adapter does not implement the requested standards mapping")
+            value, report = method(document, arguments.observed_at_ms)
+            result = {"mapped": payload(value), "report": report.as_dict()}
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except (
+        IntegrationConfigError,
+        IntegrationUnavailableError,
+        OSError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+    ) as error:
+        print(f"ump-integration: {error}", file=sys.stderr)
+        return 2
+
+
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     commands = {
@@ -1608,6 +1699,7 @@ def main(argv: list[str] | None = None) -> int:
         "deployment": deployment_main,
         "goal": goal_main,
         "inspector": inspector_main,
+        "integration": integration_main,
         "lan-benchmark": lan_benchmark_main,
         "lan-evidence": lan_evidence_main,
         "node": node_main,

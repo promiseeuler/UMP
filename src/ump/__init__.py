@@ -59,6 +59,7 @@ from .integrations import (
     MappingReport,
     StandardsAdapter,
     TaskAuthorizationError,
+    integration_config_schema,
     load_integration_config,
     validate_integration_config,
 )
@@ -91,6 +92,11 @@ from .network_diagnostics import NetworkDiagnosticsError, inspect_network_databa
 from .planner import Planner, load_planner
 from .runtime import Participant, Registry
 from .vocabulary import standard_capabilities, standard_capability
+from .integrations.massrobotics import MassRoboticsAdapter
+from .integrations.open_rmf import OpenRmfAdapter
+from .integrations.opc_ua import OpcUaClientProfile, OpcUaRoboticsAdapter, OpcUaServerProfile
+from .integrations.ros2 import Ros2SemanticBridge
+from .integrations.vda5050 import Vda5050Adapter
 
 __all__ = [
     "AdapterConformanceHarness",
@@ -124,8 +130,15 @@ __all__ = [
     "IntegrationProvenance",
     "IntegrationUnavailableError",
     "MappingReport",
+    "MassRoboticsAdapter",
+    "OpenRmfAdapter",
+    "OpcUaClientProfile",
+    "OpcUaRoboticsAdapter",
+    "OpcUaServerProfile",
+    "Ros2SemanticBridge",
     "StandardsAdapter",
     "TaskAuthorizationError",
+    "integration_config_schema",
     "NetworkDiagnosticsError",
     "Outcome",
     "Plan",
@@ -173,6 +186,7 @@ __all__ = [
     "validate_lan_evidence_bundle",
     "validate_network_config",
     "validate_integration_config",
+    "Vda5050Adapter",
     "verify_local_awareness",
     "validate_plan",
     "validate_adapter_evidence",
