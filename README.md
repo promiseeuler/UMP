@@ -21,6 +21,8 @@ robot's native controller and safety system.
 - Conformance vectors and adapter validation.
 - Read-only inspector that displays only recorded UMP traffic.
 - Local awareness-network generator for development.
+- Deterministic mixed-fleet hardware-readiness lab with signed evidence.
+- Optional live WebSocket, MQTT, OPC UA, ROS 2, fault-proxy, and Gazebo profiles.
 
 ## Install
 
@@ -40,6 +42,9 @@ python3 -m pip install .
 python3 -m unittest discover -s tests -v
 ump-demo
 ump-conformance conformance/v0.1
+ump-lab run --output .ump-lab/scenario.json
+ump-readiness report --output .ump-lab/readiness.json
+ump-readiness verify .ump-lab/readiness.json
 ```
 
 ## Run a local awareness network
@@ -75,6 +80,7 @@ database. It does not invent robots or telemetry.
 - [`docs/ROBOT_DEPLOYMENT.md`](docs/ROBOT_DEPLOYMENT.md): staged robot integration.
 - [`docs/INSPECTOR.md`](docs/INSPECTOR.md): read-only operational UI.
 - [`docs/STANDARDS_INTEGRATIONS.md`](docs/STANDARDS_INTEGRATIONS.md): standards mappings and setup.
+- [`docs/HARDWARE_READINESS.md`](docs/HARDWARE_READINESS.md): software qualification lab and hardware handoff.
 - [`REFERENCE.md`](REFERENCE.md): related standards, reuse policy, and UMP gaps.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): commit and filename conventions.
 

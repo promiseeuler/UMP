@@ -23,10 +23,15 @@ with its exact package name, version range, license, and source URL.
 
 UMP does not vendor or install these libraries automatically:
 
-- `paho-mqtt`: optional VDA 5050 MQTT transport.
+- `paho-mqtt` 2.1.0 (EPL-2.0 or EDL-1.0): optional VDA 5050 MQTT transport.
+- `asyncua` 1.1.8 (LGPL-3.0-or-later): optional OPC UA client/server probe.
+- `websockets` 15.0.1 (BSD-3-Clause): optional WebSocket probe.
 - `rclpy` and `rmf_adapter`: optional ROS 2 and Open-RMF runtimes supplied by a
   compatible ROS installation.
-- `asyncua`: optional OPC UA client/server runtime.
+- Eclipse Mosquitto 2.0.22 (EPL-2.0 or EDL-1.0): Docker MQTT broker.
+- Shopify Toxiproxy 2.12.0 (MIT): Docker network-fault proxy.
+- ROS 2 Jazzy and Gazebo Harmonic (primarily Apache-2.0): optional Linux visual
+  and middleware runtime supplied by their published container/packages.
 
 Deployers must review and retain the license notices for the exact versions they
 install.
