@@ -38,7 +38,7 @@ Collect the following before granting repository or support access:
 | Robot | Manufacturer, model, firmware, robot class, and quantity |
 | Compute | Operating system, architecture, Python version, and ROS distribution |
 | Native API | SDK/action/service used for semantic state and high-level work |
-| Simulator | Gazebo, Isaac Sim, Webots, manufacturer simulator, or none |
+| Simulator | Gazebo, Isaac Sim, manufacturer simulator, or none |
 | State | Available activity, intent, progress, safety, pose, and availability fields |
 | Capability | Candidate high-level capability and native acceptance/cancellation API |
 | Network | Addressing, firewall, certificate, offline, and latency constraints |

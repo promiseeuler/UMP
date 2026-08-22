@@ -1,12 +1,15 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.ruff_cache/
 .venv/
 dist/
 build/
+ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
 *.egg-info/
+.*.jpg
 config/credentials/
 credentials/
 var/
