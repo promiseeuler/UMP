@@ -71,5 +71,5 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.gazebo
-    command: ["gz", "sim", "-s", "-r", "--iterations", "10", "/opt/ump/gazebo/warehouse.sdf"]
+    command: ["python3", "-m", "ump.gazebo_lab", "--workspace", "/tmp/ump-gazebo-lab"]
     profiles: ["visual"]

@@ -78,9 +78,11 @@ until an RMF deployment is selected. MassRobotics WebSocket lifecycle remains
 owner-controlled in production.
 
 The `visual` profile loads `gazebo/warehouse.sdf` headlessly with Gazebo Harmonic
-through ROS 2 Jazzy. Its model names match the UMP robot identities. The world
-does not create a simulator-only UMP control path: future model motion must
-enter the same ROS 2 or manufacturer adapter used by hardware.
+through ROS 2 Jazzy, runs the mixed-fleet scenario, and moves the mobile robot
+and payload using Gazebo services attached at the controller's native execution
+boundary. This does not create a simulator-only path inside UMP core; a
+manufacturer adapter can replace the Gazebo executor while preserving the
+assignment and authority flow.
 
 ## Faults, load, and soak
 

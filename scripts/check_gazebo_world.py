@@ -14,7 +14,7 @@ def main(argv: list[str] | None = None) -> int:
     if world is None:
         raise ValueError("SDF does not contain a world")
     names = {model.get("name") for model in world.findall("model")}
-    required = {"mobile-1", "inspector-1", "manipulator-1", "workcell", "floor"}
+    required = {"mobile-1", "inspector-1", "manipulator-1", "payload", "workcell", "floor"}
     if missing := sorted(required - names):
         raise ValueError(f"Gazebo world is missing models: {missing}")
     print(f"Gazebo world valid: {path} ({len(names)} models)")

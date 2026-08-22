@@ -56,6 +56,19 @@ class HardwareLabTests(unittest.TestCase):
         self.assertIsNone(state.battery)
         self.assertEqual(controllers["manipulator-1"].controller_state, ControllerState.IDLE)
 
+    def test_native_executor_is_used_through_the_robot_adapter_boundary(self):
+        calls = []
+
+        def setup(controllers):
+            controllers["mobile-1"].set_native_executor(
+                lambda assignment: calls.append(assignment.step.capability) or {"delivered": True}
+            )
+
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_scenario(workspace=directory, controller_setup=setup)
+        self.assertTrue(result.passed, result.failure)
+        self.assertEqual(calls, ["ump.material.carry/v1"])
+
     def test_fault_injector_is_deterministic_and_models_partition(self):
         profile = FaultProfile("chaos", seed=42, latency_ms=20, jitter_ms=5, duplicate_rate=0.5)
         first = [FaultInjector(profile).decide("mobile-1") for _ in range(2)]

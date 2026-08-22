@@ -159,10 +159,12 @@ class VirtualRobotController:
         pose: tuple[float, float, float],
         battery_level: float | None,
         limits: ControllerLimits = ControllerLimits(),
+        native_executor: Callable[[Assignment], dict[str, Any]] | None = None,
     ) -> None:
         self._manifest = manifest
         self._clock = clock
         self._limits = limits
+        self._native_executor = native_executor
         self._controller_state = ControllerState.IDLE
         self._connected = True
         self._health = Health.HEALTHY
@@ -240,6 +242,12 @@ class VirtualRobotController:
         self._battery_level = level
         self._record("battery", level=level)
 
+    def set_native_executor(
+        self, executor: Callable[[Assignment], dict[str, Any]] | None
+    ) -> None:
+        """Attach an optional simulator or vendor-style native execution backend."""
+        self._native_executor = executor
+
     def accept(self, assignment: Assignment) -> Outcome:
         reason = self._rejection_reason(assignment)
         if reason:
@@ -292,6 +300,8 @@ class VirtualRobotController:
         return None
 
     def _execute_native(self, assignment: Assignment) -> dict[str, Any]:
+        if self._native_executor is not None:
+            return self._native_executor(assignment)
         inputs = assignment.step.inputs
         capability = assignment.step.capability
         if capability == "ump.material.carry/v1":
