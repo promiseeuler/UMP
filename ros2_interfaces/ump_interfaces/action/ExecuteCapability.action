@@ -1,0 +1,11 @@
+string protocol
+string assignment_id
+string capability
+string inputs_json
+---
+string status
+string description
+string outputs_json
+---
+float32 progress
+string summary
