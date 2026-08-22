@@ -30,23 +30,6 @@ EXPECTED_CHECKS = frozenset(
         "capability_rejection",
     }
 )
-WEBOTS_RESULTS = {
-    "webots-inspect-route": ("succeeded", "robot-quadruped-1"),
-    "webots-carry-package": ("succeeded", "robot-humanoid-1"),
-    "webots-place-package": ("succeeded", "robot-mobile-arm-1"),
-}
-WEBOTS_CHECKS = frozenset(
-    {
-        "three_webots_drivers_ready",
-        "ump_planner_exercised",
-        "ump_ros2_adapters_exercised",
-        "ordered_collaboration_succeeded",
-        "physical_locomotion_exercised",
-        "package_handoff_visualized",
-    }
-)
-
-
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise Ros2EvidenceValidationError(message)
@@ -73,13 +56,9 @@ def validate_ros2_smoke_report(
     """Validate native smoke outcomes and bind them to optional source evidence."""
     document = _load(Path(report_path))
     profile = document.get("profile")
-    _require(
-        profile in {"ump.ros2-gazebo-smoke/v1", "ump.ros2-webots-warehouse/v1"},
-        "unsupported ROS 2 smoke profile",
-    )
-    is_webots = profile == "ump.ros2-webots-warehouse/v1"
-    expected_checks = WEBOTS_CHECKS if is_webots else EXPECTED_CHECKS
-    expected_results = WEBOTS_RESULTS if is_webots else EXPECTED_RESULTS
+    _require(profile == "ump.ros2-gazebo-smoke/v1", "unsupported ROS 2 smoke profile")
+    expected_checks = EXPECTED_CHECKS
+    expected_results = EXPECTED_RESULTS
     _require(document.get("passed") is True, "ROS 2 smoke report did not pass")
     checks = document.get("checks")
     _require(isinstance(checks, dict), "ROS 2 smoke checks must be an object")
@@ -139,16 +118,10 @@ def validate_ros2_smoke_report(
 
     world = document.get("world")
     _require(isinstance(world, dict), "ROS 2 smoke world evidence is missing")
-    if is_webots:
-        _require(
-            document.get("planner_id") == "ump.reference.warehouse-planner/v1",
-            "Webots smoke report planner identity is invalid",
-        )
-    else:
-        _require(
-            world.get("service") == "/world/ump_conformance/control",
-            "ROS 2 smoke world service is invalid",
-        )
+    _require(
+        world.get("service") == "/world/ump_conformance/control",
+        "ROS 2 smoke world service is invalid",
+    )
     if world_path is not None:
         try:
             actual_digest = sha256(Path(world_path).read_bytes()).hexdigest()
