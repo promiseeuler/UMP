@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from importlib.resources import files
+import json
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
+
+from jsonschema import Draft202012Validator
 
 from ..adapter import RobotAdapter
 from ..models import Assignment, RobotManifest, RobotState
@@ -156,3 +160,12 @@ def require_task_authorization(
         raise TaskAuthorizationError(
             f"authority lease does not permit {capability} for {robot_id}"
         )
+
+
+def mapping_report_schema() -> dict[str, Any]:
+    resource = files("ump").joinpath("mapping_data/v1/report.schema.json")
+    return json.loads(resource.read_text(encoding="utf-8"))
+
+
+def validate_mapping_report(report: MappingReport) -> None:
+    Draft202012Validator(mapping_report_schema()).validate(report.as_dict())

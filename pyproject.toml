@@ -61,6 +61,7 @@ ump = [
   "inspector_static/*.css",
   "inspector_static/*.js",
   "integration_data/**/*.json",
+  "mapping_data/**/*.json",
   "vocabulary_data/**/*.json",
   "lan_evidence_data/**/*.json",
   "network_config_data/**/*.json",

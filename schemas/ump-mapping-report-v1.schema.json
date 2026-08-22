@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ump.dev/schemas/ump-mapping-report-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["standard", "standard_version", "direction", "source_id", "observed_at_ms", "correlation_id", "passed", "fields", "warnings"],
+  "properties": {
+    "standard": {"type": "string", "minLength": 1, "maxLength": 128},
+    "standard_version": {"type": "string", "minLength": 1, "maxLength": 32},
+    "direction": {"enum": ["external_to_ump", "ump_to_external"]},
+    "source_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "observed_at_ms": {"type": "integer", "minimum": 0},
+    "correlation_id": {"type": ["string", "null"], "maxLength": 256},
+    "passed": {"type": "boolean"},
+    "fields": {"type": "array", "maxItems": 256, "items": {"type": "object", "additionalProperties": false, "required": ["field", "status", "detail"], "properties": {"field": {"type": "string", "minLength": 1, "maxLength": 256}, "status": {"enum": ["mapped", "defaulted", "unsupported", "rejected"]}, "detail": {"type": "string", "maxLength": 1024}}}},
+    "warnings": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 1024}}
+  }
+}

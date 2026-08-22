@@ -9,6 +9,8 @@ from .base import (
     MappingReport,
     StandardsAdapter,
     TaskAuthorizationError,
+    mapping_report_schema,
+    validate_mapping_report,
 )
 from .config import (
     IntegrationConfig,
@@ -27,9 +29,11 @@ __all__ = [
     "IntegrationProvenance",
     "IntegrationUnavailableError",
     "MappingReport",
+    "mapping_report_schema",
     "StandardsAdapter",
     "TaskAuthorizationError",
     "integration_config_schema",
     "load_integration_config",
     "validate_integration_config",
+    "validate_mapping_report",
 ]

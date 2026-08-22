@@ -60,8 +60,10 @@ from .integrations import (
     StandardsAdapter,
     TaskAuthorizationError,
     integration_config_schema,
+    mapping_report_schema,
     load_integration_config,
     validate_integration_config,
+    validate_mapping_report,
 )
 from .lan_evidence import (
     LanEvidenceValidationError,
@@ -139,6 +141,7 @@ __all__ = [
     "StandardsAdapter",
     "TaskAuthorizationError",
     "integration_config_schema",
+    "mapping_report_schema",
     "NetworkDiagnosticsError",
     "Outcome",
     "Plan",
@@ -186,6 +189,7 @@ __all__ = [
     "validate_lan_evidence_bundle",
     "validate_network_config",
     "validate_integration_config",
+    "validate_mapping_report",
     "Vda5050Adapter",
     "verify_local_awareness",
     "validate_plan",
