@@ -66,7 +66,12 @@ function render() {
     ["Assignment", state?.assignment_id],
     ["Pose", state?.pose ? `${state.pose.frame_id} · ${state.pose.position_m.join(", ")} m` : null],
     ["Sensor refs", state?.sensor_references?.length],
-    ["Resources", state?.resources?.join(", ")], ["Blockers", state?.blockers?.join(", ")]
+    ["Resources", state?.resources?.join(", ")], ["Blockers", state?.blockers?.join(", ")],
+    ["Source standard", robot?.integration?.source_standard],
+    ["Standard version", robot?.integration?.source_version],
+    ["External identity", robot?.integration?.external_id],
+    ["Mapping status", robot?.integration?.report?.passed === undefined ? null : robot.integration.report.passed ? "Passed" : "Rejected"],
+    ["Mapping warnings", robot?.integration?.report?.warnings?.join(", ")]
   ];
   byId("state-detail").replaceChildren(...details.flatMap(([label, value]) => {
     const dt = document.createElement("dt"); dt.textContent = label;

@@ -19,6 +19,7 @@ from ump.inspector import (
     InspectorStoreError,
     ReadOnlyInspectorStore,
 )
+from ump.integrations import FieldMapping, FieldMappingStatus, IntegrationProvenance, MappingReport
 from ump.models import Mode, RobotManifest, RobotState, Safety, payload
 from ump.transport import InMemoryBus, make_envelope
 
@@ -61,6 +62,21 @@ def messages():
 
 
 class InspectorTests(unittest.TestCase):
+    def test_integration_provenance_is_separate_truthful_read_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = InspectorStore(Path(directory) / "inspector.sqlite3")
+            report = MappingReport(
+                "massrobotics", "1.0", "external_to_ump", "amr-1", 100,
+                (FieldMapping("battery", FieldMappingStatus.MAPPED),),
+            )
+            store.record_integration(
+                "robot-1", IntegrationProvenance("massrobotics", "1.0", "amr-1", 100, report)
+            )
+            robot = store.snapshot()["robots"][0]
+            self.assertEqual(robot["integration"]["source_standard"], "massrobotics")
+            self.assertTrue(robot["integration"]["report"]["passed"])
+            store.close()
+
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.store = InspectorStore(

@@ -10,6 +10,7 @@ from threading import RLock, Thread
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from .integrations import IntegrationProvenance
 from .transport import Envelope, MessageBus, encode_envelope
 
 
@@ -66,6 +67,19 @@ class InspectorStore:
             )
             """
         )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS integration_reports (
+                report_order INTEGER PRIMARY KEY AUTOINCREMENT,
+                robot_id TEXT NOT NULL,
+                source_standard TEXT NOT NULL,
+                source_version TEXT NOT NULL,
+                external_id TEXT NOT NULL,
+                mapped_at_ms INTEGER NOT NULL,
+                report_json TEXT NOT NULL
+            )
+            """
+        )
 
     def record(self, envelope: Envelope) -> bool:
         encoded = encode_envelope(envelope)
@@ -103,6 +117,30 @@ class InspectorStore:
             ).fetchall()
         return [json.loads(bytes(row[0])) for row in rows]
 
+    def record_integration(
+        self, robot_id: str, provenance: IntegrationProvenance
+    ) -> None:
+        report_json = json.dumps(
+            provenance.report.as_dict(), separators=(",", ":"), sort_keys=True
+        )
+        with self._lock:
+            self._connection.execute(
+                """
+                INSERT INTO integration_reports
+                (robot_id, source_standard, source_version, external_id,
+                 mapped_at_ms, report_json)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    robot_id,
+                    provenance.source_standard,
+                    provenance.source_version,
+                    provenance.external_id,
+                    provenance.mapped_at_ms,
+                    report_json,
+                ),
+            )
+
     def snapshot(self, event_limit: int = 100) -> dict[str, Any]:
         events = self.events(event_limit)
         robots: dict[str, dict[str, Any]] = {}
@@ -126,6 +164,36 @@ class InspectorStore:
                 {"robot_id": event["source_id"], "manifest": None, "state": None},
             )
             robot[event["message_type"]] = event["payload"]
+        with self._lock:
+            has_reports = self._connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='integration_reports'"
+            ).fetchone()
+            report_rows = (
+                self._connection.execute(
+                    """
+                    SELECT robot_id, source_standard, source_version, external_id,
+                           mapped_at_ms, report_json
+                    FROM integration_reports AS candidate
+                    WHERE report_order = (
+                        SELECT MAX(report_order) FROM integration_reports AS latest
+                        WHERE latest.robot_id = candidate.robot_id
+                    )
+                    """
+                ).fetchall()
+                if has_reports
+                else ()
+            )
+        for row in report_rows:
+            robot = robots.setdefault(
+                row[0], {"robot_id": row[0], "manifest": None, "state": None}
+            )
+            robot["integration"] = {
+                "source_standard": row[1],
+                "source_version": row[2],
+                "external_id": row[3],
+                "mapped_at_ms": row[4],
+                "report": json.loads(row[5]),
+            }
         with self._lock:
             total = self._connection.execute(
                 "SELECT COUNT(*) FROM protocol_events"
@@ -181,6 +249,12 @@ class ReadOnlyInspectorStore(InspectorStore):
     def record(self, envelope: Envelope) -> bool:
         del envelope
         raise InspectorStoreError("read-only inspector store cannot record events")
+
+    def record_integration(
+        self, robot_id: str, provenance: IntegrationProvenance
+    ) -> None:
+        del robot_id, provenance
+        raise InspectorStoreError("read-only inspector store cannot record integration reports")
 
 
 class InspectorRecorder:
