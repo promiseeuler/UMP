@@ -15,6 +15,7 @@ class ReleasePackagingTests(unittest.TestCase):
         scripts = project["scripts"]
         self.assertEqual(project["license"], "Apache-2.0")
         self.assertEqual(scripts["ump-inspector"], "ump.cli:inspector_main")
+        self.assertEqual(scripts["ump-integration"], "ump.cli:integration_main")
         self.assertEqual(scripts["ump-node"], "ump.cli:node_main")
         self.assertEqual(scripts["ump-coordinator"], "ump.cli:coordinator_main")
         for removed in (
