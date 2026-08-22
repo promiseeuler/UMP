@@ -14,7 +14,7 @@ ROS = ROOT / "ros2_ws" / "src"
 class Ros2PackagingTests(unittest.TestCase):
     def test_ros_packages_have_valid_metadata_and_unique_names(self):
         package_files = sorted(ROS.glob("*/package.xml"))
-        self.assertEqual(len(package_files), 3)
+        self.assertEqual(len(package_files), 2)
         names = []
         for package_file in package_files:
             root = ET.parse(package_file).getroot()
@@ -62,8 +62,7 @@ class Ros2PackagingTests(unittest.TestCase):
 
     def test_ros_python_sources_parse_without_importing_optional_runtime(self):
         sources = list((ROS / "ump_gazebo_demo").rglob("*.py"))
-        sources += list((ROS / "ump_webots_demo").rglob("*.py"))
-        self.assertGreaterEqual(len(sources), 7)
+        self.assertGreaterEqual(len(sources), 4)
         for source in sources:
             with self.subTest(source=source):
                 ast.parse(source.read_text(), filename=str(source))
@@ -75,18 +74,12 @@ class Ros2PackagingTests(unittest.TestCase):
         self.assertIn("source /opt/ros/jazzy/setup.bash", workflow)
         self.assertIn("ros-tooling/setup-ros@v0.7", workflow)
         self.assertIn("ros-jazzy-ros-gz-sim", workflow)
-        self.assertIn("ros-jazzy-webots-ros2-driver", workflow)
-        self.assertIn("webots_2025a_amd64.deb", workflow)
         self.assertIn("--ignore-installed .", workflow)
         self.assertIn("colcon test-result --verbose", workflow)
         self.assertIn(
             "pip install --break-system-packages --ignore-installed .", workflow
         )
         self.assertIn("timeout 180s bash ros2_ws/smoke.sh", workflow)
-        self.assertIn("timeout 240s bash ros2_ws/webots_smoke.sh", workflow)
-        self.assertIn(
-            "ump-ros2-evidence /tmp/ump-ros2-webots-smoke.json", workflow
-        )
         self.assertIn("ump-ros2-evidence /tmp/ump-ros2-gazebo-smoke.json", workflow)
         self.assertIn("actions/upload-artifact@v7", workflow)
         self.assertIn("retention-days: 90", workflow)
@@ -122,62 +115,6 @@ class Ros2PackagingTests(unittest.TestCase):
         export = package.find("export")
         assert export is not None
         self.assertEqual(export.findtext("build_type"), "ament_python")
-
-    def test_webots_profile_contains_three_drivers_and_ump_capabilities(self):
-        package = ROS / "ump_webots_demo"
-        world = (package / "worlds" / "ump_warehouse.wbt").read_text()
-        for robot_name in (
-            "robot_quadruped_1",
-            "robot_humanoid_1",
-            "robot_mobile_arm_1",
-        ):
-            self.assertIn(f'name "{robot_name}"', world)
-        self.assertEqual(world.count('controller "<extern>"'), 3)
-        self.assertIn("DEF PACKAGE_1 Solid", world)
-        self.assertIn('name "lidar"', world)
-
-        expected = {
-            "quadruped.urdf": "ump.navigation.inspect-route/v1",
-            "humanoid.urdf": "ump.material.carry/v1",
-            "mobile_arm.urdf": "ump.manipulation.place/v1",
-        }
-        for filename, capability in expected.items():
-            root = ET.parse(package / "resource" / filename).getroot()
-            plugin = root.find("./webots/plugin")
-            assert plugin is not None
-            self.assertEqual(
-                plugin.attrib["type"],
-                "ump_webots_demo.warehouse_driver.WarehouseRobotDriver",
-            )
-            self.assertEqual(plugin.findtext("capability"), capability)
-
-        launch = (package / "launch" / "warehouse.launch.py").read_text()
-        self.assertIn("WebotsLauncher", launch)
-        self.assertIn("WebotsController", launch)
-        self.assertIn("ros2_supervisor=False", launch)
-        self.assertIn('DeclareLaunchArgument("autostart"', launch)
-
-    def test_webots_smoke_runs_the_ordered_warehouse_flow(self):
-        smoke = (ROOT / "ros2_ws" / "webots_smoke.sh").read_text()
-        self.assertIn("warehouse.launch.py", smoke)
-        self.assertIn("warehouse_smoke_client", smoke)
-        client = (
-            ROS
-            / "ump_webots_demo"
-            / "ump_webots_demo"
-            / "warehouse_smoke_client.py"
-        ).read_text()
-        positions = [
-            client.index("ump.navigation.inspect-route/v1"),
-            client.index("ump.material.carry/v1"),
-            client.index("ump.manipulation.place/v1"),
-        ]
-        self.assertEqual(positions, sorted(positions))
-        self.assertIn('"profile": "ump.ros2-webots-warehouse/v1"', client)
-        self.assertIn("WarehousePlanner", client)
-        self.assertIn("Ros2RobotAdapter", client)
-        self.assertIn('"ump_planner_exercised": True', client)
-
 
 if __name__ == "__main__":
     unittest.main()
