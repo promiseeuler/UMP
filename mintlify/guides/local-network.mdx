@@ -1,0 +1,48 @@
+---
+title: "Create a local network"
+description: "Generate a mutual-TLS awareness network for development."
+icon: "radio-tower"
+---
+
+The quickstart generator creates three read-only participants with development
+credentials and isolated durable stores.
+
+<Steps>
+  <Step title="Generate the deployment">
+    ```bash
+    ump-deployment quickstart --output ump-local-lab
+    ```
+  </Step>
+  <Step title="Verify the complete topology">
+    ```bash
+    ump-deployment verify-local ump-local-lab
+    ```
+
+    Verification starts each endpoint and proves every participant receives
+    every peer manifest and state.
+  </Step>
+  <Step title="Start the participants">
+    Run each script in a separate terminal:
+
+    ```bash
+    ump-local-lab/nodes/robot-humanoid-1/run.sh
+    ump-local-lab/nodes/robot-quadruped-1/run.sh
+    ump-local-lab/nodes/robot-arm-1/run.sh
+    ```
+  </Step>
+</Steps>
+
+Generated adapters advertise no capabilities and reject assignments. Generated
+PKI includes a local CA private key and must never be promoted to production.
+
+## Repeatable topology as code
+
+```bash
+ump-deployment generate \
+  --topology config/local-lab.example.json \
+  --output my-ump-lab \
+  --development-pki
+```
+
+Use `ump-deployment wizard --output my-ump-lab` for an interactive development
+setup. For physical robots, issue identities through the owner's existing PKI.

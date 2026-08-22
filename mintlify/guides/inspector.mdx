@@ -1,0 +1,41 @@
+---
+title: "Use the inspector"
+description: "Observe recorded robot awareness, mappings, faults, and collaboration progress."
+icon: "monitor-dot"
+---
+
+The inspector is a read-only operational UI backed by an inspector SQLite
+database. It displays observed UMP records, not assumptions about external
+robots or middleware.
+
+```bash
+ump-inspector \
+  --database ump-local-lab/nodes/robot-humanoid-1/state/inspector.sqlite3 \
+  --host 127.0.0.1 \
+  --port 8765
+```
+
+Open `http://127.0.0.1:8765/`.
+
+## What you can inspect
+
+- Robot identity, availability, mode, activity, intent, and progress.
+- Health, battery, safety, pose, observation time, and freshness.
+- Adapter source, integration standard, mapping status, and warnings.
+- Reconnect count, injected faults, authority activity, and scenario progress.
+- Collaborative runs, assignments, cancellation, and terminal outcomes.
+
+## Empty inspector
+
+An empty inspector means its selected database has no compatible recorded
+messages. Confirm:
+
+1. The participant is running.
+2. Its `--inspector-database` path matches the inspector's `--database` path.
+3. Peer disclosure permits manifest and state messages.
+4. Credentials and network preflight pass.
+
+<Warning>
+  Opening `src/ump/inspector_static/index.html` directly only renders the static
+  frontend shell. It does not connect to a database or discover robots.
+</Warning>

@@ -53,11 +53,11 @@
         "group": "Build with UMP",
         "icon": "wrench",
         "pages": [
-          "build/local-network",
-          "build/inspector",
-          "build/manufacturer-adapter",
-          "build/planner",
-          "build/production-node"
+          "guides/local-network",
+          "guides/inspector",
+          "guides/manufacturer-adapter",
+          "guides/planner",
+          "guides/production-node"
         ]
       },
       {

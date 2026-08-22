@@ -1,0 +1,50 @@
+---
+title: "Configure a production node"
+description: "Preflight identity, storage, network policy, adapters, and integrations."
+icon: "server-cog"
+---
+
+Production configuration is per participant. Never share private keys,
+assignment stores, authority stores, replay databases, or robot identities.
+
+<Steps>
+  <Step title="Issue credentials">
+    Each leaf certificate must contain exactly one URI SAN:
+    `urn:ump:robot:<robot-id>`.
+  </Step>
+  <Step title="Configure strict peers">
+    Start from `config/network.example.json`. Pin robot IDs and certificate
+    fingerprints. In awareness-only mode, allow only manifests and states.
+  </Step>
+  <Step title="Validate network configuration">
+    ```bash
+    ump-network-config validate /etc/ump/robot-network.json
+    ```
+  </Step>
+  <Step title="Run non-mutating preflight">
+    ```bash
+    ump-node --preflight \
+      --network /etc/ump/robot-network.json \
+      --adapter manufacturer_package.adapter:create_adapter \
+      --adapter-config /etc/manufacturer/robot.json \
+      --assignment-database /var/lib/ump/assignments.sqlite3 \
+      --authority-database /var/lib/ump/authority.sqlite3 \
+      --credential-database /var/lib/ump/credentials.sqlite3 \
+      --credential-directory /var/lib/ump/credentials \
+      --inspector-database /var/lib/ump/inspector.sqlite3 \
+      --state-hz 2
+    ```
+  </Step>
+  <Step title="Start awareness-only operation">
+    Repeat the same command without `--preflight`, then monitor the inspector
+    and network diagnostics before adding any capability.
+  </Step>
+</Steps>
+
+```bash
+ump-network-diagnostics --network /etc/ump/robot-network.json
+```
+
+Preflight validates before opening listeners or creating runtime databases.
+Credential, identity, disclosure, path-collision, and adapter failures stop
+startup.

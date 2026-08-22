@@ -1,0 +1,63 @@
+---
+title: "Build a manufacturer adapter"
+description: "Translate a native robot API into UMP without moving the control boundary."
+icon: "plug-zap"
+---
+
+Start read-only. The first adapter should expose trustworthy awareness and
+reject every assignment.
+
+## Contract
+
+```python
+from typing import Protocol
+
+class RobotAdapter(Protocol):
+    def manifest(self) -> RobotManifest: ...
+    def state(self) -> RobotState: ...
+    def accept(self, assignment: Assignment) -> Outcome: ...
+    def cancel(self, assignment_id: str, reason: str) -> tuple[bool, str]: ...
+```
+
+Use `examples/read_only_adapter.py` as the starting point.
+
+<Steps>
+  <Step title="Bind one stable identity">
+    Map exactly one vendor robot identity to one UMP robot ID. Reject
+    conflicting or changing identity evidence.
+  </Step>
+  <Step title="Translate observed state">
+    Read bounded manufacturer APIs for mode, activity, intent, safety, health,
+    battery, pose, and timestamps. Omit unavailable optional data.
+  </Step>
+  <Step title="Advertise no executable capabilities">
+    Keep the capability tuple empty and make `accept()` reject assignments.
+  </Step>
+  <Step title="Run conformance">
+    ```bash
+    ump-adapter-conformance inspect \
+      --adapter manufacturer_package.adapter:create_adapter \
+      --adapter-config /etc/manufacturer/robot.json \
+      --output adapter-conformance.json
+
+    ump-adapter-conformance verify adapter-conformance.json \
+      --implementation manufacturer_package/adapter.py
+    ```
+  </Step>
+  <Step title="Compare with native tooling">
+    During awareness-only operation, compare every mapped value, unit, frame,
+    timestamp, and freshness result with the manufacturer's own interface.
+  </Step>
+</Steps>
+
+## Add one capability later
+
+Choose one bounded, high-level capability whose schema exactly matches a native
+API. Implement operating-mode, resource, workspace, safety, and acceptance
+checks inside the adapter. Test it in the manufacturer's supported simulator
+before requesting an owner-issued authority lease.
+
+<Warning>
+  Do not adapt joint commands, velocity commands, trajectories, motor values,
+  emergency stops, or ambiguous vendor actions into UMP capabilities.
+</Warning>
