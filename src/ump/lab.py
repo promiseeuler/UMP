@@ -9,7 +9,9 @@ import json
 from pathlib import Path
 import platform
 import random
+import shutil
 import time
+import tempfile
 from typing import Any, Callable, Iterable
 
 from cryptography.hazmat.primitives import serialization
@@ -384,6 +386,19 @@ class HardwareReadinessReport:
         return json.loads(json.dumps(asdict(self)))
 
 
+@dataclass(frozen=True)
+class LoadProbeResult:
+    participants: int
+    cycles: int
+    messages: int
+    elapsed_ms: float
+    messages_per_second: float
+    stale_participants: int
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 def _schema(name: str) -> dict[str, Any]:
     path = Path(__file__).with_name("lab_data") / "v1" / name
     return json.loads(path.read_text(encoding="utf-8"))
@@ -475,6 +490,7 @@ def run_scenario(
         controller_setup(controllers)
     root = Path(workspace)
     root.mkdir(parents=True, exist_ok=True)
+    authority_root = Path(tempfile.mkdtemp(prefix="authority-", dir=root))
     bus = InMemoryBus()
     registry = Registry(bus)
     participants: list[Participant] = []
@@ -495,7 +511,7 @@ def run_scenario(
         }
         for robot_id in scenario.participants:
             controller = controllers[robot_id]
-            store = SqliteAuthorityStore(robot_id, root / f"{robot_id}-authority.sqlite3")
+            store = SqliteAuthorityStore(robot_id, authority_root / f"{robot_id}.sqlite3")
             lease_id = f"{robot_id}-lab-lease"
             store.grant(AuthorityLease(lease_id, robot_id, "lab-coordinator", capabilities_by_robot[robot_id], 0, 60_000), clock())
             authority_stores.append(store)
@@ -519,6 +535,7 @@ def run_scenario(
     finally:
         for participant in participants:
             participant.close()
+        shutil.rmtree(authority_root, ignore_errors=True)
     clock.advance(100)
     return ScenarioResult(
         scenario.scenario_id,
@@ -535,6 +552,69 @@ def run_scenario(
 def run_fault_probe(profile: FaultProfile, messages: int = 100) -> tuple[dict[str, Any], ...]:
     injector = FaultInjector(profile)
     return tuple(asdict(injector.decide("mobile-1")) for _ in range(messages))
+
+
+def run_load_probe(participants: int, cycles: int = 10) -> LoadProbeResult:
+    if participants not in {3, 25, 100, 250}:
+        raise ValueError("load participants must be one of 3, 25, 100, or 250")
+    if not 1 <= cycles <= 100_000:
+        raise ValueError("load cycles must be between 1 and 100000")
+    clock = DeterministicClock()
+    bus = InMemoryBus()
+    registry = Registry(bus)
+    nodes: list[Participant] = []
+    started = time.perf_counter()
+    try:
+        for index in range(participants):
+            robot_id = f"load-robot-{index:03d}"
+            controller = VirtualRobotController(
+                RobotManifest(robot_id, "UMP Load Lab", "LOAD-EMU", "virtual_robot", ()),
+                clock=clock,
+                pose=(float(index), 0.0, 0.0),
+                battery_level=0.8,
+            )
+            node = Participant(controller, bus, clock_ms=clock)
+            node.announce(clock())
+            nodes.append(node)
+        for _ in range(cycles - 1):
+            clock.advance(10)
+            for node in nodes:
+                node.publish_state(clock())
+        elapsed_ms = (time.perf_counter() - started) * 1_000
+        messages = participants * (cycles + 1)
+        stale = sum(not registry.is_fresh(node.robot_id, clock()) for node in nodes)
+        return LoadProbeResult(
+            participants,
+            cycles,
+            messages,
+            elapsed_ms,
+            messages / max(elapsed_ms / 1_000, 1e-9),
+            stale,
+        )
+    finally:
+        for node in nodes:
+            node.close()
+
+
+def run_soak_probe(duration_s: float, *, participants: int = 25, state_hz: float = 2.0) -> dict[str, Any]:
+    if not 0 < duration_s <= 86_400:
+        raise ValueError("soak duration must be between 0 and 86400 seconds")
+    if not 0.1 <= state_hz <= 100.0:
+        raise ValueError("soak state_hz must be between 0.1 and 100")
+    started = time.monotonic()
+    deadline = started + duration_s
+    aggregate_messages = 0
+    runs = 0
+    while time.monotonic() < deadline:
+        result = run_load_probe(participants, 2)
+        aggregate_messages += result.messages
+        runs += 1
+        if result.stale_participants:
+            return {"passed": False, "duration_s": time.monotonic() - started, "messages": aggregate_messages, "reason": "stale participants"}
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(1.0 / state_hz, remaining))
+    return {"passed": True, "duration_s": time.monotonic() - started, "messages": aggregate_messages, "runs": runs}
 
 
 def file_sha256(path: str | Path) -> str:

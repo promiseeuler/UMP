@@ -14,6 +14,7 @@ from ump.lab import (
     generate_signing_key,
     mixed_fleet_controllers,
     run_fault_probe,
+    run_load_probe,
     run_scenario,
     sign_readiness_report,
     validate_fault_profile,
@@ -21,6 +22,7 @@ from ump.lab import (
     validate_scenario,
     verify_readiness_report,
 )
+from ump.cli import lab_main, readiness_main
 from ump.models import Health, Safety
 
 
@@ -61,6 +63,13 @@ class HardwareLabTests(unittest.TestCase):
         partition = FaultInjector(FaultProfile("partition", partitioned_sources=("mobile-1",)))
         self.assertEqual(partition.decide("mobile-1").reason, "partition")
 
+    def test_reference_load_profiles_keep_every_participant_fresh(self):
+        for participants in (3, 25, 100, 250):
+            with self.subTest(participants=participants):
+                result = run_load_probe(participants, cycles=2)
+                self.assertEqual(result.stale_participants, 0)
+                self.assertGreater(result.messages_per_second, 0)
+
     def test_scenario_fault_and_report_schemas_validate(self):
         scenario_path = Path("src/ump/lab_data/v1/warehouse-inspection-transfer.json")
         validate_scenario(json.loads(scenario_path.read_text()))
@@ -75,6 +84,22 @@ class HardwareLabTests(unittest.TestCase):
         signed["passed"] = not signed["passed"]
         with self.assertRaises(InvalidSignature):
             verify_readiness_report(signed)
+
+    def test_lab_and_readiness_cli_create_verifiable_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result_path = Path(directory) / "scenario.json"
+            report_path = Path(directory) / "readiness.json"
+            self.assertEqual(
+                lab_main(["run", "--workspace", directory, "--output", str(result_path)]),
+                0,
+            )
+            self.assertTrue(json.loads(result_path.read_text())["passed"])
+            self.assertEqual(
+                readiness_main(["report", "--workspace", directory, "--output", str(report_path)]),
+                0,
+            )
+            self.assertEqual(readiness_main(["verify", str(report_path)]), 0)
+            self.assertEqual(readiness_main(["--validate-only"]), 0)
 
 
 if __name__ == "__main__":

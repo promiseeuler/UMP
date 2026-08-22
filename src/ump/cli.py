@@ -10,6 +10,8 @@ import sys
 import tempfile
 from threading import Event
 import time
+import subprocess
+from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
@@ -102,6 +104,24 @@ from .lan_evidence import (
     LanEvidenceValidationError,
     lan_evidence_schema,
     validate_lan_evidence_bundle,
+)
+from .lab import (
+    FaultProfile,
+    ScenarioDefinition,
+    create_readiness_report,
+    default_scenario,
+    fault_profile_schema,
+    generate_signing_key,
+    load_private_key,
+    readiness_report_schema,
+    run_fault_probe,
+    run_load_probe,
+    run_scenario,
+    run_soak_probe,
+    scenario_schema,
+    sign_readiness_report,
+    validate_readiness_report,
+    verify_readiness_report,
 )
 from .models import AssignmentStatus, AuthorityLease, SharedGoal, payload
 from .network import (
@@ -1687,6 +1707,140 @@ def integration_main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def _lab_compose_file() -> Path:
+    configured = os.environ.get("UMP_LAB_COMPOSE")
+    if configured:
+        return Path(configured)
+    candidate = Path.cwd() / "docker-compose.lab.yml"
+    if not candidate.is_file():
+        raise FileNotFoundError(
+            "docker-compose.lab.yml is not in the current directory; set UMP_LAB_COMPOSE"
+        )
+    return candidate
+
+
+def lab_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-lab",
+        description="Run the deterministic UMP hardware-readiness laboratory.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    for name in ("up", "down", "status"):
+        command = commands.add_parser(name, help=f"{name.title()} Docker lab services")
+        command.add_argument("--profile", action="append", default=[])
+    run = commands.add_parser("run", help="Run a hardware-readiness scenario")
+    run.add_argument("scenario", nargs="?")
+    run.add_argument("--workspace", default=".ump-lab/run")
+    run.add_argument("--output")
+    fault = commands.add_parser("fault", help="Evaluate a deterministic fault profile")
+    fault.add_argument("profile")
+    fault.add_argument("--messages", type=int, default=100)
+    fault.add_argument("--output")
+    load = commands.add_parser("load", help="Run a bounded participant load profile")
+    load.add_argument("--participants", type=int, choices=(3, 25, 100, 250), required=True)
+    load.add_argument("--cycles", type=int, default=10)
+    soak = commands.add_parser("soak", help="Run a long-lived state publication probe")
+    soak.add_argument("--duration-s", type=float, default=28_800)
+    soak.add_argument("--participants", type=int, choices=(3, 25, 100, 250), default=25)
+    soak.add_argument("--state-hz", type=float, default=2.0)
+    schema = commands.add_parser("schema", help="Print a lab JSON Schema")
+    schema.add_argument("kind", choices=("scenario", "fault", "readiness"))
+    arguments = parser.parse_args(argv)
+    try:
+        if arguments.command in {"up", "down", "status"}:
+            compose = ["docker", "compose", "-f", str(_lab_compose_file())]
+            for profile in arguments.profile:
+                compose.extend(("--profile", profile))
+            action = {"up": ("up", "-d"), "down": ("down",), "status": ("ps",)}[arguments.command]
+            return subprocess.run([*compose, *action], check=False).returncode
+        if arguments.command == "schema":
+            document = {
+                "scenario": scenario_schema,
+                "fault": fault_profile_schema,
+                "readiness": readiness_report_schema,
+            }[arguments.kind]()
+        elif arguments.command == "fault":
+            profile_document = json.loads(Path(arguments.profile).read_text(encoding="utf-8"))
+            profile = FaultProfile.from_document(profile_document)
+            document = {"profile": profile.as_dict(), "outcomes": run_fault_probe(profile, arguments.messages)}
+        elif arguments.command == "load":
+            document = run_load_probe(arguments.participants, arguments.cycles).as_dict()
+            document["passed"] = document["stale_participants"] == 0
+        elif arguments.command == "soak":
+            document = run_soak_probe(arguments.duration_s, participants=arguments.participants, state_hz=arguments.state_hz)
+        else:
+            definition = default_scenario()
+            if arguments.scenario:
+                scenario_document = json.loads(Path(arguments.scenario).read_text(encoding="utf-8"))
+                definition = ScenarioDefinition.from_document(scenario_document)
+            document = run_scenario(definition, workspace=arguments.workspace).as_dict()
+        encoded = json.dumps(document, sort_keys=True, indent=2)
+        if getattr(arguments, "output", None):
+            Path(arguments.output).write_text(encoded + "\n", encoding="utf-8")
+        print(encoded)
+        return 0 if document.get("passed", True) else 1
+    except (OSError, TypeError, ValueError, json.JSONDecodeError, ValidationError) as error:
+        print(f"ump-lab: {type(error).__name__}: {error}", file=sys.stderr)
+        return 2
+
+
+def readiness_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ump-readiness",
+        description="Create and verify signed UMP hardware-readiness evidence.",
+    )
+    parser.add_argument("--validate-only", action="store_true", help=argparse.SUPPRESS)
+    commands = parser.add_subparsers(dest="command")
+    report = commands.add_parser("report", help="Run the lab and write a signed report")
+    report.add_argument("--scenario")
+    report.add_argument("--fault-profile")
+    report.add_argument("--workspace", default=".ump-lab/readiness")
+    report.add_argument("--output", required=True)
+    report.add_argument("--signing-key")
+    verify = commands.add_parser("verify", help="Verify a signed readiness report")
+    verify.add_argument("report")
+    arguments = parser.parse_args(argv)
+    try:
+        if arguments.validate_only:
+            for schema in (scenario_schema(), fault_profile_schema(), readiness_report_schema()):
+                Draft202012Validator.check_schema(schema)
+            print(json.dumps({"valid": True, "schemas": 3}, sort_keys=True))
+            return 0
+        if arguments.command == "verify":
+            document = json.loads(Path(arguments.report).read_text(encoding="utf-8"))
+            verify_readiness_report(document)
+            print(json.dumps({"valid": True, "passed": document["passed"]}, sort_keys=True))
+            return 0 if document["passed"] else 1
+        if arguments.command != "report":
+            parser.error("a command is required")
+        definition = default_scenario()
+        if arguments.scenario:
+            definition = ScenarioDefinition.from_document(
+                json.loads(Path(arguments.scenario).read_text(encoding="utf-8"))
+            )
+        profile = FaultProfile("baseline")
+        configuration: dict[str, Any] = {"scenario": definition.scenario_id}
+        if arguments.fault_profile:
+            profile = FaultProfile.from_document(
+                json.loads(Path(arguments.fault_profile).read_text(encoding="utf-8"))
+            )
+            configuration["fault_profile"] = profile.as_dict()
+        result = run_scenario(definition, workspace=arguments.workspace)
+        outcomes = run_fault_probe(profile)
+        unsigned = create_readiness_report(result, configuration=configuration, fault_outcomes=outcomes)
+        key = load_private_key(arguments.signing_key) if arguments.signing_key else generate_signing_key()
+        document = sign_readiness_report(unsigned, key).as_dict()
+        validate_readiness_report(document)
+        output = Path(arguments.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(document, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps({"output": str(output), "passed": document["passed"], "signed": True}, sort_keys=True))
+        return 0 if document["passed"] else 1
+    except (OSError, TypeError, ValueError, json.JSONDecodeError, ValidationError) as error:
+        print(f"ump-readiness: {type(error).__name__}: {error}", file=sys.stderr)
+        return 2
+
+
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     commands = {
@@ -1700,12 +1854,14 @@ def main(argv: list[str] | None = None) -> int:
         "goal": goal_main,
         "inspector": inspector_main,
         "integration": integration_main,
+        "lab": lab_main,
         "lan-benchmark": lan_benchmark_main,
         "lan-evidence": lan_evidence_main,
         "node": node_main,
         "network-config": network_config_main,
         "network-diagnostics": network_diagnostics_main,
         "reconcile": reconcile_main,
+        "readiness": readiness_main,
         "vocabulary": vocabulary_main,
     }
     if not arguments or arguments[0] not in commands:

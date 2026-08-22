@@ -1,0 +1,11 @@
+{
+  "profile": "ump-fault-profile/v1",
+  "profile_id": "baseline",
+  "seed": 17,
+  "latency_ms": 20,
+  "jitter_ms": 5,
+  "loss_rate": 0.01,
+  "duplicate_rate": 0.02,
+  "reorder_rate": 0.01,
+  "partitioned_sources": []
+}
