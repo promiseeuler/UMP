@@ -1,0 +1,100 @@
+---
+title: "Operate UMP in Production"
+description: "Deploy, monitor, back up, restore, upgrade, and roll back an owner-operated UMP software service."
+icon: "gauge"
+sidebarTitle: "Operations"
+---
+
+UMP ships a non-root production image, hardened Compose and systemd templates,
+content-free service probes, authenticated inspector access, and verified SQLite
+backup tooling. These controls qualify the software deployment path. They do not
+certify a robot or replace site safety systems.
+
+## Build and preflight
+
+```bash
+docker build -f docker/Dockerfile.production -t ump:local .
+docker compose -f deploy/compose.production.yml config
+```
+
+Before startup, run `ump-node --preflight` using the same identity, mounts,
+adapter, credentials, network file, and database paths as the service. Keep each
+database role on a distinct persistent path and keep private keys accessible only
+to the UMP service account.
+
+<Warning>
+  Review every placeholder and resource limit. Production must use an immutable
+  image digest, owner-managed secrets, and a private robot or management network.
+</Warning>
+
+## Monitor the node
+
+Enable the operations listener on a private interface:
+
+```bash
+ump-node ... --operations-host 127.0.0.1 --operations-port 9090
+curl --fail http://127.0.0.1:9090/healthz
+curl --fail http://127.0.0.1:9090/readyz
+curl --fail http://127.0.0.1:9090/metrics
+```
+
+`healthz` detects recurring credential and recorder failures. `readyz` becomes
+successful only after startup and becomes unavailable during shutdown or after a
+health failure. `metrics` uses Prometheus text format and contains no robot state.
+
+Use `ump-network-diagnostics` to inspect durable retry queues and inbox dead
+letters. Alert on failed probes, increasing runtime failures, stale required
+peers, dead letters, and sustained outbox retries.
+
+## Secure the inspector
+
+The inspector binds to loopback by default. Remote binding requires TLS 1.3,
+explicit opt-in, and a token containing at least 32 bytes:
+
+```bash
+ump-inspector \
+  --database /var/lib/ump/inspector.sqlite3 \
+  --host 0.0.0.0 --port 8765 --allow-remote \
+  --auth-token-file /run/secrets/inspector-token \
+  --tls-certificate /run/secrets/inspector-cert.pem \
+  --tls-private-key /run/secrets/inspector-key.pem
+```
+
+The username is `ump`; the token is the password. Put SSO, per-user access,
+rate limiting, and access logging in a reviewed operator access layer.
+
+## Back up and recover
+
+```bash
+ump-ops backup \
+  --database assignment=/var/lib/ump/assignments.sqlite3 \
+  --database authority=/var/lib/ump/authority.sqlite3 \
+  --database credentials=/var/lib/ump/credentials.sqlite3 \
+  --database inspector=/var/lib/ump/inspector.sqlite3 \
+  --output /backup/ump-release
+ump-ops verify-backup /backup/ump-release/manifest.json
+```
+
+The manifest stores sizes and SHA-256 checksums; verification also runs SQLite
+integrity checks. Encrypt backups and keep an off-host copy.
+
+Stop UMP before restoring. Restore always targets a new directory and refuses to
+overwrite an existing one:
+
+```bash
+ump-ops restore /backup/ump-release/manifest.json \
+  --target-directory /restore/ump-release
+```
+
+Run preflight against the restored paths before startup. Then verify credentials,
+authority leases, peer diagnostics, and uncertain assignment reconciliation.
+
+## Upgrade and rollback
+
+Record the image digest, Git revision, configuration hashes, and verified backup.
+Drain assignments, stop cleanly, deploy the immutable image, run preflight, and
+verify readiness plus peer diagnostics. On failure, restore the previous image
+and configuration. Restore data only when required, and reconcile every uncertain
+assignment instead of assuming success or dispatching it twice.
+
+See [Software Release Gate](/validate/software-release) for the required evidence.

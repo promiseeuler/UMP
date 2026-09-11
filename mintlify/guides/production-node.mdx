@@ -14,7 +14,8 @@ UMP does not issue certificates. Obtain leaf certificates from your established 
 ### Enroll a certificate bundle
 
 ```bash
-ump-credential enroll \
+ump-credentials --robot-id robot-1 --database /var/lib/ump/credentials.sqlite3 \
+  --directory /var/lib/ump/credentials enroll \
   --certificate issued/robot-1.pem \
   --private-key issued/robot-1.key \
   --ca issued/site-ca.pem
@@ -27,7 +28,8 @@ Enrollment validates the PEM objects, robot identity, key pair, and validity win
 After operational approval, activate the generation printed by enrollment:
 
 ```bash
-ump-credential activate --generation 1
+ump-credentials --robot-id robot-1 --database /var/lib/ump/credentials.sqlite3 \
+  --directory /var/lib/ump/credentials activate --generation 1
 ```
 
 Activation retires the prior generation and activates the selected generation in one durable transaction. Restart the UMP network bus after activation because Python TLS contexts load the local certificate and key at construction time.
@@ -37,32 +39,36 @@ Activation retires the prior generation and activates the selected generation in
 List the credential inventory:
 
 ```bash
-ump-credential list --limit 100
-ump-credential list --status active
+ump-credentials --robot-id robot-1 --database /var/lib/ump/credentials.sqlite3 \
+  --directory /var/lib/ump/credentials list --limit 100
 ```
 
 Show one exact generation:
 
 ```bash
-ump-credential show --generation 1
+ump-credentials --robot-id robot-1 --database /var/lib/ump/credentials.sqlite3 \
+  --directory /var/lib/ump/credentials show --generation 1
 ```
 
 Show the currently active generation:
 
 ```bash
-ump-credential active
+ump-credentials --robot-id robot-1 --database /var/lib/ump/credentials.sqlite3 \
+  --directory /var/lib/ump/credentials active
 ```
 
 View the audit trail:
 
 ```bash
-ump-credential events --limit 100
+ump-credentials --robot-id robot-1 --database /var/lib/ump/credentials.sqlite3 \
+  --directory /var/lib/ump/credentials events --limit 100
 ```
 
 Revoke a certificate fingerprint locally:
 
 ```bash
-ump-credential revoke \
+ump-credentials --robot-id robot-1 --database /var/lib/ump/credentials.sqlite3 \
+  --directory /var/lib/ump/credentials revoke \
   --fingerprint <sha256> \
   --reason "device decommissioned"
 ```
@@ -99,7 +105,9 @@ ump-node --preflight \
   --credential-directory /var/lib/ump/credentials \
   --inspector-database /var/lib/ump/inspector.sqlite3 \
   --required-peer robot-quadruped-1 \
-  --state-hz 2
+  --state-hz 2 \
+  --operations-host 127.0.0.1 \
+  --operations-port 9090
 ```
 
 Preflight validates:
@@ -131,7 +139,9 @@ ump-node \
   --credential-directory /var/lib/ump/credentials \
   --inspector-database /var/lib/ump/inspector.sqlite3 \
   --required-peer robot-quadruped-1 \
-  --state-hz 2
+  --state-hz 2 \
+  --operations-host 127.0.0.1 \
+  --operations-port 9090
 ```
 
 The node starts its mutual-TLS listener, publishes its manifest and initial state, then publishes semantic state at the selected rate until `SIGINT` or `SIGTERM`. It emits one JSON `ready` event after successful startup.
@@ -166,6 +176,18 @@ Use short validity windows and exact capability scopes. Update network policy to
 
 ## Monitor health while running
 
+Probe the service from the same host or private management network:
+
+```bash
+curl --fail http://127.0.0.1:9090/healthz
+curl --fail http://127.0.0.1:9090/readyz
+curl --fail http://127.0.0.1:9090/metrics
+```
+
+The health and readiness responses contain no robot telemetry. Metrics use the
+Prometheus text format and report service health, readiness, recurring checks,
+and failures. These endpoints are disabled when `--operations-port` is omitted.
+
 Inspect the configured durable stores without stopping the service:
 
 ```bash
@@ -179,3 +201,4 @@ This command is read-only and returns a degraded status for stale retry backlogs
 - [Manufacturer Adapter](/guides/manufacturer-adapter) to implement the adapter that the node loads
 - [Local Network](/guides/local-network) to generate a local lab for preflight testing
 - [Inspector](/guides/inspector) to observe the traffic your node records
+- [Operations](/guides/operations) for deployment, backup, restore, and rollback

@@ -1,0 +1,44 @@
+---
+title: "Software Release Gate"
+description: "Evidence required before calling a UMP revision production-ready as software."
+icon: "badge-check"
+sidebarTitle: "Software Release"
+---
+
+Software production readiness is separate from hardware qualification. Apply
+this gate to the exact source revision, immutable image, configuration, and
+deployment topology that will run.
+
+## Required evidence
+
+- Source and wheel builds install successfully and all CLI entry points start.
+- The complete unit suite and UMP 0.1 conformance vectors pass.
+- Core, standards, fault, load, visual, and eight-hour soak profiles pass.
+- A readiness report is generated, signed with an owner-controlled key, and verified.
+- Dependency audit, secret scan, container scan, and SBOM generation pass.
+- Staging proves preflight, startup, probes, graceful shutdown, restart,
+  backup restoration, reconciliation, upgrade, and rollback.
+- Published artifacts use immutable digests and retain release provenance.
+- Capacity thresholds, data retention, alerts, incident ownership, credential
+  rotation, and operator access are reviewed for the target environment.
+- An independent threat review covers the actual network and access topology.
+
+<Note>
+  Passing this gate means the UMP software is qualified for its declared
+  environment. It does not prove compatibility with every robot and does not
+  authorize unsupervised physical work.
+</Note>
+
+## CI controls
+
+The repository workflows build source and wheel artifacts, validate protocol
+fixtures, exercise container profiles, scan dependencies and secrets, scan the
+production image, and emit a CycloneDX SBOM. Scheduled soak evidence must finish
+for the full eight-hour duration; queued, skipped, shortened, or interrupted runs
+do not pass.
+
+## Deployment decision
+
+Store the gate result with the release artifacts and record every exception with
+an owner, expiry, and mitigation. A failed required control blocks the production
+software label until it is resolved and the affected evidence is regenerated.

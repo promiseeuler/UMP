@@ -81,9 +81,27 @@ PYTHONPATH=src python3 -m ump.cli inspector \
 ```
 
 Open `http://127.0.0.1:8765`. The UI polls the local snapshot endpoint and can
-run while another process appends to the database. The server accepts only
-`127.0.0.1`, `::1`, or `localhost` in v0.1 and sends restrictive content security,
+run while another process appends to the database. By default the server accepts
+only `127.0.0.1`, `::1`, or `localhost` and sends restrictive content security,
 cache, referrer, and content-type headers.
+
+Remote access is an explicit production opt-in and requires TLS 1.3 plus HTTP
+Basic authentication. The username is `ump`; the password is the exact content
+of a token file containing at least 32 bytes:
+
+```sh
+ump-inspector \
+  --database /var/lib/ump/inspector.sqlite3 \
+  --host 0.0.0.0 --port 8765 --allow-remote \
+  --auth-token-file /run/secrets/inspector-token \
+  --tls-certificate /run/secrets/inspector-cert.pem \
+  --tls-private-key /run/secrets/inspector-key.pem
+```
+
+Prefer a private management network or an authenticated reverse proxy. Do not
+publish the inspector directly to the public internet. Authorization remains
+single-role in UMP 0.1; deployments needing per-user access, SSO, or audit logs
+must provide those controls at the operator access layer.
 
 `ump-inspector` requires an existing compatible recorder database and opens it
 with SQLite `mode=ro` and `query_only`. It validates the read-model columns before
@@ -100,8 +118,7 @@ recorded in that database.
 ## Operational limits
 
 The inspector is observational, not a complete audit system. Recording must be
-enabled to capture traffic, host access still follows local machine
-permissions, and database retention or export policy remains the deployer's
-responsibility. A `Live` indicator means the browser can reach the local
+enabled to capture traffic, and database retention or export policy remains the
+deployer's responsibility. A `Live` indicator means the browser can reach the
 inspector server; it does not by itself mean that any robot is connected. Use
 robot state freshness and network diagnostics to assess participant connectivity.

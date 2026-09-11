@@ -67,6 +67,7 @@ Confirm the tools are installed:
 ump-demo --help
 ump-lab --help
 ump-readiness --help
+ump-ops --help
 ```
 
 ## Five-minute verification
@@ -207,6 +208,27 @@ ump-inspector \
 Visit `http://127.0.0.1:8765/`. The inspector is empty until compatible messages
 reach that exact database. It never invents robots or telemetry.
 
+## Production software deployment
+
+UMP includes a non-root production image, a hardened Compose template, systemd
+units, health and readiness probes, Prometheus metrics, authenticated inspector
+access, and verified SQLite backup and restore tooling. These make the software
+deployable as an owner-operated service; they do not certify a robot or replace
+site-specific security and availability engineering.
+
+```sh
+docker build -f docker/Dockerfile.production -t ump:local .
+docker compose -f deploy/compose.production.yml config
+```
+
+Long-running nodes expose `/healthz`, `/readyz`, and `/metrics` only when
+`--operations-port` is configured. Keep that listener on loopback or a private
+management network. Remote inspector access requires an explicit opt-in, a
+32-byte-or-longer token, and TLS 1.3 credentials.
+
+Follow [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for preflight, deployment,
+monitoring, backup, restore, upgrades, rollback, and the software release gate.
+
 ## Standards integrations
 
 | Integration | Awareness | External work | Native responsibility |
@@ -325,6 +347,7 @@ guide explains local validation and repository-based deployment.
 - [`docs/INSPECTOR.md`](docs/INSPECTOR.md): read-only operational UI.
 - [`docs/STANDARDS_INTEGRATIONS.md`](docs/STANDARDS_INTEGRATIONS.md): mappings.
 - [`docs/HARDWARE_READINESS.md`](docs/HARDWARE_READINESS.md): qualification.
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md): production software runbook.
 - [`REFERENCE.md`](REFERENCE.md): standards, reuse policy, and UMP gaps.
 - [`SECURITY.md`](SECURITY.md): security policy and reporting.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): repository conventions.
