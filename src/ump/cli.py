@@ -1648,14 +1648,32 @@ def inspector_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--database", required=True)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--allow-remote", action="store_true")
+    parser.add_argument("--auth-token-file")
+    parser.add_argument("--tls-certificate")
+    parser.add_argument("--tls-private-key")
     arguments = parser.parse_args(argv)
     store = None
     server = None
     try:
         store = ReadOnlyInspectorStore(arguments.database)
-        server = InspectorServer(store, arguments.host, arguments.port)
+        auth_token = (
+            Path(arguments.auth_token_file).read_text(encoding="utf-8").strip()
+            if arguments.auth_token_file
+            else None
+        )
+        server = InspectorServer(
+            store,
+            arguments.host,
+            arguments.port,
+            allow_remote=arguments.allow_remote,
+            auth_token=auth_token,
+            tls_certificate=arguments.tls_certificate,
+            tls_private_key=arguments.tls_private_key,
+        )
         address = server.address
-        print(f"UMP Inspector: http://{address.host}:{address.port}", flush=True)
+        scheme = "https" if arguments.tls_certificate else "http"
+        print(f"UMP Inspector: {scheme}://{address.host}:{address.port}", flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:

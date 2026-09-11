@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import base64
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+import secrets
 import sqlite3
+import ssl
 from threading import RLock, Thread
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -348,13 +351,35 @@ class InspectorServer:
         store: InspectorStore,
         host: str = "127.0.0.1",
         port: int = 0,
+        *,
+        allow_remote: bool = False,
+        auth_token: str | None = None,
+        tls_certificate: str | Path | None = None,
+        tls_private_key: str | Path | None = None,
     ) -> None:
-        if host not in {"127.0.0.1", "::1", "localhost"}:
+        loopback = host in {"127.0.0.1", "::1", "localhost"}
+        if not loopback and not allow_remote:
             raise ValueError("UMP inspector v0.1 is restricted to loopback binding")
+        if not loopback and (
+            not auth_token or tls_certificate is None or tls_private_key is None
+        ):
+            raise ValueError("remote inspector requires authentication and TLS")
+        if (tls_certificate is None) != (tls_private_key is None):
+            raise ValueError("inspector TLS certificate and private key must be provided together")
+        if auth_token is not None and len(auth_token.encode("utf-8")) < 32:
+            raise ValueError("inspector authentication token must contain at least 32 bytes")
         self.store = store
+        self._auth_token = auth_token
         self.static_root = Path(__file__).with_name("inspector_static")
         handler_type = self._handler_type()
         self._server = ThreadingHTTPServer((host, port), handler_type)
+        if tls_certificate is not None and tls_private_key is not None:
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.minimum_version = ssl.TLSVersion.TLSv1_3
+            context.load_cert_chain(str(tls_certificate), str(tls_private_key))
+            self._server.socket = context.wrap_socket(
+                self._server.socket, server_side=True
+            )
         self._thread: Thread | None = None
 
     @property
@@ -393,9 +418,17 @@ class InspectorServer:
     def _handler_type(self):
         store = self.store
         static_root = self.static_root
+        auth_token = self._auth_token
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
+                if auth_token is not None and not self._authorized(auth_token):
+                    self.send_response(HTTPStatus.UNAUTHORIZED)
+                    self.send_header("WWW-Authenticate", 'Basic realm="UMP Inspector"')
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
                 parsed = urlparse(self.path)
                 if parsed.path == "/api/snapshot":
                     try:
@@ -423,6 +456,20 @@ class InspectorServer:
                 self._headers(item[1], len(body))
                 self.end_headers()
                 self.wfile.write(body)
+
+            def _authorized(self, expected_token: str) -> bool:
+                authorization = self.headers.get("Authorization", "")
+                scheme, separator, encoded = authorization.partition(" ")
+                if not separator or scheme.lower() != "basic":
+                    return False
+                try:
+                    decoded = base64.b64decode(encoded, validate=True).decode("utf-8")
+                except (ValueError, UnicodeDecodeError):
+                    return False
+                username, separator, token = decoded.partition(":")
+                return bool(separator and username == "ump") and secrets.compare_digest(
+                    token, expected_token
+                )
 
             def _json(self, value: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
                 body = json.dumps(value, separators=(",", ":"), sort_keys=True).encode()

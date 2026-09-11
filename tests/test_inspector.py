@@ -1,4 +1,5 @@
 from contextlib import redirect_stderr
+import base64
 from hashlib import sha256
 from io import StringIO
 import json
@@ -7,7 +8,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
@@ -138,6 +140,26 @@ class InspectorTests(unittest.TestCase):
     def test_remote_binding_is_refused(self):
         with self.assertRaisesRegex(ValueError, "loopback"):
             InspectorServer(self.store, "0.0.0.0", 0)
+
+    def test_remote_binding_requires_authentication_and_tls(self):
+        with self.assertRaisesRegex(ValueError, "authentication and TLS"):
+            InspectorServer(self.store, "0.0.0.0", 0, allow_remote=True)
+
+    def test_optional_basic_token_protects_local_inspector(self):
+        token = "correct-horse-battery-staple-token"
+        server = InspectorServer(self.store, port=0, auth_token=token)
+        address = server.start()
+        url = f"http://{address.host}:{address.port}/api/snapshot"
+        try:
+            with self.assertRaises(HTTPError) as failure:
+                urlopen(url, timeout=2)
+            self.assertEqual(failure.exception.code, 401)
+            encoded = base64.b64encode(f"ump:{token}".encode()).decode()
+            request = Request(url, headers={"Authorization": f"Basic {encoded}"})
+            with urlopen(request, timeout=2) as response:
+                self.assertEqual(json.loads(response.read())["event_count"], 0)
+        finally:
+            server.stop()
 
     def test_recorder_failure_does_not_reclassify_message_delivery(self):
         class FailingStore:
