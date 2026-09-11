@@ -133,6 +133,7 @@ from .network import (
 from .network_config import network_config_schema, validate_network_config
 from .network_diagnostics import NetworkDiagnosticsError, inspect_network_databases
 from .node import ParticipantService, load_adapter
+from .operations import OperationsServer, RuntimeMonitor
 from .planner import load_planner
 from .runtime import Registry
 from .vocabulary import standard_capability, vocabulary_document
@@ -851,6 +852,8 @@ def node_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--execution-workers", type=int, default=0)
     parser.add_argument("--required-peer", action="append", default=[])
     parser.add_argument("--communication-check-interval", type=float, default=0.25)
+    parser.add_argument("--operations-host", default="127.0.0.1")
+    parser.add_argument("--operations-port", type=int)
     parser.add_argument(
         "--preflight",
         action="store_true",
@@ -864,6 +867,8 @@ def node_main(argv: list[str] | None = None) -> int:
     bus = None
     inspector_store = None
     inspector_recorder = None
+    operations_server = None
+    runtime_monitor = RuntimeMonitor()
     stop = Event()
     previous_handlers = {}
     try:
@@ -999,13 +1004,18 @@ def node_main(argv: list[str] | None = None) -> int:
             inspector_recorder = InspectorRecorder(bus, inspector_store)
 
         def require_runtime_health() -> None:
-            credentials.require_active_bundle(
-                config.certificate_path,
-                config.private_key_path,
-                config.ca_path,
-            )
-            if inspector_recorder is not None:
-                inspector_recorder.require_healthy()
+            try:
+                credentials.require_active_bundle(
+                    config.certificate_path,
+                    config.private_key_path,
+                    config.ca_path,
+                )
+                if inspector_recorder is not None:
+                    inspector_recorder.require_healthy()
+                runtime_monitor.check_passed()
+            except BaseException as error:
+                runtime_monitor.check_failed(error)
+                raise
 
         service = ParticipantService(
             adapter,
@@ -1027,6 +1037,13 @@ def node_main(argv: list[str] | None = None) -> int:
                 signal_number, request_stop
             )
         host, port = service.start()
+        runtime_monitor.ready()
+        operations_address = None
+        if arguments.operations_port is not None:
+            operations_server = OperationsServer(
+                runtime_monitor, arguments.operations_host, arguments.operations_port
+            )
+            operations_address = operations_server.start()
         print(
             json.dumps(
                 {
@@ -1037,6 +1054,11 @@ def node_main(argv: list[str] | None = None) -> int:
                     "state_hz": arguments.state_hz,
                     "inspector_recording": inspector_store is not None,
                     "integration": integration.integration_type if integration else None,
+                    "operations": (
+                        {"host": operations_address[0], "port": operations_address[1]}
+                        if operations_address is not None
+                        else None
+                    ),
                 },
                 sort_keys=True,
             ),
@@ -1048,6 +1070,9 @@ def node_main(argv: list[str] | None = None) -> int:
         print(f"ump-node: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
     finally:
+        runtime_monitor.stopping()
+        if operations_server is not None:
+            operations_server.close()
         for signal_number, handler in previous_handlers.items():
             signal.signal(signal_number, handler)
         if service is not None:
