@@ -1,0 +1,23 @@
+[Unit]
+Description=Universal Machine Protocol inspector
+After=ump-node.service
+Requires=ump-node.service
+
+[Service]
+Type=simple
+User=ump
+Group=ump
+ExecStart=/opt/ump/bin/ump-inspector --database /var/lib/ump/inspector.sqlite3 --host 127.0.0.1 --port 8765
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/lib/ump
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

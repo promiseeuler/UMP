@@ -1,0 +1,28 @@
+FROM python:3.13.7-slim-bookworm AS builder
+
+WORKDIR /build
+COPY . .
+RUN python -m pip install --no-cache-dir build==1.3.0 \
+    && python -m build --wheel
+
+FROM python:3.13.7-slim-bookworm
+
+ARG UMP_UID=10001
+ARG UMP_GID=10001
+RUN groupadd --gid ${UMP_GID} ump \
+    && useradd --uid ${UMP_UID} --gid ${UMP_GID} --create-home --shell /usr/sbin/nologin ump \
+    && mkdir -p /var/lib/ump /etc/ump /opt/ump-adapters \
+    && chown -R ump:ump /var/lib/ump /opt/ump-adapters
+COPY --from=builder /build/dist /tmp/dist
+RUN python -m pip install --no-cache-dir /tmp/dist/*.whl \
+    && rm -rf /tmp/dist
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/opt/ump-adapters
+USER ump:ump
+WORKDIR /var/lib/ump
+EXPOSE 7443 8765 9090
+HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9090/healthz', timeout=2)"]
+CMD ["ump-node", "--help"]

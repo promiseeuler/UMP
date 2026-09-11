@@ -1,0 +1,89 @@
+name: ump-production
+
+services:
+  participant:
+    image: ${UMP_IMAGE:-ghcr.io/promiseeuler/ump:0.1.0}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.production
+    command:
+      - ump-node
+      - --network
+      - /etc/ump/network.json
+      - --adapter
+      - ${UMP_ADAPTER:?set UMP_ADAPTER to module:factory}
+      - --adapter-config
+      - /etc/ump/adapter.json
+      - --assignment-database
+      - /var/lib/ump/assignments.sqlite3
+      - --authority-database
+      - /var/lib/ump/authority.sqlite3
+      - --credential-database
+      - /var/lib/ump/credentials.sqlite3
+      - --credential-directory
+      - /var/lib/ump/credentials
+      - --inspector-database
+      - /var/lib/ump/inspector.sqlite3
+      - --operations-host
+      - 0.0.0.0
+      - --operations-port
+      - "9090"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ${UMP_CONFIG_DIR:?set UMP_CONFIG_DIR}:/etc/ump:ro
+      - ${UMP_ADAPTER_DIR:?set UMP_ADAPTER_DIR}:/opt/ump-adapters:ro
+      - ump-data:/var/lib/ump
+    ports:
+      - "${UMP_BIND_ADDRESS:-127.0.0.1}:7443:7443"
+      - "127.0.0.1:9090:9090"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9090/healthz', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  inspector:
+    image: ${UMP_IMAGE:-ghcr.io/promiseeuler/ump:0.1.0}
+    command:
+      - ump-inspector
+      - --database
+      - /var/lib/ump/inspector.sqlite3
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8765"
+      - --allow-remote
+      - --auth-token-file
+      - /run/secrets/inspector-token
+      - --tls-certificate
+      - /run/secrets/inspector.crt
+      - --tls-private-key
+      - /run/secrets/inspector.key
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ump-data:/var/lib/ump:ro
+      - ${UMP_INSPECTOR_SECRET_DIR:?set UMP_INSPECTOR_SECRET_DIR}:/run/secrets:ro
+    ports:
+      - "${UMP_INSPECTOR_BIND_ADDRESS:-127.0.0.1}:8765:8765"
+    depends_on:
+      participant:
+        condition: service_healthy
+
+volumes:
+  ump-data:

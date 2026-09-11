@@ -1,0 +1,28 @@
+[Unit]
+Description=Universal Machine Protocol participant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ump
+Group=ump
+WorkingDirectory=/var/lib/ump
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/ump-adapters
+ExecStartPre=/opt/ump/bin/ump-node --preflight --network /etc/ump/network.json --adapter manufacturer.adapter:create_adapter --adapter-config /etc/ump/adapter.json --assignment-database /var/lib/ump/assignments.sqlite3 --authority-database /var/lib/ump/authority.sqlite3 --credential-database /var/lib/ump/credentials.sqlite3 --credential-directory /var/lib/ump/credentials --inspector-database /var/lib/ump/inspector.sqlite3
+ExecStart=/opt/ump/bin/ump-node --network /etc/ump/network.json --adapter manufacturer.adapter:create_adapter --adapter-config /etc/ump/adapter.json --assignment-database /var/lib/ump/assignments.sqlite3 --authority-database /var/lib/ump/authority.sqlite3 --credential-database /var/lib/ump/credentials.sqlite3 --credential-directory /var/lib/ump/credentials --inspector-database /var/lib/ump/inspector.sqlite3 --operations-port 9090
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ump
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target
