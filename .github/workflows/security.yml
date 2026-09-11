@@ -1,0 +1,55 @@
+name: Security and production image
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "30 2 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  python-security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install . pip-audit==2.10.1
+      - name: Audit installed Python dependencies
+        run: python -m pip_audit
+      - name: Detect committed secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  production-image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build -f docker/Dockerfile.production -t ump-production:${{ github.sha }} .
+      - name: Prove non-root runtime and installed commands
+        run: |
+          test "$(docker run --rm --entrypoint id ump-production:${{ github.sha }} -u)" = "10001"
+          docker run --rm --entrypoint ump-node ump-production:${{ github.sha }} --help
+          docker run --rm --entrypoint ump-inspector ump-production:${{ github.sha }} --help
+          docker run --rm --entrypoint ump-ops ump-production:${{ github.sha }} --help
+      - name: Scan image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ump-production:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Upload scan results
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
