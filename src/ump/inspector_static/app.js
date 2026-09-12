@@ -1,106 +1,154 @@
-const view = { selected: null, robots: [], events: [], labEvents: [] };
+const view = { selected: null, robots: [], events: [], labEvents: [], query: "", activeView: "fleet" };
 const byId = (id) => document.getElementById(id);
 const text = (value) => value === null || value === undefined || value === "" ? "-" : String(value);
+const normalize = (value) => String(value || "unknown").replaceAll("_", "-");
 
 function eventSummary(event) {
   const payload = event.payload || {};
   return payload.summary || payload.description || payload.activity || payload.goal_id || payload.plan_id || payload.assignment_id || "Protocol message";
 }
 
-function selectRobot(robotId) {
-  view.selected = robotId;
-  render();
-}
-
 function batterySummary(battery) {
-  if (!battery) return "No telemetry";
+  if (!battery) return "Unknown";
   if (battery.status === "not_present") return "Not present";
   const level = battery.level === null || battery.level === undefined ? "Unknown" : `${Math.round(battery.level * 100)}%`;
-  return `${level} · ${battery.status}`;
+  return `${level} / ${String(battery.status || "unknown").replaceAll("_", " ")}`;
 }
 
-function statusClass(value) {
-  return `state-value status-${String(value || "unknown").replaceAll("_", "-")}`;
+function freshness(observedAt) {
+  if (observedAt === null || observedAt === undefined) return { label: "Unknown", tone: "neutral", fresh: false };
+  const age = Math.max(0, Date.now() - observedAt);
+  if (age < 5000) return { label: `${Math.round(age / 1000)}s`, tone: "good", fresh: true };
+  if (age < 30000) return { label: `${Math.round(age / 1000)}s`, tone: "warning", fresh: false };
+  const minutes = Math.floor(age / 60000);
+  return { label: minutes > 99 ? ">99m" : `${minutes}m`, tone: "danger", fresh: false };
 }
 
-function render() {
-  byId("robot-count").textContent = view.robots.length;
-  const hasRobots = view.robots.length > 0;
-  byId("fleet-empty").hidden = hasRobots;
-  byId("empty-state").hidden = hasRobots;
-  byId("robot-summary").hidden = !hasRobots;
-  byId("robot-details").hidden = !hasRobots;
-  byId("robots").replaceChildren(...view.robots.map((robot) => {
-    const button = document.createElement("button");
-    button.className = robot.robot_id === view.selected ? "active" : "";
-    button.onclick = () => selectRobot(robot.robot_id);
-    const name = document.createElement("span");
-    name.className = "robot-name";
-    name.textContent = robot.robot_id;
-    const meta = document.createElement("span");
-    meta.className = "robot-meta";
-    meta.textContent = robot.manifest ? `${robot.manifest.manufacturer} · ${robot.manifest.robot_class}` : "Manifest pending";
-    const condition = document.createElement("span");
-    condition.className = `robot-condition status-${robot.state?.health || "unknown"}`;
-    condition.textContent = robot.state ? `${robot.state.health || "unknown"} · ${batterySummary(robot.state.battery)}` : "State pending";
-    button.append(name, meta, condition);
-    return button;
-  }));
-  const robot = view.robots.find((item) => item.robot_id === view.selected);
-  const state = robot?.state;
-  byId("selected-name").textContent = robot?.robot_id || "No robot observed";
-  byId("selected-mode").textContent = text(state?.mode);
-  byId("selected-safety").textContent = text(state?.safety);
-  byId("selected-health").textContent = text(state?.health || "unknown");
-  byId("selected-mode").className = statusClass(state?.mode);
-  byId("selected-safety").className = statusClass(state?.safety);
-  byId("selected-health").className = statusClass(state?.health);
-  byId("selected-battery").textContent = batterySummary(state?.battery);
-  byId("selected-progress").textContent = state ? `${Math.round(state.progress * 100)}%` : "-";
-  const details = [
-    ["Activity", state?.activity], ["Intent", state?.intent], ["Summary", state?.summary],
-    ["Health", state?.health || "unknown"],
-    ["Battery", batterySummary(state?.battery)],
-    ["Runtime", state?.battery?.estimated_runtime_s === null || state?.battery?.estimated_runtime_s === undefined ? null : `${state.battery.estimated_runtime_s} s`],
-    ["Battery observed", state?.battery?.observed_at_ms === undefined ? null : new Date(state.battery.observed_at_ms).toLocaleString()],
-    ["Assignment", state?.assignment_id],
-    ["State freshness", robot?.state_observed_at_ms === undefined ? null : `${Math.max(0, Date.now() - robot.state_observed_at_ms)} ms old`],
-    ["Session", robot?.session_id],
-    ["Reconnects", robot?.reconnect_count],
-    ["Pose", state?.pose ? `${state.pose.frame_id} · ${state.pose.position_m.join(", ")} m` : null],
-    ["Sensor refs", state?.sensor_references?.length],
-    ["Resources", state?.resources?.join(", ")], ["Blockers", state?.blockers?.join(", ")],
-    ["Source standard", robot?.integration?.source_standard],
-    ["Standard version", robot?.integration?.source_version],
-    ["External identity", robot?.integration?.external_id],
-    ["Mapping status", robot?.integration?.report?.passed === undefined ? null : robot.integration.report.passed ? "Passed" : "Rejected"],
-    ["Mapping warnings", robot?.integration?.report?.warnings?.join(", ")]
-  ];
-  byId("state-detail").replaceChildren(...details.flatMap(([label, value]) => {
+function toneFor(value) {
+  const normalized = normalize(value);
+  if (["healthy", "normal", "idle", "available", "completed", "passed", "full"].includes(normalized)) return "good";
+  if (["degraded", "charging", "waiting", "paused", "unknown"].includes(normalized)) return "warning";
+  if (["faulted", "emergency-stop", "protective-stop", "recovery-required", "offline", "rejected", "failed"].includes(normalized)) return "danger";
+  if (["working", "starting", "running"].includes(normalized)) return "info";
+  return "neutral";
+}
+
+function statusLabel(value) {
+  const span = document.createElement("span");
+  span.className = `status-label ${toneFor(value)}`;
+  const dot = document.createElement("span"); dot.className = "status-dot"; dot.setAttribute("aria-hidden", "true");
+  const label = document.createElement("span"); label.textContent = String(value || "unknown").replaceAll("_", " ");
+  span.append(dot, label);
+  return span;
+}
+
+function definitionList(target, values) {
+  target.replaceChildren(...values.flatMap(([label, value]) => {
     const dt = document.createElement("dt"); dt.textContent = label;
     const dd = document.createElement("dd"); dd.textContent = text(value);
     return [dt, dd];
   }));
+}
+
+function selectRobot(robotId) { view.selected = robotId; renderFleet(); }
+
+function filteredRobots() {
+  const query = view.query.trim().toLowerCase();
+  if (!query) return view.robots;
+  return view.robots.filter((robot) => [robot.robot_id, robot.manifest?.manufacturer, robot.manifest?.robot_class, robot.integration?.source_standard]
+    .some((value) => String(value || "").toLowerCase().includes(query)));
+}
+
+function renderMetrics() {
+  const available = view.robots.filter((robot) => robot.state?.mode === "idle" || robot.state?.availability === "available").length;
+  const attention = view.robots.filter((robot) => ["degraded", "faulted"].includes(robot.state?.health) || ["emergency_stop", "protective_stop", "recovery_required"].includes(robot.state?.safety)).length;
+  const fresh = view.robots.filter((robot) => freshness(robot.state_observed_at_ms).fresh).length;
+  byId("metric-robots").textContent = view.robots.length;
+  byId("metric-available").textContent = available;
+  byId("metric-attention").textContent = attention;
+  byId("metric-events").textContent = view.events.length;
+  byId("metric-freshness").textContent = view.robots.length ? `${fresh} / ${view.robots.length}` : "-";
+}
+
+function renderFleet() {
+  const robots = filteredRobots();
+  const hasRobots = view.robots.length > 0;
+  byId("fleet-empty").hidden = hasRobots;
+  byId("fleet-layout").hidden = !hasRobots;
+  byId("fleet-result-count").textContent = `${robots.length} of ${view.robots.length} observed`;
+  if (robots.length && !robots.some((robot) => robot.robot_id === view.selected)) view.selected = robots[0].robot_id;
+  byId("robots").replaceChildren(...(robots.length ? robots.map((robot) => {
+    const row = document.createElement("tr");
+    row.className = robot.robot_id === view.selected ? "selected" : "";
+    row.tabIndex = 0; row.setAttribute("aria-selected", String(robot.robot_id === view.selected));
+    row.onclick = () => selectRobot(robot.robot_id);
+    row.onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectRobot(robot.robot_id); } };
+    const identity = document.createElement("td");
+    const id = document.createElement("span"); id.className = "primary-cell"; id.textContent = robot.robot_id;
+    const manufacturer = document.createElement("span"); manufacturer.className = "secondary-cell"; manufacturer.textContent = robot.manifest?.manufacturer || "Manifest pending";
+    identity.append(id, manufacturer);
+    const values = [robot.manifest?.robot_class, robot.state?.activity, statusLabel(robot.state?.health), batterySummary(robot.state?.battery), freshness(robot.state_observed_at_ms).label, robot.integration?.source_standard || "UMP"];
+    row.append(identity);
+    values.forEach((value, index) => { const cell = document.createElement("td"); index === 2 ? cell.append(value) : cell.textContent = text(value); row.append(cell); });
+    return row;
+  }) : [Object.assign(document.createElement("tr"), { innerHTML: '<td colspan="7" class="empty">No robots match this search</td>' })]));
+
+  document.querySelector(".detail-pane").hidden = !robots.length;
+  let robot = robots.find((item) => item.robot_id === view.selected);
+  if (!robot && view.robots.length) { view.selected = view.robots[0].robot_id; robot = view.robots[0]; }
+  const state = robot?.state;
+  byId("selected-name").textContent = robot?.robot_id || "-";
+  const health = byId("selected-health");
+  health.className = `status-label ${toneFor(state?.health)}`;
+  health.replaceChildren(...statusLabel(state?.health).childNodes);
+  definitionList(byId("state-detail"), [
+    ["Activity", state?.activity], ["Intent", state?.intent], ["Summary", state?.summary],
+    ["Mode", state?.mode], ["Safety", state?.safety], ["Battery", batterySummary(state?.battery)],
+    ["Progress", state ? `${Math.round((state.progress || 0) * 100)}%` : null], ["Assignment", state?.assignment_id],
+    ["Pose", state?.pose ? `${state.pose.frame_id} / ${state.pose.position_m.join(", ")} m` : null],
+    ["State age", robot ? freshness(robot.state_observed_at_ms).label : null], ["Reconnects", robot?.reconnect_count]
+  ]);
   const capabilities = robot?.manifest?.capabilities || [];
   byId("capabilities").replaceChildren(...(capabilities.length ? capabilities.map((item) => {
     const row = document.createElement("div"); row.className = "capability";
     const name = document.createElement("strong"); name.textContent = item.name;
-    const description = document.createElement("span"); description.textContent = `${item.availability} · ${item.description}`;
+    const description = document.createElement("span"); description.textContent = `${item.availability} / ${item.description}`;
     row.append(name, description); return row;
   }) : [Object.assign(document.createElement("p"), { className: "empty", textContent: "No disclosed capabilities" })]));
-  byId("events").replaceChildren(...view.events.map((event) => {
+  definitionList(byId("integration-detail"), [
+    ["Source", robot?.integration?.source_standard || "Native UMP"], ["Version", robot?.integration?.source_version],
+    ["External ID", robot?.integration?.external_id],
+    ["Mapping", robot?.integration?.report?.passed === undefined ? "Not applicable" : robot.integration.report.passed ? "Passed" : "Rejected"],
+    ["Warnings", robot?.integration?.report?.warnings?.join(", ") || "None"], ["Session", robot?.session_id]
+  ]);
+}
+
+function renderEvents() {
+  byId("events").replaceChildren(...(view.events.length ? view.events.map((event) => {
     const row = document.createElement("tr");
     const values = [new Date(event.timestamp_ms).toLocaleTimeString(), event.message_type, event.source_id, event.correlation_id, eventSummary(event)];
     values.forEach((value, index) => { const cell = document.createElement("td"); cell.textContent = text(value); if (index === 1) cell.className = "event-type"; row.append(cell); });
     return row;
-  }));
+  }) : [Object.assign(document.createElement("tr"), { innerHTML: '<td colspan="5" class="empty">No protocol events recorded</td>' })]));
   byId("lab-events").replaceChildren(...(view.labEvents.length ? view.labEvents.map((event) => {
     const row = document.createElement("tr");
     [new Date(event.observed_at_ms).toLocaleTimeString(), event.event_type, event.robot_id, event.status, JSON.stringify(event.detail)].forEach((value) => {
       const cell = document.createElement("td"); cell.textContent = text(value); row.append(cell);
     });
     return row;
-  }) : [Object.assign(document.createElement("tr"), { innerHTML: '<td colspan="5">No lab faults or scenario events recorded</td>' })]));
+  }) : [Object.assign(document.createElement("tr"), { innerHTML: '<td colspan="5" class="empty">No validation events recorded</td>' })]));
+  byId("event-count").textContent = view.events.length;
+  byId("lab-event-count").textContent = view.labEvents.length;
+}
+
+function render() { renderMetrics(); renderFleet(); renderEvents(); }
+
+function setActiveView(name) {
+  view.activeView = name;
+  document.querySelectorAll(".view-tabs button").forEach((button) => {
+    const active = button.dataset.view === name; button.classList.toggle("active", active); button.setAttribute("aria-selected", String(active));
+  });
+  document.querySelectorAll(".view-panel").forEach((panel) => panel.classList.toggle("active", panel.id === `view-${name}`));
 }
 
 async function refresh() {
@@ -110,13 +158,16 @@ async function refresh() {
     const data = await response.json();
     view.robots = data.robots; view.events = data.events; view.labEvents = data.lab_events || [];
     if (!view.selected || !view.robots.some((item) => item.robot_id === view.selected)) view.selected = view.robots[0]?.robot_id || null;
-    byId("event-count").textContent = `${data.event_count} events`;
-    byId("connection").textContent = "Live"; byId("connection-dot").className = "online";
+    byId("connection").textContent = "Recorder live"; byId("connection-dot").className = "status-dot good";
+    byId("last-updated").textContent = `Updated ${new Date().toLocaleTimeString()}`;
     render();
   } catch (error) {
-    byId("connection").textContent = "Unavailable"; byId("connection-dot").className = "";
+    byId("connection").textContent = "Recorder unavailable"; byId("connection-dot").className = "status-dot danger";
+    byId("last-updated").textContent = "Update failed";
   }
 }
 
+document.querySelectorAll(".view-tabs button").forEach((button) => button.addEventListener("click", () => setActiveView(button.dataset.view)));
+byId("robot-search").addEventListener("input", (event) => { view.query = event.target.value; renderFleet(); });
 refresh();
 setInterval(refresh, 1000);
