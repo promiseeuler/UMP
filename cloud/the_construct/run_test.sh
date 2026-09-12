@@ -5,12 +5,23 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$root"
 
 environment="$root/.ump-cloud-venv"
-if [[ ! -x "$environment/bin/python" ]]; then
-  python3 -m venv "$environment"
+if [[ -x "$environment/bin/python" ]]; then
+  python_bin="$environment/bin/python"
+  export PATH="$environment/bin:$PATH"
+else
+  if python3 -m venv "$environment" >/dev/null 2>&1; then
+    python_bin="$environment/bin/python"
+    export PATH="$environment/bin:$PATH"
+  else
+    python_bin="python3"
+    python_user_bin="$(python3 -c 'import site; print(site.USER_BASE)')/bin"
+    export PATH="$python_user_bin:$PATH"
+    "$python_bin" -m pip install --user --break-system-packages .
+  fi
 fi
-python_bin="$environment/bin/python"
-export PATH="$environment/bin:$PATH"
-"$python_bin" -m pip install .
+if [[ "$python_bin" != "python3" ]]; then
+  "$python_bin" -m pip install .
+fi
 
 run_id="$(date -u +%Y%m%dT%H%M%SZ)"
 run_root="${UMP_CLOUD_OUTPUT_ROOT:-$root/.ump-cloud-runs}/$run_id"

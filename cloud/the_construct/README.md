@@ -41,7 +41,8 @@ external physics-simulator result.
 
 The runner creates `.ump-cloud-venv` automatically because The Construct uses
 Ubuntu's externally-managed Python policy. It does not modify the system Python
-installation.
+installation. If the workspace image does not include `python3-venv`, it uses
+the Construct user's site directory with the explicit Ubuntu override instead.
 
 ## Evidence artifacts
 
