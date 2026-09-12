@@ -44,6 +44,7 @@ jobs:
           (cd /tmp && /tmp/ump-release/bin/ump-node --help)
           (cd /tmp && /tmp/ump-release/bin/ump-inspector --help)
           (cd /tmp && /tmp/ump-release/bin/ump-ops --help)
+          (cd /tmp && /tmp/ump-release/bin/ump-evidence --help)
           (cd /tmp && /tmp/ump-release/bin/ump-integration schema)
           (cd /tmp && /tmp/ump-release/bin/ump-lab schema readiness)
           (cd /tmp && /tmp/ump-release/bin/ump-readiness --validate-only)
