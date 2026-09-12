@@ -35,6 +35,30 @@ cd UMP
 bash cloud/the_construct/run_test.sh
 ```
 
+## Record the paced visual demonstration
+
+Start Gazebo from the Construct terminal, then open its **Simulation** panel:
+
+```sh
+DISPLAY=:2 gz sim -r ~/UMP/gazebo/warehouse.sdf
+```
+
+In a second terminal, execute the same UMP scenario against that live world:
+
+```sh
+python3 -m ump.gazebo_lab \
+  --world ~/UMP/gazebo/warehouse.sdf \
+  --reuse-server \
+  --demo-duration 7 \
+  --workspace /tmp/ump-visual-runtime \
+  --inspector-database /tmp/ump-visual-inspector.sqlite3
+```
+
+The presentation delay makes the AMR transport, quadruped inspection, and
+payload placement visible while preserving the normal UMP authority and
+coordinator path. The models are representative self-contained SDF assets, not
+manufacturer-certified digital twins or physical hardware.
+
 The free plan may limit runtime, storage, and available ROS/Gazebo images. The
 headless fallback still proves UMP collaboration and recording, but it is not an
 external physics-simulator result.

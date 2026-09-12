@@ -5,13 +5,50 @@
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
     <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
     <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
-    <scene><ambient>0.7 0.7 0.7 1</ambient><background>0.2 0.25 0.28 1</background></scene>
-    <light type="directional" name="sun"><pose>0 0 10 0 0 0</pose><direction>-0.5 0.2 -1</direction></light>
-    <model name="floor"><static>true</static><link name="floor"><collision name="collision"><geometry><box><size>20 12 0.1</size></box></geometry></collision><visual name="visual"><geometry><box><size>20 12 0.1</size></box></geometry><material><diffuse>0.35 0.38 0.4 1</diffuse></material></visual></link></model>
-    <model name="mobile-1"><pose>0 0 0.35 0 0 0</pose><link name="base"><collision name="collision"><geometry><box><size>1.2 0.8 0.6</size></box></geometry></collision><visual name="visual"><geometry><box><size>1.2 0.8 0.6</size></box></geometry><material><diffuse>0.1 0.55 0.8 1</diffuse></material></visual></link></model>
-    <model name="payload"><pose>0 0 0.8 0 0 0</pose><link name="payload"><collision name="collision"><geometry><box><size>0.5 0.4 0.3</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.5 0.4 0.3</size></box></geometry><material><diffuse>0.9 0.85 0.15 1</diffuse></material></visual></link></model>
-    <model name="inspector-1"><pose>4 1 0.4 0 0 0</pose><link name="body"><collision name="collision"><geometry><box><size>0.9 0.45 0.35</size></box></geometry></collision><visual name="visual"><geometry><box><size>0.9 0.45 0.35</size></box></geometry><material><diffuse>0.25 0.75 0.35 1</diffuse></material></visual></link></model>
-    <model name="manipulator-1"><pose>8 2 0.75 0 0 0</pose><static>true</static><link name="pedestal"><collision name="collision"><geometry><cylinder><radius>0.45</radius><length>1.5</length></cylinder></geometry></collision><visual name="visual"><geometry><cylinder><radius>0.45</radius><length>1.5</length></cylinder></geometry><material><diffuse>0.9 0.55 0.1 1</diffuse></material></visual></link></model>
-    <model name="workcell"><pose>8 2 0.25 0 0 0</pose><static>true</static><link name="fixture"><visual name="visual"><geometry><box><size>3 3 0.4</size></box></geometry><material><diffuse>0.55 0.55 0.58 1</diffuse></material></visual></link></model>
+    <scene><ambient>0.72 0.74 0.78 1</ambient><background>0.08 0.10 0.13 1</background><shadows>true</shadows></scene>
+    <light type="directional" name="sun"><pose>2 -4 12 0 0 0</pose><direction>-0.45 0.25 -1</direction><diffuse>0.95 0.95 0.92 1</diffuse></light>
+    <model name="floor"><static>true</static><link name="floor"><collision name="collision"><geometry><box><size>20 12 0.1</size></box></geometry></collision><visual name="visual"><geometry><box><size>20 12 0.1</size></box></geometry><material><diffuse>0.18 0.20 0.23 1</diffuse><specular>0.25 0.25 0.25 1</specular></material></visual></link></model>
+
+    <!-- Self-contained AMR-style platform with chassis, wheels, deck and lidar. -->
+    <model name="mobile-1"><static>true</static><pose>-6 -2 0.42 0 0 0</pose><link name="base">
+      <visual name="chassis"><geometry><box><size>1.35 0.9 0.34</size></box></geometry><material><diffuse>0.04 0.32 0.52 1</diffuse><specular>0.4 0.4 0.4 1</specular></material></visual>
+      <visual name="bumper"><pose>0.66 0 0 0 0 0</pose><geometry><box><size>0.08 0.82 0.22</size></box></geometry><material><diffuse>0.08 0.09 0.1 1</diffuse></material></visual>
+      <visual name="deck"><pose>0 0 0.28 0 0 0</pose><geometry><box><size>1.08 0.72 0.18</size></box></geometry><material><diffuse>0.72 0.75 0.78 1</diffuse></material></visual>
+      <visual name="lidar_stem"><pose>0.25 0 0.53 0 0 0</pose><geometry><cylinder><radius>0.055</radius><length>0.34</length></cylinder></geometry><material><diffuse>0.1 0.11 0.12 1</diffuse></material></visual>
+      <visual name="lidar"><pose>0.25 0 0.72 0 0 0</pose><geometry><cylinder><radius>0.18</radius><length>0.08</length></cylinder></geometry><material><diffuse>0.02 0.85 0.68 1</diffuse><emissive>0 0.15 0.12 1</emissive></material></visual>
+      <visual name="wheel_fl"><pose>0.38 0.5 -0.12 1.5708 0 0</pose><geometry><cylinder><radius>0.25</radius><length>0.14</length></cylinder></geometry><material><diffuse>0.025 0.025 0.03 1</diffuse></material></visual>
+      <visual name="wheel_fr"><pose>0.38 -0.5 -0.12 1.5708 0 0</pose><geometry><cylinder><radius>0.25</radius><length>0.14</length></cylinder></geometry><material><diffuse>0.025 0.025 0.03 1</diffuse></material></visual>
+      <visual name="wheel_rl"><pose>-0.38 0.5 -0.12 1.5708 0 0</pose><geometry><cylinder><radius>0.25</radius><length>0.14</length></cylinder></geometry><material><diffuse>0.025 0.025 0.03 1</diffuse></material></visual>
+      <visual name="wheel_rr"><pose>-0.38 -0.5 -0.12 1.5708 0 0</pose><geometry><cylinder><radius>0.25</radius><length>0.14</length></cylinder></geometry><material><diffuse>0.025 0.025 0.03 1</diffuse></material></visual>
+    </link></model>
+    <model name="payload"><static>true</static><pose>-6 -2 1.12 0 0 0</pose><link name="payload"><visual name="crate"><geometry><box><size>0.62 0.5 0.42</size></box></geometry><material><diffuse>0.95 0.62 0.08 1</diffuse></material></visual><visual name="band"><geometry><box><size>0.66 0.12 0.44</size></box></geometry><material><diffuse>0.12 0.13 0.15 1</diffuse></material></visual></link></model>
+
+    <!-- Quadruped inspection platform with four visible leg chains. -->
+    <model name="inspector-1"><static>true</static><pose>-2 3 0.72 0 0 -0.35</pose><link name="body">
+      <visual name="torso"><geometry><box><size>1.15 0.52 0.38</size></box></geometry><material><diffuse>0.82 0.84 0.86 1</diffuse></material></visual>
+      <visual name="sensor"><pose>0.56 0 0.12 0 1.5708 0</pose><geometry><cylinder><radius>0.13</radius><length>0.18</length></cylinder></geometry><material><diffuse>0.03 0.55 0.48 1</diffuse><emissive>0 0.12 0.1 1</emissive></material></visual>
+      <visual name="hip_fl"><pose>0.38 0.35 -0.18 0 0 0.15</pose><geometry><box><size>0.14 0.14 0.48</size></box></geometry><material><diffuse>0.1 0.11 0.13 1</diffuse></material></visual>
+      <visual name="shin_fl"><pose>0.44 0.39 -0.53 0 0 -0.28</pose><geometry><box><size>0.12 0.12 0.42</size></box></geometry><material><diffuse>0.22 0.24 0.27 1</diffuse></material></visual>
+      <visual name="hip_fr"><pose>0.38 -0.35 -0.18 0 0 -0.15</pose><geometry><box><size>0.14 0.14 0.48</size></box></geometry><material><diffuse>0.1 0.11 0.13 1</diffuse></material></visual>
+      <visual name="shin_fr"><pose>0.44 -0.39 -0.53 0 0 0.28</pose><geometry><box><size>0.12 0.12 0.42</size></box></geometry><material><diffuse>0.22 0.24 0.27 1</diffuse></material></visual>
+      <visual name="hip_rl"><pose>-0.38 0.35 -0.18 0 0 -0.15</pose><geometry><box><size>0.14 0.14 0.48</size></box></geometry><material><diffuse>0.1 0.11 0.13 1</diffuse></material></visual>
+      <visual name="shin_rl"><pose>-0.44 0.39 -0.53 0 0 0.28</pose><geometry><box><size>0.12 0.12 0.42</size></box></geometry><material><diffuse>0.22 0.24 0.27 1</diffuse></material></visual>
+      <visual name="hip_rr"><pose>-0.38 -0.35 -0.18 0 0 0.15</pose><geometry><box><size>0.14 0.14 0.48</size></box></geometry><material><diffuse>0.1 0.11 0.13 1</diffuse></material></visual>
+      <visual name="shin_rr"><pose>-0.44 -0.39 -0.53 0 0 -0.28</pose><geometry><box><size>0.12 0.12 0.42</size></box></geometry><material><diffuse>0.22 0.24 0.27 1</diffuse></material></visual>
+    </link></model>
+
+    <!-- Six-axis industrial-arm silhouette with a gripper at the workcell. -->
+    <model name="manipulator-1"><static>true</static><pose>9.5 2.5 0 0 0 2.7</pose><link name="arm">
+      <visual name="pedestal"><pose>0 0 0.35 0 0 0</pose><geometry><cylinder><radius>0.5</radius><length>0.7</length></cylinder></geometry><material><diffuse>0.08 0.1 0.12 1</diffuse></material></visual>
+      <visual name="shoulder"><pose>0 0 0.88 0 0 0</pose><geometry><sphere><radius>0.34</radius></sphere></geometry><material><diffuse>0.92 0.92 0.9 1</diffuse></material></visual>
+      <visual name="upper_arm"><pose>-0.15 0 1.48 0 0.38 0</pose><geometry><cylinder><radius>0.16</radius><length>1.25</length></cylinder></geometry><material><diffuse>0.95 0.56 0.06 1</diffuse></material></visual>
+      <visual name="elbow"><pose>-0.38 0 2.03 0 0 0</pose><geometry><sphere><radius>0.24</radius></sphere></geometry><material><diffuse>0.12 0.13 0.15 1</diffuse></material></visual>
+      <visual name="forearm"><pose>-0.82 0 2.28 0 1.05 0</pose><geometry><cylinder><radius>0.13</radius><length>1.05</length></cylinder></geometry><material><diffuse>0.95 0.56 0.06 1</diffuse></material></visual>
+      <visual name="wrist"><pose>-1.28 0 2.54 0 0 0</pose><geometry><sphere><radius>0.19</radius></sphere></geometry><material><diffuse>0.12 0.13 0.15 1</diffuse></material></visual>
+      <visual name="gripper"><pose>-1.52 0 2.54 0 1.5708 0</pose><geometry><box><size>0.12 0.5 0.16</size></box></geometry><material><diffuse>0.72 0.74 0.77 1</diffuse></material></visual>
+    </link></model>
+    <model name="workcell"><static>true</static><pose>8 2 0.2 0 0 0</pose><link name="fixture"><visual name="table"><geometry><box><size>2.6 2.2 0.35</size></box></geometry><material><diffuse>0.32 0.35 0.39 1</diffuse></material></visual><visual name="target"><pose>0 0 0.22 0 0 0</pose><geometry><box><size>0.85 0.7 0.08</size></box></geometry><material><diffuse>0.05 0.62 0.5 1</diffuse><emissive>0 0.08 0.06 1</emissive></material></visual></link></model>
+    <model name="safety-rail-left"><static>true</static><pose>1 5.3 0.55 0 0 0</pose><link name="rail"><visual name="visual"><geometry><box><size>15 0.08 1.1</size></box></geometry><material><diffuse>0.95 0.68 0.04 1</diffuse></material></visual></link></model>
+    <model name="safety-rail-right"><static>true</static><pose>1 -5.3 0.55 0 0 0</pose><link name="rail"><visual name="visual"><geometry><box><size>15 0.08 1.1</size></box></geometry><material><diffuse>0.95 0.68 0.04 1</diffuse></material></visual></link></model>
   </world>
 </sdf>
