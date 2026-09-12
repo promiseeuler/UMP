@@ -42,7 +42,7 @@ jobs:
           docker run --rm --entrypoint ump-inspector ump-production:${{ github.sha }} --help
           docker run --rm --entrypoint ump-ops ump-production:${{ github.sha }} --help
       - name: Scan image for high and critical vulnerabilities
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ump-production:${{ github.sha }}
           format: sarif
