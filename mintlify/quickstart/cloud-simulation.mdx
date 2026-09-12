@@ -1,0 +1,55 @@
+---
+title: "Run a Recorded Cloud Simulation"
+description: "Run UMP in a browser-hosted ROS workspace and export factual evidence for demonstrations and pitches."
+icon: "cloud"
+sidebarTitle: "Cloud Simulation"
+---
+
+The The Construct test bundle runs three UMP robot roles, records their canonical
+protocol messages, and exports a machine-readable evidence package. It is suited
+to a public free-plan ROS project because it does not require local installation.
+
+## Run the test
+
+Create a public project, open its terminal, and run:
+
+```bash
+git clone https://github.com/promiseeuler/UMP.git
+cd UMP
+bash cloud/the_construct/run_test.sh
+```
+
+The script installs UMP and creates a timestamped directory under
+`.ump-cloud-runs/`. If a compatible Gazebo `gz` runtime is present, it launches
+the warehouse world and uses Gazebo pose services as the native backend. If not,
+it explicitly reports `headless` and runs the deterministic controller backend.
+
+<Warning>
+  A headless result proves UMP software collaboration and recording, but it is
+  not evidence from an external physics simulator. Always report the backend
+  printed by the script.
+</Warning>
+
+## Review the artifacts
+
+| Artifact | Use |
+| --- | --- |
+| `scenario.json` | Scenario status and dependency-step outcomes |
+| `inspector.sqlite3` | Append-only canonical UMP message record |
+| `content/evidence.json` | Robot IDs, counts, events, checksums, and claim boundary |
+| `content/timeline.csv` | Charts, editing notes, and timeline animation |
+| `content/pitch-summary.md` | Factual presentation narrative derived from the run |
+
+Run the inspector against the generated database using authenticated private port
+forwarding provided by the workspace. Remote non-loopback access requires UMP's
+TLS and token options described in [Inspector](/guides/inspector).
+
+## Explain the result
+
+The evidence demonstrates that multiple robot identities can publish semantic
+state, share one UMP network, and produce correlated plans, assignments, and
+outcomes. It does not prove physical compatibility, motion safety, real-time
+performance, or manufacturer certification.
+
+Continue with [Hardware Readiness](/validate/hardware-readiness) for the stronger
+software qualification gate.

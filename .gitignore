@@ -4,6 +4,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 .ump-lab/
+.ump-cloud-runs/
 dist/
 build/
 ros2_ws/build/

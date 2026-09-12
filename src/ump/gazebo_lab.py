@@ -52,6 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m ump.gazebo_lab")
     parser.add_argument("--world", default="/opt/ump/gazebo/warehouse.sdf")
     parser.add_argument("--workspace")
+    parser.add_argument("--inspector-database")
     arguments = parser.parse_args(argv)
     server = subprocess.Popen(
         ["gz", "sim", "-s", "-r", arguments.world],
@@ -71,10 +72,18 @@ def main(argv: list[str] | None = None) -> int:
         else:
             raise TimeoutError("Gazebo world did not become ready")
         if arguments.workspace:
-            result = run_scenario(workspace=arguments.workspace, controller_setup=_configure)
+            result = run_scenario(
+                workspace=arguments.workspace,
+                controller_setup=_configure,
+                inspector_database=arguments.inspector_database,
+            )
         else:
             with tempfile.TemporaryDirectory() as directory:
-                result = run_scenario(workspace=directory, controller_setup=_configure)
+                result = run_scenario(
+                    workspace=directory,
+                    controller_setup=_configure,
+                    inspector_database=arguments.inspector_database,
+                )
         print(json.dumps(result.as_dict(), sort_keys=True))
         return 0 if result.passed else 1
     finally:

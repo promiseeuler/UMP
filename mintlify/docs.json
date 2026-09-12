@@ -46,7 +46,8 @@
             "pages": [
               "quickstart/install",
               "quickstart/first-scenario",
-              "quickstart/docker-lab"
+              "quickstart/docker-lab",
+              "quickstart/cloud-simulation"
             ]
           },
           {

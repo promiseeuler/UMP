@@ -139,6 +139,21 @@ docker compose -f docker-compose.lab.yml --profile standards down
 docker compose -f docker-compose.lab.yml --profile fault down
 ```
 
+## Browser-hosted simulation test
+
+The public The Construct bundle runs the same UMP participant and coordinator
+interfaces in a hosted ROS workspace, records the inspector database, and exports
+JSON, CSV, and pitch-ready Markdown evidence. It uses Gazebo when the workspace
+provides the compatible `gz` runtime and reports a headless fallback otherwise.
+
+```sh
+bash cloud/the_construct/run_test.sh
+```
+
+See [`cloud/the_construct/README.md`](cloud/the_construct/README.md) for the
+free-plan workflow, artifact locations, inspector launch, and honest claim
+language for demos and pitch materials.
+
 ## Fault, load, and soak tests
 
 ```sh
@@ -326,6 +341,7 @@ src/ump/integrations/    standards adapters
 schemas/                 public versioned JSON Schemas
 conformance/v0.1/        valid and invalid protocol vectors
 examples/                adapter and integration examples
+cloud/the_construct/     browser-hosted simulation test bundle
 config/                  network and fault configuration examples
 ros2_interfaces/         separately buildable ROS 2 interfaces
 gazebo/                  reference warehouse world
