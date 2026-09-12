@@ -20,6 +20,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertEqual(scripts["ump-coordinator"], "ump.cli:coordinator_main")
         self.assertEqual(scripts["ump-lab"], "ump.cli:lab_main")
         self.assertEqual(scripts["ump-readiness"], "ump.cli:readiness_main")
+        self.assertEqual(scripts["ump-evidence"], "ump.content_export:main")
         for removed in (
             "ump-pilot",
             "ump-public-readiness",

@@ -23,6 +23,7 @@ from jsonschema import Draft202012Validator
 
 from .authority import SqliteAuthorityStore
 from .collaboration import Coordinator
+from .inspector import InspectorRecorder, InspectorStore
 from .models import (
     Assignment,
     AuthorityLease,
@@ -492,6 +493,7 @@ def run_scenario(
     *,
     workspace: str | Path,
     controller_setup: Callable[[dict[str, VirtualRobotController]], None] | None = None,
+    inspector_database: str | Path | None = None,
 ) -> ScenarioResult:
     scenario = definition or default_scenario()
     clock = DeterministicClock()
@@ -502,11 +504,22 @@ def run_scenario(
     root.mkdir(parents=True, exist_ok=True)
     authority_root = Path(tempfile.mkdtemp(prefix="authority-", dir=root))
     bus = InMemoryBus()
+    started_at_ms = clock()
+    inspector_store = (
+        InspectorStore(inspector_database) if inspector_database is not None else None
+    )
+    if inspector_store is not None:
+        InspectorRecorder(bus, inspector_store)
+        inspector_store.record_lab_event(
+            "scenario",
+            "started",
+            started_at_ms,
+            detail={"scenario_id": scenario.scenario_id},
+        )
     registry = Registry(bus)
     participants: list[Participant] = []
     lease_ids: dict[str, str] = {}
     coordinator: Coordinator | None = None
-    started_at_ms = clock()
     plan_id: str | None = None
     failure: str | None = None
     statuses: dict[str, str] = {}
@@ -545,6 +558,33 @@ def run_scenario(
             participant.close()
         if coordinator is not None:
             coordinator.close()
+        if inspector_store is not None:
+            for robot_id, controller in controllers.items():
+                for trace in controller.trace:
+                    detail = {
+                        key: value
+                        for key, value in trace.items()
+                        if key not in {"event", "observed_at_ms"}
+                    }
+                    inspector_store.record_lab_event(
+                        str(trace["event"]),
+                        "observed",
+                        int(trace["observed_at_ms"]),
+                        robot_id=robot_id,
+                        detail=detail,
+                    )
+            inspector_store.record_lab_event(
+                "scenario",
+                "passed" if passed else "failed",
+                clock(),
+                detail={
+                    "scenario_id": scenario.scenario_id,
+                    "plan_id": plan_id,
+                    "step_statuses": statuses,
+                    "failure": failure,
+                },
+            )
+            inspector_store.close()
         shutil.rmtree(authority_root, ignore_errors=True)
     clock.advance(100)
     return ScenarioResult(

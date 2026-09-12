@@ -205,10 +205,9 @@ class InspectorStore:
                 "SELECT source_id, COUNT(DISTINCT session_id) - 1 FROM protocol_events GROUP BY source_id"
             ).fetchall()
         for robot_id, reconnect_count in reconnect_rows:
-            robot = robots.setdefault(
-                robot_id, {"robot_id": robot_id, "manifest": None, "state": None}
-            )
-            robot["reconnect_count"] = reconnect_count
+            robot = robots.get(robot_id)
+            if robot is not None:
+                robot["reconnect_count"] = reconnect_count
         with self._lock:
             has_reports = self._connection.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='integration_reports'"

@@ -1775,6 +1775,10 @@ def lab_main(argv: list[str] | None = None) -> int:
     run.add_argument("scenario", nargs="?")
     run.add_argument("--workspace", default=".ump-lab/run")
     run.add_argument("--output")
+    run.add_argument(
+        "--inspector-database",
+        help="Record genuine scenario protocol traffic for inspector and evidence export",
+    )
     fault = commands.add_parser("fault", help="Evaluate a deterministic fault profile")
     fault.add_argument("profile")
     fault.add_argument("--messages", type=int, default=100)
@@ -1816,7 +1820,11 @@ def lab_main(argv: list[str] | None = None) -> int:
             if arguments.scenario:
                 scenario_document = json.loads(Path(arguments.scenario).read_text(encoding="utf-8"))
                 definition = ScenarioDefinition.from_document(scenario_document)
-            document = run_scenario(definition, workspace=arguments.workspace).as_dict()
+            document = run_scenario(
+                definition,
+                workspace=arguments.workspace,
+                inspector_database=arguments.inspector_database,
+            ).as_dict()
         encoded = json.dumps(document, sort_keys=True, indent=2)
         if getattr(arguments, "output", None):
             Path(arguments.output).write_text(encoded + "\n", encoding="utf-8")
