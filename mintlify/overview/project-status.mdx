@@ -22,6 +22,11 @@ The UMP 0.1 reference implementation includes:
 - **Reconciliation** — coordinator restart recovery with `assignment_query` and fingerprint-matched `assignment_snapshot`
 - **Semantic robot registry** — manifest-first session acceptance, stale-state rejection, and capability-filtered peer views
 - **Read-only inspector** — local SQLite-backed UI showing only recorded UMP traffic, with no injected demo data
+- **Production observability** — optional content-free health, readiness, and Prometheus endpoints for long-running participant nodes
+- **Protected remote inspection** — explicit TLS 1.3 and token-authenticated remote mode while loopback remains the default
+- **Data recovery** — consistent SQLite backup, checksum and integrity verification, and overwrite-safe restore tooling
+- **Deployment templates** — non-root production image plus hardened Compose and systemd examples
+- **Software supply chain** — dependency, secret, and container scans with release checksums and a CycloneDX SBOM
 - **Deterministic planner** — reference warehouse planner for integration tests; swappable with model-backed implementations
 - **Standards mappings** — MassRobotics 1.0, VDA 5050 3.0, Open-RMF, ROS 2, and OPC UA Robotics 1.02 with conversion evidence
 - **Mixed-fleet emulators** — mobile, inspection, and manipulator controller emulators for lab scenarios
@@ -44,7 +49,15 @@ UMP 0.1 explicitly does not claim:
   The correct milestone for UMP 0.1 is **ready for supervised hardware trials** after the readiness gate passes. This means the deterministic software path is verified, but physical compatibility, safety, and manufacturer-specific behavior must still be validated independently by the robot owner.
 </Tip>
 
-## Readiness gates
+## Software release gates
+
+Before calling a UMP revision production-ready as software, complete the unit,
+conformance, package, container, security, staging recovery, rollback, and soak
+checks for the exact immutable artifact being deployed. See the
+[Software Release Gate](/validate/software-release) and
+[Operations](/guides/operations) runbook.
+
+## Hardware readiness gates
 
 Before progressing from software verification to hardware trials, complete:
 

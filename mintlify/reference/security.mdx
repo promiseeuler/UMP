@@ -43,22 +43,39 @@ Mutual TLS proves which peer sent a message. It does not grant permission to ins
 
 ## Credential lifecycle
 
-Enroll, activate, and revoke credentials using the `ump-credential` CLI:
+Enroll, activate, and revoke credentials using the `ump-credentials` CLI:
 
 ```bash
-ump-credential --robot-id robot-1 --database credentials.sqlite3 --directory ./creds \
+ump-credentials --robot-id robot-1 --database credentials.sqlite3 --directory ./creds \
   enroll --certificate robot-1.pem --private-key robot-1.key --ca site-ca.pem
 
-ump-credential --robot-id robot-1 --database credentials.sqlite3 --directory ./creds \
+ump-credentials --robot-id robot-1 --database credentials.sqlite3 --directory ./creds \
   activate --generation 1
 
-ump-credential --robot-id robot-1 --database credentials.sqlite3 --directory ./creds \
+ump-credentials --robot-id robot-1 --database credentials.sqlite3 --directory ./creds \
   revoke --fingerprint <sha256> --reason "device decommissioned"
 ```
 
 Enrollment validates the PEM objects, robot identity, key pair, and validity window before copying them into a private, generation-specific directory. Activation retires the prior generation and activates the selected generation in one durable transaction. Revocation is local and fingerprint based. Both inbound and outbound handshakes check revocation after CA-chain validation and before any UMP frame is accepted or sent.
 
 Private keys are copied with mode `0600`; managed directories use `0700`. Deployments should additionally use encrypted disks, restricted service accounts, and hardware-backed key providers where their risk model requires one.
+
+## Inspector access
+
+The inspector stays on loopback by default. A non-loopback bind requires an
+explicit `--allow-remote` flag, a token file containing at least 32 bytes, and a
+certificate and private key for TLS 1.3. Authentication uses username `ump` and
+the token as the password. Keep the listener on a private management network and
+provide SSO, per-user authorization, access logging, and public-edge controls in
+the deployment's operator access layer.
+
+## Software supply chain
+
+Repository CI audits installed Python dependencies, scans committed content for
+secrets, scans the production image for high and critical vulnerabilities, and
+generates a CycloneDX SBOM with release checksums. Production operators must
+retain those artifacts, deploy by immutable image digest, and rerun the security
+gate for the exact release revision.
 
 ## Authority leases
 
@@ -101,6 +118,8 @@ Session IDs provide additional separation: a new accepted session supersedes sta
 | Application | Replay protection via sequence and session enforcement | Replay and reordering attacks |
 | Authorization | Scoped, time-bounded, receiver-local authority leases | Unauthorized assignment issuance |
 | Credentials | Enroll, activate, revoke lifecycle with fingerprint pinning | Use of compromised or expired identities |
+| Operator UI | TLS 1.3 and token authentication for explicit remote inspection | Unauthenticated inspector access |
+| Supply chain | Dependency, secret, and container scans plus SBOM | Known vulnerable or untraceable release inputs |
 | Policy | Deny-by-default with explicit owner grants | Accidental capability exposure |
 
 Network encryption alone is not authorization. A peer must pass TLS identity checks, be permitted by disclosure policy, and present a valid authority lease before an assignment is accepted. Native robot controllers retain final acceptance authority and local safety systems always take precedence.

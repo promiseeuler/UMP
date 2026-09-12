@@ -56,12 +56,37 @@ Unknown, omitted, or unavailable native telemetry remains visibly unknown. The i
       --database /var/lib/ump/inspector.sqlite3 --host 127.0.0.1 --port 8765
     ```
 
-    The server accepts only `127.0.0.1`, `::1`, or `localhost` in v0.1 and sends restrictive content security, cache, referrer, and content-type headers.
+    Loopback access is the default. The server sends restrictive content
+    security, cache, referrer, and content-type headers.
   </Step>
   <Step title="Open the UI">
     Navigate to `http://127.0.0.1:8765`. The UI polls the local snapshot endpoint and can run while another process appends to the database.
   </Step>
 </Steps>
+
+## Protected remote access
+
+Remote binding fails closed unless you explicitly enable it and provide TLS 1.3
+credentials plus a token containing at least 32 bytes:
+
+```bash
+ump-inspector \
+  --database /var/lib/ump/inspector.sqlite3 \
+  --host 0.0.0.0 --port 8765 --allow-remote \
+  --auth-token-file /run/secrets/inspector-token \
+  --tls-certificate /run/secrets/inspector-cert.pem \
+  --tls-private-key /run/secrets/inspector-key.pem
+```
+
+Sign in with username `ump` and the exact token-file content as the password.
+Keep this endpoint on a private management network. Deployments needing SSO,
+per-user authorization, rate limits, or operator access logs must provide them
+through a reviewed access proxy.
+
+<Warning>
+  Do not expose the inspector directly to the public internet. Inspector access
+  is observational, but it can disclose robot identity and operational state.
+</Warning>
 
 <Note>
   The database passed to `ump-inspector` must be the same path supplied to the active `ump-node` or coordinator through `--inspector-database`. Serving a different compatible database is valid, but it will show only the traffic recorded in that database.
@@ -84,7 +109,9 @@ recorder = InspectorRecorder(bus, store)
 
 ## Operational limits
 
-The inspector is observational, not a complete audit system. Recording must be enabled to capture traffic, host access still follows local machine permissions, and database retention or export policy remains the deployer's responsibility.
+The inspector is observational, not a complete audit system. Recording must be
+enabled to capture traffic, and database retention or export policy remains the
+deployer's responsibility.
 
 A `Live` indicator in the UI means the browser can reach the local inspector server. It does not by itself mean that any robot is connected. Use robot state freshness and network diagnostics to assess participant connectivity.
 
@@ -102,3 +129,4 @@ A `Live` indicator in the UI means the browser can reach the local inspector ser
 
 - [Production Node](/guides/production-node) to configure a node that records inspector data
 - [Local Network](/guides/local-network) to generate a local lab where you can exercise the inspector
+- [Operations](/guides/operations) to secure access and protect recorded data

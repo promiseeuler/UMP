@@ -28,9 +28,10 @@ This guide covers the most common issues you may encounter when installing, conf
      ```
   4. Verify the command is available:
      ```bash
-     ump-demo --help
-     ump-lab --help
-     ump-readiness --help
+    ump-demo --help
+    ump-lab --help
+    ump-readiness --help
+    ump-ops --help
      ```
 </Accordion>
 
@@ -99,12 +100,66 @@ This guide covers the most common issues you may encounter when installing, conf
      ```
   4. Ensure the active credential generation is valid and not expired:
      ```bash
-     ump-credential --robot-id robot-1 --database credentials.sqlite3 active
+    ump-credentials --robot-id robot-1 --database credentials.sqlite3 \
+      --directory ./credentials active
      ```
   5. Re-run preflight to catch configuration errors before binding sockets:
      ```bash
      ump-node --preflight --network /etc/ump/network.json ...
      ```
+</Accordion>
+
+<Accordion title="Health or readiness probe returns 503">
+  **Symptom:** `/healthz` or `/readyz` returns HTTP status `503`.
+
+  **Likely cause:** The node is still starting, is stopping, or a recurring
+  credential or inspector-recorder check failed.
+
+  **Resolution:**
+
+  1. Confirm you configured `--operations-port`; probes are disabled otherwise.
+  2. Read the node's structured error output and check the active credential.
+  3. Verify the inspector database is writable by the participant service.
+  4. Inspect durable network health:
+     ```bash
+     ump-network-diagnostics --network /etc/ump/network.json
+     ```
+  5. Restart only after correcting the failure. Do not infer completion for any
+     assignment with an uncertain terminal outcome.
+</Accordion>
+
+<Accordion title="Remote inspector refuses to start or returns 401">
+  **Symptom:** A non-loopback inspector bind exits with status `2`, or the
+  browser receives `401 Unauthorized`.
+
+  **Likely cause:** Remote opt-in, TLS files, or token authentication is missing
+  or incorrect.
+
+  **Resolution:**
+
+  1. Supply `--allow-remote`, `--auth-token-file`, `--tls-certificate`, and
+     `--tls-private-key` together.
+  2. Confirm the token file contains at least 32 bytes and is readable only by
+     the inspector service account.
+  3. Sign in with username `ump` and the exact token content as the password.
+  4. Connect using `https://`, not `http://`.
+  5. Keep the endpoint on a private management network.
+</Accordion>
+
+<Accordion title="Backup verification or restore fails">
+  **Symptom:** `ump-ops verify-backup` reports a checksum or integrity error, or
+  restore refuses the destination.
+
+  **Likely cause:** A backup file changed, a database is corrupt, or the restore
+  destination already exists.
+
+  **Resolution:**
+
+  1. Do not use a backup that fails verification.
+  2. Create a fresh backup and verify it immediately.
+  3. Stop UMP services before restore.
+  4. Restore to a new, absent directory; overwrite is deliberately refused.
+  5. Run participant preflight against the restored paths before startup.
 </Accordion>
 
 <Accordion title="Stale state or freshness warnings">
