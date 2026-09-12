@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      *{box-sizing:border-box} html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#090b0e;color:#f5f7fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}
+      #root{position:relative;width:1920px;height:1080px;overflow:hidden;background:radial-gradient(circle at 25% 30%,#182028 0,#0d1116 42%,#080a0d 100%)}
+      .clip{position:absolute;inset:0}.scene{padding:74px 86px 70px}.eyebrow{font-size:20px;font-weight:700;color:#58e0ae;text-transform:uppercase}.title{font-size:72px;line-height:1.03;max-width:1420px;margin:18px 0 22px;font-weight:720}.dek{font-size:30px;line-height:1.4;color:#aeb8c3;max-width:1250px}.brand{position:absolute;top:38px;left:86px;font-weight:750;font-size:24px}.brand b{color:#58e0ae}.step{position:absolute;top:42px;right:86px;color:#85909c;font:18px ui-monospace,SFMono-Regular,Menlo,monospace}.stage{position:absolute;left:72px;top:145px;width:1120px;height:760px;border:1px solid #34404a;border-radius:8px;background:#11171d;overflow:hidden;box-shadow:0 24px 80px #0008}.stage img{width:100%;height:100%;object-fit:cover;object-position:67% 49%;filter:saturate(.72) contrast(1.08) brightness(.75);transform:scale(1.45)}.sim-tag{position:absolute;left:22px;top:22px;background:#0b1117e8;border:1px solid #4c5a66;border-radius:5px;padding:10px 13px;font:15px ui-monospace,SFMono-Regular,monospace;color:#9bdfff}.live-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#49dda2;margin-right:8px;box-shadow:0 0 14px #49dda2}.panel{position:absolute;right:72px;top:145px;width:590px;height:760px;border:1px solid #34404a;border-radius:8px;background:#0c1116;padding:24px}.panel-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #25303a;padding-bottom:18px}.panel-head h2{font-size:24px}.status-live{font:14px ui-monospace,SFMono-Regular,monospace;color:#58e0ae}.robot{margin-top:18px;border:1px solid #29353f;border-radius:6px;padding:18px;background:#111820}.robot.active{border-color:#4d8f76;box-shadow:inset 3px 0 #58e0ae}.robot-top{display:flex;align-items:center;justify-content:space-between}.robot-name{font-size:20px;font-weight:680}.pill{font:13px ui-monospace,SFMono-Regular,monospace;padding:5px 8px;border-radius:4px;background:#18272a;color:#70e7b9}.meta{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:9px 16px;color:#94a1ad;font:14px ui-monospace,SFMono-Regular,monospace}.meta strong{color:#e9eef2;font-weight:550}.event{margin-top:16px;border-left:2px solid #f0b45a;padding:12px 0 12px 16px;color:#ced5dc;font:15px/1.5 ui-monospace,SFMono-Regular,monospace}.truth{position:absolute;left:72px;right:72px;bottom:32px;height:54px;display:flex;align-items:center;justify-content:center;border-top:1px solid #28313a;color:#99a5b0;font-size:18px}.truth strong{color:#f5f7fa;margin-right:8px}.callout{position:absolute;background:#f5f7fa;color:#0b0f13;border-radius:5px;padding:13px 16px;font-size:19px;font-weight:680;box-shadow:0 12px 35px #0009}.callout:after{content:"";position:absolute;width:110px;height:2px;background:#58e0ae;transform-origin:left center}.c-amr{left:450px;top:490px}.c-amr:after{left:-100px;top:25px;transform:rotate(168deg)}.c-quad{left:220px;top:660px}.c-quad:after{right:-100px;top:25px}.c-arm{left:670px;top:275px}.c-arm:after{left:45px;top:56px;transform:rotate(95deg)}.big-number{font:700 176px/1 ui-monospace,SFMono-Regular,monospace;color:#58e0ae}.flow{display:flex;align-items:center;gap:18px;margin-top:72px}.node{border:1px solid #394650;border-radius:7px;padding:22px 28px;font-size:24px;background:#11171d}.arrow{color:#58e0ae;font-size:32px}.close-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:80px;align-items:center;height:100%}.checks{font-size:25px;line-height:2}.check:before{content:"✓";color:#58e0ae;margin-right:14px}.boundary{border:1px solid #3d4851;border-radius:8px;padding:30px;background:#10161b}.boundary h3{font-size:26px;margin-bottom:16px}.boundary p{font-size:22px;line-height:1.5;color:#aeb8c3}.path{position:absolute;height:3px;background:#58e0ae;box-shadow:0 0 12px #58e0ae}.progress{height:5px;background:#25313a;margin-top:14px}.progress span{display:block;height:100%;background:#58e0ae;width:0}.caption{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);width:1520px;text-align:center;font-size:31px;font-weight:650;text-shadow:0 3px 10px #000;background:#080b0ed9;border:1px solid #343f49;border-radius:6px;padding:17px 24px}
+      .stage img{object-position:16% 49%;filter:saturate(.82) contrast(1.08) brightness(.82)}
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="44"
+      data-width="1920"
+      data-height="1080"
+    >
+      <section id="opening" class="clip scene" data-start="0" data-duration="7" data-track-index="1">
+        <div class="eyebrow">Universal Machine Protocol</div><h1 class="title">Robots from different systems.<br>One shared operational picture.</h1>
+        <p class="dek">UMP lets machines publish what they are doing, what they intend to do, and whether they are ready to collaborate.</p>
+        <div class="flow"><div class="node">Mobile robot</div><div class="arrow">→</div><div class="node">UMP shared state</div><div class="arrow">←</div><div class="node">Inspection robot</div><div class="arrow">←</div><div class="node">Robot arm</div></div>
+        <div class="caption">This is not a robot controller. It is the communication and coordination layer between them.</div>
+      </section>
+
+      <section id="transport" class="clip" data-start="7" data-duration="12" data-track-index="1">
+        <div class="brand"><b>UMP</b> Mixed Fleet Demo</div><div class="step">01 / TRANSPORT</div>
+        <div class="stage"><img src="assets/construct-scene.png"><div class="sim-tag"><span class="live-dot"></span>The Construct · Gazebo simulation</div><div class="callout c-amr">AMR carries payload</div><div class="path" id="amr-path" style="left:245px;top:550px;width:0"></div></div>
+        <div class="panel"><div class="panel-head"><h2>Shared robot state</h2><span class="status-live">● LIVE</span></div>
+          <div class="robot active"><div class="robot-top"><span class="robot-name">mobile-1</span><span class="pill">EXECUTING</span></div><div class="meta"><span>capability</span><strong>transport</strong><span>battery</span><strong>82%</strong><span>health</span><strong>healthy</strong><span>pose</span><strong id="pose-amr">x -6.0 · y -2.0</strong></div><div class="progress"><span id="p-amr"></span></div></div>
+          <div class="robot"><div class="robot-top"><span class="robot-name">inspector-1</span><span class="pill">READY</span></div><div class="meta"><span>battery</span><strong>76%</strong><span>health</span><strong>healthy</strong></div></div>
+          <div class="event">authority lease verified<br>assignment accepted by robot<br>correlation: transfer-001</div>
+        </div><div class="truth"><strong>What UMP exposes:</strong> identity · activity · intent · progress · pose · health · battery</div>
+        <div class="caption">UMP validates authority, then the robot accepts and executes its own transport capability.</div>
+      </section>
+
+      <section id="inspection" class="clip" data-start="19" data-duration="9" data-track-index="1">
+        <div class="brand"><b>UMP</b> Mixed Fleet Demo</div><div class="step">02 / INSPECT</div>
+        <div class="stage"><img src="assets/construct-scene.png"><div class="sim-tag"><span class="live-dot"></span>The Construct · Gazebo simulation</div><div class="callout c-quad">Destination inspection</div></div>
+        <div class="panel"><div class="panel-head"><h2>Shared robot state</h2><span class="status-live">● LIVE</span></div>
+          <div class="robot"><div class="robot-top"><span class="robot-name">mobile-1</span><span class="pill">SUCCEEDED</span></div></div>
+          <div class="robot active"><div class="robot-top"><span class="robot-name">inspector-1</span><span class="pill">INSPECTING</span></div><div class="meta"><span>capability</span><strong>inspect</strong><span>battery</span><strong>76%</strong><span>health</span><strong>healthy</strong><span>result</span><strong>workcell ready</strong></div><div class="progress"><span id="p-quad"></span></div></div>
+          <div class="event">freshness: current<br>frame: warehouse/map<br>readiness published to fleet</div>
+        </div><div class="truth"><strong>No guessed telemetry:</strong> missing values remain unknown and are never invented.</div>
+        <div class="caption">Every connected participant can now see that the destination is healthy, inspected, and ready.</div>
+      </section>
+
+      <section id="handoff" class="clip" data-start="28" data-duration="9" data-track-index="1">
+        <div class="brand"><b>UMP</b> Mixed Fleet Demo</div><div class="step">03 / PLACE</div>
+        <div class="stage"><img src="assets/construct-scene.png"><div class="sim-tag"><span class="live-dot"></span>The Construct · Gazebo simulation</div><div class="callout c-arm">Arm places payload</div></div>
+        <div class="panel"><div class="panel-head"><h2>Dependency gate</h2><span class="status-live">VALIDATED</span></div>
+          <div class="event">✓ transport succeeded<br>✓ inspection succeeded<br>✓ authority lease valid</div>
+          <div class="robot active"><div class="robot-top"><span class="robot-name">manipulator-1</span><span class="pill">PLACING</span></div><div class="meta"><span>capability</span><strong>place</strong><span>battery</span><strong>unknown</strong><span>health</span><strong>healthy</strong><span>progress</span><strong>0 → 100%</strong></div><div class="progress"><span id="p-arm"></span></div></div>
+          <div class="event">native controller accepted<br>bounded assignment active<br>terminal outcome recorded</div>
+        </div><div class="truth"><strong>Safety boundary:</strong> UMP never bypasses the robot's native controller or emergency systems.</div>
+        <div class="caption">Only after both dependencies succeed does UMP release the bounded placement assignment.</div>
+      </section>
+
+      <section id="close" class="clip scene" data-start="37" data-duration="7" data-track-index="1">
+        <div class="close-grid"><div><div class="eyebrow">The result</div><div class="big-number">3</div><h1 class="title" style="font-size:56px">robot classes coordinated through one protocol</h1></div>
+        <div><div class="checks"><div class="check">State shared in real time</div><div class="check">Authority verified</div><div class="check">Dependencies enforced</div><div class="check">Outcomes traceable</div></div><div class="boundary"><h3>UMP coordinates. Robots remain in control.</h3><p>Hardware adapters use the same contract demonstrated by this Gazebo software simulation.</p></div></div></div>
+        <div class="caption">One common language for robots to understand what the rest of the fleet is doing.</div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.from("#opening .eyebrow",{opacity:0,y:20,duration:.6},0.2)
+        .from("#opening .title",{opacity:0,y:35,duration:.9},0.5)
+        .from("#opening .dek",{opacity:0,y:24,duration:.7},1.2)
+        .from("#opening .node, #opening .arrow",{opacity:0,y:18,stagger:.14,duration:.45},2.1)
+        .from("#transport .stage, #transport .panel",{opacity:0,y:24,duration:.7},7.1)
+        .from("#transport .callout",{opacity:0,scale:.9,duration:.4},8)
+        .to("#amr-path",{width:430,duration:8,ease:"none"},8.3)
+        .to("#p-amr",{width:"100%",duration:9,ease:"none"},8.2)
+        .from("#inspection .stage, #inspection .panel",{opacity:0,y:24,duration:.7},19.1)
+        .from("#inspection .callout",{opacity:0,scale:.9,duration:.4},20)
+        .to("#p-quad",{width:"100%",duration:6,ease:"none"},20.5)
+        .from("#handoff .stage, #handoff .panel",{opacity:0,y:24,duration:.7},28.1)
+        .from("#handoff .callout",{opacity:0,scale:.9,duration:.4},29)
+        .to("#p-arm",{width:"100%",duration:6,ease:"none"},29.6)
+        .from("#close .big-number, #close .title",{opacity:0,y:30,duration:.8,stagger:.15},37.2)
+        .from("#close .check",{opacity:0,x:30,stagger:.18,duration:.4},38.2)
+        .from("#close .boundary",{opacity:0,y:20,duration:.6},39.2);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
