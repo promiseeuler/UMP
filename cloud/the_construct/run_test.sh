@@ -5,11 +5,11 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$root"
 
 environment="$root/.ump-cloud-venv"
-if [[ -x "$environment/bin/python" ]]; then
+if [[ -x "$environment/bin/python" && -x "$environment/bin/pip" ]]; then
   python_bin="$environment/bin/python"
   export PATH="$environment/bin:$PATH"
 else
-  if python3 -m venv "$environment" >/dev/null 2>&1; then
+  if python3 -m venv "$environment" >/dev/null 2>&1 && [[ -x "$environment/bin/python" && -x "$environment/bin/pip" ]]; then
     python_bin="$environment/bin/python"
     export PATH="$environment/bin:$PATH"
   else
