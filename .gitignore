@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+.ump-cloud-venv/
 .ump-lab/
 .ump-cloud-runs/
 dist/

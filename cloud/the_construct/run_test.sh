@@ -4,7 +4,13 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$root"
 
-python3 -m pip install .
+environment="$root/.ump-cloud-venv"
+if [[ ! -x "$environment/bin/python" ]]; then
+  python3 -m venv "$environment"
+fi
+python_bin="$environment/bin/python"
+export PATH="$environment/bin:$PATH"
+"$python_bin" -m pip install .
 
 run_id="$(date -u +%Y%m%dT%H%M%SZ)"
 run_root="${UMP_CLOUD_OUTPUT_ROOT:-$root/.ump-cloud-runs}/$run_id"

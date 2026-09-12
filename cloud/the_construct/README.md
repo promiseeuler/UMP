@@ -39,6 +39,10 @@ The free plan may limit runtime, storage, and available ROS/Gazebo images. The
 headless fallback still proves UMP collaboration and recording, but it is not an
 external physics-simulator result.
 
+The runner creates `.ump-cloud-venv` automatically because The Construct uses
+Ubuntu's externally-managed Python policy. It does not modify the system Python
+installation.
+
 ## Evidence artifacts
 
 Each run writes to a new UTC timestamped directory under `.ump-cloud-runs/`:
