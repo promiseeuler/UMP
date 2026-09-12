@@ -133,7 +133,7 @@ class InspectorTests(unittest.TestCase):
             with urlopen(f"http://{address.host}:{address.port}/", timeout=2) as response:
                 body = response.read().decode()
                 self.assertIn("UMP Inspector", body)
-                self.assertIn("Fleet awareness", body)
+                self.assertIn("Fleet Awareness", body)
                 self.assertIn("Read only", body)
                 self.assertEqual(response.headers["Cache-Control"], "no-store")
         finally:

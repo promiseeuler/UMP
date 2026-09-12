@@ -7,70 +7,76 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="app-header">
-    <div class="product-lockup">
-      <span class="product-mark" aria-hidden="true">U</span>
-      <div><strong>UMP Inspector</strong><span>Fleet operations</span></div>
-    </div>
-    <div class="header-status">
-      <code>ump/0.1</code>
-      <span class="connection-state"><span id="connection-dot" class="status-dot warning"></span><span id="connection">Connecting</span></span>
-      <span id="last-updated" class="last-updated">Waiting for recorder</span>
-    </div>
-  </header>
-
-  <main class="app-shell">
-    <section class="page-header">
-      <div><p class="eyebrow">Operations</p><h1>Fleet awareness</h1><p>Observed robot state, integration provenance, and protocol evidence.</p></div>
-      <div class="read-only-flag"><span aria-hidden="true">RO</span><div><strong>Read only</strong><small>Recorder data</small></div></div>
-    </section>
-
-    <section class="metric-strip" aria-label="Fleet status summary">
-      <div><span>Observed robots</span><strong id="metric-robots">0</strong></div>
-      <div><span>Available</span><strong id="metric-available">0</strong></div>
-      <div><span>Needs attention</span><strong id="metric-attention">0</strong></div>
-      <div><span>Protocol events</span><strong id="metric-events">0</strong></div>
-      <div><span>Fresh state</span><strong id="metric-freshness">-</strong></div>
-    </section>
-
-    <nav class="view-tabs" aria-label="Inspector views">
-      <button type="button" class="active" data-view="fleet" aria-selected="true">Fleet</button>
-      <button type="button" data-view="protocol" aria-selected="false">Protocol events <span id="event-count">0</span></button>
-      <button type="button" data-view="validation" aria-selected="false">Validation <span id="lab-event-count">0</span></button>
-    </nav>
-
-    <section id="view-fleet" class="view-panel active" aria-label="Fleet">
-      <div class="table-toolbar">
-        <div><h2>Robots</h2><p id="fleet-result-count">0 observed</p></div>
-        <label class="search-field"><span class="sr-only">Search robots</span><input id="robot-search" type="search" placeholder="Search ID, class, or source" autocomplete="off"></label>
+  <div class="app-window">
+    <aside class="navigation-sidebar">
+      <div class="product-lockup">
+        <span class="product-mark" aria-hidden="true">U</span>
+        <div><strong>UMP</strong><span>Inspector</span></div>
       </div>
-      <div id="fleet-empty" class="data-empty" hidden><strong>No UMP robots observed</strong><span>Robots appear here only after manifests and semantic state are recorded.</span></div>
-      <div id="fleet-layout" class="fleet-layout">
-        <div class="table-wrap fleet-table-wrap">
-          <table class="fleet-table">
-            <thead><tr><th>Robot</th><th>Class</th><th>Activity</th><th>Health</th><th>Battery</th><th>Freshness</th><th>Source</th></tr></thead>
-            <tbody id="robots"></tbody>
-          </table>
+
+      <div class="sidebar-section-label">Workspace</div>
+      <nav class="view-tabs" aria-label="Inspector views">
+        <button type="button" class="active" data-view="fleet" aria-selected="true"><span>Fleet</span></button>
+        <button type="button" data-view="protocol" aria-selected="false"><span>Protocol</span><small id="event-count">0</small></button>
+        <button type="button" data-view="validation" aria-selected="false"><span>Validation</span><small id="lab-event-count">0</small></button>
+      </nav>
+
+      <div class="sidebar-status">
+        <div><span id="connection-dot" class="status-dot warning"></span><strong id="connection">Connecting</strong></div>
+        <span id="last-updated">Waiting for recorder</span>
+        <code>ump/0.1</code>
+      </div>
+    </aside>
+
+    <main class="content-shell">
+      <header class="content-toolbar">
+        <div><span class="toolbar-context">Universal Machine Protocol</span><h1>Fleet Awareness</h1></div>
+        <div class="read-only-flag"><span aria-hidden="true">RO</span><div><strong>Read only</strong><small>Observed telemetry</small></div></div>
+      </header>
+
+      <section class="metric-strip" aria-label="Fleet status summary">
+        <div><strong id="metric-robots">0</strong><span>Robots</span></div>
+        <div><strong id="metric-available">0</strong><span>Available</span></div>
+        <div><strong id="metric-attention">0</strong><span>Attention</span></div>
+        <div><strong id="metric-events">0</strong><span>Events</span></div>
+        <div><strong id="metric-freshness">-</strong><span>Fresh state</span></div>
+      </section>
+
+      <section id="view-fleet" class="view-panel active" aria-label="Fleet">
+        <div class="table-toolbar">
+          <div><h2>Robots</h2><p id="fleet-result-count">0 observed</p></div>
+          <label class="search-field"><span class="sr-only">Search robots</span><input id="robot-search" type="search" placeholder="Search fleet" autocomplete="off"></label>
         </div>
-        <aside class="detail-pane" aria-label="Selected robot details">
-          <div class="detail-heading"><div><span class="section-label">Selected robot</span><h2 id="selected-name">-</h2></div><span id="selected-health" class="status-label neutral"><span class="status-dot"></span>Unknown</span></div>
-          <div class="detail-section"><h3>Current state</h3><dl id="state-detail"></dl></div>
-          <div class="detail-section"><h3>Capabilities</h3><div id="capabilities" class="capabilities"></div></div>
-          <div class="detail-section"><h3>Integration</h3><dl id="integration-detail"></dl></div>
-        </aside>
-      </div>
-    </section>
+        <div id="fleet-empty" class="data-empty" hidden><span class="empty-symbol" aria-hidden="true">U</span><strong>No robots observed</strong><span>Robots appear after UMP manifests and semantic state are recorded.</span></div>
+        <div id="fleet-layout" class="fleet-layout">
+          <div class="table-wrap fleet-table-wrap">
+            <table class="fleet-table">
+              <thead><tr><th>Robot</th><th>Class</th><th>Activity</th><th>Health</th><th>Battery</th><th>Freshness</th><th>Source</th></tr></thead>
+              <tbody id="robots"></tbody>
+            </table>
+          </div>
+          <aside class="detail-pane" aria-label="Selected robot details">
+            <div class="detail-heading"><div><span class="section-label">Selected robot</span><h2 id="selected-name">-</h2></div><span id="selected-health" class="status-label neutral"><span class="status-dot"></span>Unknown</span></div>
+            <div class="detail-scroll">
+              <div class="detail-section"><h3>Current state</h3><dl id="state-detail"></dl></div>
+              <div class="detail-section"><h3>Capabilities</h3><div id="capabilities" class="capabilities"></div></div>
+              <div class="detail-section"><h3>Integration</h3><dl id="integration-detail"></dl></div>
+            </div>
+          </aside>
+        </div>
+      </section>
 
-    <section id="view-protocol" class="view-panel" aria-label="Protocol events">
-      <div class="table-toolbar"><div><h2>Protocol events</h2><p>Recorded UMP envelopes, newest first</p></div></div>
-      <div class="table-wrap event-table-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Source</th><th>Correlation</th><th>Summary</th></tr></thead><tbody id="events"></tbody></table></div>
-    </section>
+      <section id="view-protocol" class="view-panel" aria-label="Protocol events">
+        <div class="table-toolbar"><div><h2>Protocol Events</h2><p>Recorded UMP envelopes, newest first</p></div></div>
+        <div class="table-wrap event-table-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Source</th><th>Correlation</th><th>Summary</th></tr></thead><tbody id="events"></tbody></table></div>
+      </section>
 
-    <section id="view-validation" class="view-panel" aria-label="Validation events">
-      <div class="table-toolbar"><div><h2>Validation events</h2><p>Injected faults and scenario transitions remain separate from robot telemetry</p></div></div>
-      <div class="table-wrap event-table-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Robot</th><th>Status</th><th>Detail</th></tr></thead><tbody id="lab-events"></tbody></table></div>
-    </section>
-  </main>
+      <section id="view-validation" class="view-panel" aria-label="Validation events">
+        <div class="table-toolbar"><div><h2>Validation Events</h2><p>Faults and scenario transitions, separate from robot telemetry</p></div></div>
+        <div class="table-wrap event-table-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Robot</th><th>Status</th><th>Detail</th></tr></thead><tbody id="lab-events"></tbody></table></div>
+      </section>
+    </main>
+  </div>
   <script src="/app.js"></script>
 </body>
 </html>
